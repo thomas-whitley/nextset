@@ -731,3 +731,17 @@ async function populateDatabase() {
 
 // Run the population script
 populateDatabase();
+
+async function main() {
+  // ... your database client setup ...
+  try {
+    // ... all of your database population logic ...
+    console.log('Database populated successfully!');
+  } catch (error) {
+    console.error('!!!!!!!!!! SCRIPT FAILED !!!!!!!!!!');
+    console.error(error); // This will print the detailed error from Supabase/Postgres
+    process.exit(1); // Ensure the script exits with a failure code
+  }
+}
+
+main();
