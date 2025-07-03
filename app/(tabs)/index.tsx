@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Zap, Target, Timer, Trophy, TrendingUp, X } from 'lucide-react-native';
+import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -44,6 +44,7 @@ export default function HomeScreen() {
   };
 
   const handleQuickTimer = () => {
+    // Navigate to the comprehensive timer screen instead of a simple timer
     router.push('/timer');
   };
 
@@ -146,8 +147,9 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <TouchableOpacity style={styles.quickTimer} onPress={handleQuickTimer}>
-            <Timer size={24} color={Colors.light.primary} />
-            <Text style={styles.quickTimerText}>Quick Timer</Text>
+            <Clock size={24} color={Colors.light.primary} />
+            <Text style={styles.quickTimerText}>Workout Timer</Text>
+            <Text style={styles.quickTimerSubtext}>Advanced timers & presets</Text>
           </TouchableOpacity>
           
           <View style={styles.quickStats}>
@@ -438,12 +440,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 4,
+    flex: 1,
   },
   quickTimerText: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.text,
     marginTop: 8,
+    marginBottom: 4,
+  },
+  quickTimerSubtext: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    textAlign: 'center',
   },
   quickStats: {
     flex: 1,
