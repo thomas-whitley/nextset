@@ -4,8 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, Trophy, Target, TrendingUp } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
+import { AuthProvider, useAuth } from '@/data/AuthContext';
 
 export default function ProfileScreen() {
+  const { user } = useAuth();
+
   const handleSettingsPress = () => {
     router.push('/settings');
   };
@@ -34,9 +37,9 @@ export default function ProfileScreen() {
               style={styles.profileImage}
             />
           </View>
-          <Text style={styles.profileName}>Alex Johnson</Text>
-          <Text style={styles.profileUsername}>@alexj_fitness</Text>
-        </View>
+          <Text style={styles.profileName}>{user?.user_metadata?.full_name || 'User'}</Text>
+          <Text style={styles.profileUsername}>{user?.user_metadata?.username || 'Username'}</Text>
+         </View>
 
         {/* Lifetime Stats */}
         <View style={styles.section}>
