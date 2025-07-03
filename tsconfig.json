@@ -9,8 +9,7 @@
         "./*"
       ]
     },
-    "jsx": "react-jsx",
-    "types": []
+    "jsx": "react-jsx"
   },
   "include": [
     "**/*.ts",
