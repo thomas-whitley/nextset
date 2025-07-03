@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, Timer, Plus, Minus, X } from 'lucide-react-native';
+import { Check, Timer, Plus, Minus, X, Clock, User, FileText, MoreHorizontal, Play, Pause } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -9,6 +9,13 @@ import { useTimer } from '@/contexts/TimerContext';
 import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
+
+interface WorkoutMetadata {
+  startTime: Date | null;
+  endTime: Date | null;
+  bodyweight: string;
+  notes: string;
+}
 
 export default function WorkoutScreen() {
   const { 
@@ -20,43 +27,63 @@ export default function WorkoutScreen() {
     updateExerciseSets,
     finishWorkout 
   } = useWorkout();
-  const { startTimer, setMode, setInitialTime } = useTimer();
+  const { startTimer, setMode, setInitialTime, time, isRunning, pauseTimer, resetTimer } = useTimer();
   const { user } = useAuth();
+  
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [showMetadataModal, setShowMetadataModal] = useState(false);
   const [completedSets, setCompletedSets] = useState<Set<string>>(new Set());
-  const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
+  const [activeRestTimer, setActiveRestTimer] = useState<string | null>(null);
+  const [metadata, setMetadata] = useState<WorkoutMetadata>({
+    startTime: null,
+    endTime: null,
+    bodyweight: '',
+    notes: ''
+  });
 
   useEffect(() => {
-    if (isWorkoutActive && !workoutStartTime) {
-      setWorkoutStartTime(new Date());
+    if (isWorkoutActive && !metadata.startTime) {
+      setMetadata(prev => ({ ...prev, startTime: new Date() }));
     }
   }, [isWorkoutActive]);
 
-  const handleSetComplete = async (exerciseId: string, setId: string) => {
+  // Auto-start rest timer when set is completed
+  useEffect(() => {
+    if (activeRestTimer && !isRunning) {
+      setMode('countdown');
+      setInitialTime(90); // Default 90 seconds rest
+      startTimer();
+    }
+  }, [activeRestTimer]);
+
+  // Clear active rest timer when timer completes
+  useEffect(() => {
+    if (time === 0 && activeRestTimer) {
+      setActiveRestTimer(null);
+    }
+  }, [time]);
+
+  const handleSetComplete = async (exerciseId: string, setId: string, setType: 'warmup' | 'working') => {
     await completeSet(exerciseId, setId);
     
-    // Start rest timer automatically when set is completed
     const newCompletedSets = new Set(completedSets);
     if (!completedSets.has(setId)) {
       newCompletedSets.add(setId);
       setCompletedSets(newCompletedSets);
       
-      // Auto-start rest timer
-      setMode('countdown');
-      setInitialTime(60); // 60 seconds default rest
-      startTimer();
-      
-      router.push({
-        pathname: '/timer',
-        params: { 
-          mode: 'rest',
-          duration: '60',
-          contextExercise: 'Rest between sets'
-        }
-      });
+      // Only start rest timer for working sets, not warm-up sets
+      if (setType === 'working') {
+        setActiveRestTimer(setId);
+      }
     } else {
       newCompletedSets.delete(setId);
       setCompletedSets(newCompletedSets);
+      
+      // Stop rest timer if uncompleting a set
+      if (activeRestTimer === setId) {
+        setActiveRestTimer(null);
+        resetTimer();
+      }
     }
   };
 
@@ -87,14 +114,14 @@ export default function WorkoutScreen() {
   };
 
   const handleFinishWorkout = async () => {
-    if (!currentWorkout || !workoutStartTime || !user) {
+    if (!currentWorkout || !metadata.startTime || !user) {
       finishWorkout();
       router.push('/');
       return;
     }
 
     const endTime = new Date();
-    const durationMinutes = Math.round((endTime.getTime() - workoutStartTime.getTime()) / (1000 * 60));
+    const durationMinutes = Math.round((endTime.getTime() - metadata.startTime.getTime()) / (1000 * 60));
 
     Alert.alert(
       'Finish Workout',
@@ -106,10 +133,17 @@ export default function WorkoutScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Save workout to history
+              // Save workout to history with metadata
               await WorkoutHistoryService.saveWorkoutHistory(
                 user.id,
-                currentWorkout,
+                {
+                  ...currentWorkout,
+                  metadata: {
+                    ...metadata,
+                    endTime,
+                    duration: durationMinutes
+                  }
+                },
                 durationMinutes,
                 {} // Health stats would be populated here if HealthKit integration is available
               );
@@ -130,6 +164,79 @@ export default function WorkoutScreen() {
           }
         }
       ]
+    );
+  };
+
+  const renderSetRow = (set: any, setIndex: number, exerciseId: string, isWarmup: boolean = false) => {
+    const setType = isWarmup ? 'warmup' : 'working';
+    const setNumber = isWarmup ? '' : (setIndex + 1).toString();
+    const isCompleted = set.isComplete;
+    const isActiveRest = activeRestTimer === set.id;
+
+    return (
+      <View key={set.id} style={styles.setRow}>
+        <TouchableOpacity
+          style={[
+            styles.setIndicator,
+            isWarmup ? styles.warmupIndicator : styles.workingIndicator,
+            isCompleted && styles.completedIndicator,
+            isActiveRest && styles.activeRestIndicator
+          ]}
+          onPress={() => handleSetComplete(exerciseId, set.id, setType)}
+        >
+          {isCompleted ? (
+            <Check size={16} color="#FFFFFF" />
+          ) : (
+            <Text style={[
+              styles.setNumber,
+              isWarmup && styles.warmupSetNumber,
+              isCompleted && styles.completedSetNumber
+            ]}>
+              {setNumber}
+            </Text>
+          )}
+        </TouchableOpacity>
+        
+        <Text style={styles.previousData}>
+          {set.previousWeight}kg × {set.previousReps}
+        </Text>
+        
+        <TextInput
+          style={[styles.input, isCompleted && styles.inputComplete]}
+          value={set.weight}
+          onChangeText={(value) => updateSet(exerciseId, set.id, 'weight', value)}
+          keyboardType="numeric"
+          placeholder="kg"
+          placeholderTextColor={Colors.light.textTertiary}
+          editable={!isCompleted}
+        />
+        
+        <TextInput
+          style={[styles.input, isCompleted && styles.inputComplete]}
+          value={set.reps}
+          onChangeText={(value) => updateSet(exerciseId, set.id, 'reps', value)}
+          keyboardType="numeric"
+          placeholder="reps"
+          placeholderTextColor={Colors.light.textTertiary}
+          editable={!isCompleted}
+        />
+
+        <TextInput
+          style={[styles.notesInput, isCompleted && styles.inputComplete]}
+          value={set.notes || ''}
+          onChangeText={(value) => updateSet(exerciseId, set.id, 'notes', value)}
+          placeholder="Notes"
+          placeholderTextColor={Colors.light.textTertiary}
+          editable={!isCompleted}
+        />
+
+        {isActiveRest && (
+          <View style={styles.restTimerBadge}>
+            <Timer size={12} color={Colors.light.primary} />
+            <Text style={styles.restTimerText}>{Math.floor(time / 60)}:{(time % 60).toString().padStart(2, '0')}</Text>
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -158,19 +265,56 @@ export default function WorkoutScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <X size={24} color={Colors.light.text} />
+        </TouchableOpacity>
+        
         <View style={styles.headerContent}>
           <Text style={styles.workoutTitle}>{currentWorkout.name}</Text>
-          <Text style={styles.workoutSubtitle}>{currentWorkout.description}</Text>
-          {workoutStartTime && (
+          {metadata.startTime && (
             <Text style={styles.workoutTimer}>
-              Started: {workoutStartTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              Started: {metadata.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           )}
         </View>
-        <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout}>
-          <Text style={styles.finishButtonText}>Finish</Text>
-        </TouchableOpacity>
+
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => setShowMetadataModal(true)}
+          >
+            <MoreHorizontal size={24} color={Colors.light.text} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout}>
+            <Text style={styles.finishButtonText}>Finish</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Rest Timer Bar */}
+      {activeRestTimer && (
+        <View style={styles.restTimerBar}>
+          <View style={styles.restTimerContent}>
+            <Timer size={20} color={Colors.light.primary} />
+            <Text style={styles.restTimerTitle}>Rest Timer</Text>
+            <Text style={styles.restTimerTime}>
+              {Math.floor(time / 60)}:{(time % 60).toString().padStart(2, '0')}
+            </Text>
+          </View>
+          <View style={styles.restTimerControls}>
+            <TouchableOpacity onPress={isRunning ? pauseTimer : startTimer}>
+              {isRunning ? <Pause size={16} color={Colors.light.primary} /> : <Play size={16} color={Colors.light.primary} />}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => {
+              setActiveRestTimer(null);
+              resetTimer();
+            }}>
+              <X size={16} color={Colors.light.textTertiary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {currentWorkout.exercises.map((exercise, exerciseIndex) => (
@@ -197,53 +341,39 @@ export default function WorkoutScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* Warm-up guidance */}
+            <View style={styles.warmupGuidance}>
+              <Text style={styles.warmupTitle}>Warm up:</Text>
+              <Text style={styles.warmupText}>- 50% for 6 reps</Text>
+              <Text style={styles.warmupText}>- 70% for 5 reps</Text>
+              <Text style={styles.warmupText}>- 80% for 3 reps</Text>
+            </View>
+
+            <View style={styles.workoutGuidance}>
+              <Text style={styles.workoutTitle}>Workout</Text>
+              <Text style={styles.workoutText}>- heaviest 4-6</Text>
+              <Text style={styles.workoutText}>- (-10%)</Text>
+              <Text style={styles.workoutText}>- (-10%)</Text>
+            </View>
             
             <View style={styles.setHeader}>
               <Text style={styles.setHeaderText}>Set</Text>
               <Text style={styles.setHeaderText}>Previous</Text>
               <Text style={styles.setHeaderText}>Weight</Text>
               <Text style={styles.setHeaderText}>Reps</Text>
-              <Text style={styles.setHeaderText}>✓</Text>
+              <Text style={styles.setHeaderText}>Notes</Text>
             </View>
 
-            {exercise.sets.map((set, setIndex) => (
-              <View key={set.id}>
-                <View style={styles.setRow}>
-                  <Text style={styles.setNumber}>{setIndex + 1}</Text>
-                  
-                  <Text style={styles.previousData}>
-                    {set.previousWeight}kg × {set.previousReps}
-                  </Text>
-                  
-                  <TextInput
-                    style={[styles.input, set.isComplete && styles.inputComplete]}
-                    value={set.weight}
-                    onChangeText={(value) => updateSet(exercise.id, set.id, 'weight', value)}
-                    keyboardType="numeric"
-                    placeholder="kg"
-                    placeholderTextColor={Colors.light.textTertiary}
-                    editable={!set.isComplete}
-                  />
-                  
-                  <TextInput
-                    style={[styles.input, set.isComplete && styles.inputComplete]}
-                    value={set.reps}
-                    onChangeText={(value) => updateSet(exercise.id, set.id, 'reps', value)}
-                    keyboardType="numeric"
-                    placeholder="reps"
-                    placeholderTextColor={Colors.light.textTertiary}
-                    editable={!set.isComplete}
-                  />
-                  
-                  <TouchableOpacity
-                    style={[styles.checkbox, set.isComplete && styles.checkboxComplete]}
-                    onPress={() => handleSetComplete(exercise.id, set.id)}
-                  >
-                    {set.isComplete && <Check size={16} color="#FFFFFF" />}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+            {/* Render warm-up sets (first 3 sets as warm-up) */}
+            {exercise.sets.slice(0, Math.min(3, exercise.sets.length)).map((set, setIndex) => 
+              renderSetRow(set, setIndex, exercise.id, true)
+            )}
+
+            {/* Render working sets */}
+            {exercise.sets.slice(3).map((set, setIndex) => 
+              renderSetRow(set, setIndex, exercise.id, false)
+            )}
           </View>
         ))}
 
@@ -255,6 +385,75 @@ export default function WorkoutScreen() {
           <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Workout Metadata Modal */}
+      <Modal
+        visible={showMetadataModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Workout Details</Text>
+            <TouchableOpacity onPress={() => setShowMetadataModal(false)}>
+              <X size={24} color={Colors.light.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.metadataSection}>
+              <View style={styles.metadataRow}>
+                <Clock size={20} color={Colors.light.primary} />
+                <Text style={styles.metadataLabel}>Start Time</Text>
+                <Text style={styles.metadataValue}>
+                  {metadata.startTime ? 
+                    `${metadata.startTime.toLocaleDateString()} at ${metadata.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` 
+                    : 'Not started'
+                  }
+                </Text>
+              </View>
+
+              <View style={styles.metadataRow}>
+                <Clock size={20} color={Colors.light.primary} />
+                <Text style={styles.metadataLabel}>End Time</Text>
+                <Text style={styles.metadataValue}>
+                  {metadata.endTime ? 
+                    `${metadata.endTime.toLocaleDateString()} at ${metadata.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` 
+                    : 'In progress'
+                  }
+                </Text>
+              </View>
+
+              <View style={styles.metadataInputRow}>
+                <User size={20} color={Colors.light.primary} />
+                <Text style={styles.metadataLabel}>Bodyweight</Text>
+                <TextInput
+                  style={styles.metadataInput}
+                  value={metadata.bodyweight}
+                  onChangeText={(value) => setMetadata(prev => ({ ...prev, bodyweight: value }))}
+                  placeholder="kg"
+                  keyboardType="numeric"
+                  placeholderTextColor={Colors.light.textTertiary}
+                />
+              </View>
+
+              <View style={styles.metadataNotesRow}>
+                <FileText size={20} color={Colors.light.primary} />
+                <Text style={styles.metadataLabel}>Notes</Text>
+              </View>
+              <TextInput
+                style={styles.metadataNotesInput}
+                value={metadata.notes}
+                onChangeText={(value) => setMetadata(prev => ({ ...prev, notes: value }))}
+                placeholder="Add workout notes..."
+                multiline
+                numberOfLines={4}
+                placeholderTextColor={Colors.light.textTertiary}
+              />
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       {/* Exercise Selection Modal */}
       <Modal
@@ -293,34 +492,66 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
+    alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
+    marginRight: 12,
   },
   workoutTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
-  },
-  workoutSubtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginTop: 2,
   },
   workoutTimer: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     color: Colors.light.success,
-    marginTop: 4,
+    marginTop: 2,
   },
   finishButton: {
     backgroundColor: Colors.light.accent,
     borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   finishButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
+  },
+  restTimerBar: {
+    backgroundColor: Colors.light.primaryLight,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  restTimerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  restTimerTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.primary,
+    marginLeft: 8,
+    marginRight: 12,
+  },
+  restTimerTime: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.primary,
+  },
+  restTimerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
@@ -373,6 +604,42 @@ const styles = StyleSheet.create({
     minWidth: 20,
     textAlign: 'center',
   },
+  warmupGuidance: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  warmupTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  warmupText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    marginBottom: 2,
+  },
+  workoutGuidance: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  workoutTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  workoutText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    marginBottom: 2,
+  },
   setHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -382,7 +649,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   setHeaderText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.textTertiary,
     flex: 1,
@@ -392,16 +659,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
+    position: 'relative',
+  },
+  setIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  warmupIndicator: {
+    borderColor: Colors.light.textTertiary,
+  },
+  workingIndicator: {
+    borderColor: Colors.light.primary,
+  },
+  completedIndicator: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  activeRestIndicator: {
+    borderColor: Colors.light.accent,
+    backgroundColor: Colors.light.accentLight,
   },
   setNumber: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    flex: 1,
-    textAlign: 'center',
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.primary,
+  },
+  warmupSetNumber: {
+    color: Colors.light.textTertiary,
+  },
+  completedSetNumber: {
+    color: '#FFFFFF',
   },
   previousData: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: Colors.light.textTertiary,
     flex: 1,
@@ -421,24 +718,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
+  notesInput: {
+    flex: 1.5,
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.text,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
   inputComplete: {
     backgroundColor: Colors.light.primaryLight,
     borderColor: Colors.light.primary,
   },
-  checkbox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.light.background,
-    borderWidth: 2,
-    borderColor: Colors.light.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  checkboxComplete: {
+  restTimerBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 8,
     backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  restTimerText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+    marginLeft: 4,
   },
   addExerciseButton: {
     backgroundColor: Colors.light.card,
@@ -517,5 +829,68 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  metadataSection: {
+    paddingTop: 20,
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  metadataInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  metadataNotesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  metadataLabel: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+    marginLeft: 12,
+    flex: 1,
+  },
+  metadataValue: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+  },
+  metadataInput: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.text,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    minWidth: 80,
+  },
+  metadataNotesInput: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.text,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    textAlignVertical: 'top',
+    marginBottom: 20,
   },
 });
