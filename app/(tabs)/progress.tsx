@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TrendingUp, Trophy, Target, Calendar, Heart, Zap } from 'lucide-react-native';
+import { TrendingUp, Trophy, Target, Calendar, Heart, Zap, User, FileText } from 'lucide-react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import Colors from '@/constants/Colors';
 import { WorkoutHistoryService, ProgressStats } from '@/services/workoutHistoryService';
@@ -128,6 +128,28 @@ export default function ProgressScreen() {
     };
   };
 
+  const formatBodyweightData = () => {
+    if (!progressStats?.bodyweightProgress.length) {
+      return {
+        labels: ['No Data'],
+        datasets: [{ data: [0] }],
+      };
+    }
+
+    const last10Entries = progressStats.bodyweightProgress.slice(-10);
+    return {
+      labels: last10Entries.map(item => {
+        const date = new Date(item.date);
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+      }),
+      datasets: [{
+        data: last10Entries.map(item => item.bodyweight),
+        color: () => Colors.light.success,
+        strokeWidth: 3,
+      }],
+    };
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -231,6 +253,37 @@ export default function ProgressScreen() {
           <Text style={styles.chartSubtitle}>Volume in thousands (kg)</Text>
         </View>
 
+        {/* Bodyweight Progress */}
+        {progressStats?.bodyweightProgress && progressStats.bodyweightProgress.length > 0 && (
+          <View style={styles.chartCard}>
+            <View style={styles.chartHeader}>
+              <User size={20} color={Colors.light.success} />
+              <Text style={styles.chartTitle}>Bodyweight Progress</Text>
+            </View>
+            <LineChart
+              data={formatBodyweightData()}
+              width={screenWidth - 80}
+              height={220}
+              chartConfig={{
+                ...chartConfig,
+                color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
+                propsForDots: {
+                  ...chartConfig.propsForDots,
+                  stroke: Colors.light.success,
+                },
+              }}
+              bezier
+              style={styles.chart}
+              withInnerLines={false}
+              withOuterLines={false}
+              withVerticalLabels={true}
+              withHorizontalLabels={true}
+              fromZero={false}
+            />
+            <Text style={styles.chartSubtitle}>Weight in kg</Text>
+          </View>
+        )}
+
         {/* Workout Frequency */}
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Weekly Workout Frequency</Text>
@@ -263,6 +316,27 @@ export default function ProgressScreen() {
                   </Text>
                 </View>
                 <Text style={styles.exerciseWeight}>{exercise.maxWeight}kg</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Workout Notes */}
+        {progressStats?.workoutNotes && progressStats.workoutNotes.length > 0 && (
+          <View style={styles.notesCard}>
+            <View style={styles.notesHeader}>
+              <FileText size={20} color={Colors.light.primary} />
+              <Text style={styles.notesTitle}>Recent Workout Notes</Text>
+            </View>
+            {progressStats.workoutNotes.slice(0, 3).map((note, index) => (
+              <View key={index} style={styles.noteItem}>
+                <View style={styles.noteHeader}>
+                  <Text style={styles.noteWorkoutName}>{note.workoutName}</Text>
+                  <Text style={styles.noteDate}>
+                    {new Date(note.date).toLocaleDateString()}
+                  </Text>
+                </View>
+                <Text style={styles.noteText}>{note.notes}</Text>
               </View>
             ))}
           </View>
@@ -436,11 +510,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  chartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   chartTitle: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
     marginBottom: 16,
+    marginLeft: 8,
   },
   chart: {
     borderRadius: 16,
@@ -496,6 +576,55 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: Colors.light.primary,
+  },
+  notesCard: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  notesTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.text,
+    marginLeft: 12,
+  },
+  noteItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  noteHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  noteWorkoutName: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+  },
+  noteDate: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+  },
+  noteText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textSecondary,
+    lineHeight: 20,
   },
   streakCard: {
     backgroundColor: Colors.light.card,

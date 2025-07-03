@@ -5,7 +5,15 @@ export interface WorkoutHistoryEntry {
   id: string;
   user_id: string;
   completed_at: string;
-  workout_data: Workout;
+  workout_data: Workout & {
+    metadata?: {
+      startTime: Date;
+      endTime: Date;
+      bodyweight: string;
+      notes: string;
+      duration: number;
+    };
+  };
   health_stats: {
     avg_heart_rate?: number;
     max_heart_rate?: number;
@@ -25,6 +33,8 @@ export interface ProgressStats {
   workoutFrequency: { date: string; count: number }[];
   volumeProgress: { date: string; volume: number }[];
   exerciseProgress: { exercise: string; maxWeight: number; date: string }[];
+  bodyweightProgress: { date: string; bodyweight: number }[];
+  workoutNotes: { date: string; notes: string; workoutName: string }[];
 }
 
 export class WorkoutHistoryService {
@@ -33,7 +43,7 @@ export class WorkoutHistoryService {
    */
   static async saveWorkoutHistory(
     userId: string,
-    workout: Workout,
+    workout: Workout & { metadata?: any },
     durationMinutes: number,
     healthStats?: any
   ): Promise<WorkoutHistoryEntry> {
@@ -167,6 +177,24 @@ export class WorkoutHistoryService {
       date: data.date,
     }));
 
+    // Bodyweight progress
+    const bodyweightProgress = workouts
+      .filter(workout => workout.workout_data.metadata?.bodyweight)
+      .map(workout => ({
+        date: new Date(workout.completed_at).toISOString().split('T')[0],
+        bodyweight: parseFloat(workout.workout_data.metadata.bodyweight) || 0,
+      }))
+      .filter(entry => entry.bodyweight > 0);
+
+    // Workout notes
+    const workoutNotes = workouts
+      .filter(workout => workout.workout_data.metadata?.notes)
+      .map(workout => ({
+        date: new Date(workout.completed_at).toISOString().split('T')[0],
+        notes: workout.workout_data.metadata.notes,
+        workoutName: workout.workout_data.name,
+      }));
+
     return {
       totalWorkouts,
       totalVolume,
@@ -174,6 +202,8 @@ export class WorkoutHistoryService {
       workoutFrequency,
       volumeProgress,
       exerciseProgress,
+      bodyweightProgress,
+      workoutNotes,
     };
   }
 
@@ -244,5 +274,55 @@ export class WorkoutHistoryService {
     longestStreak = Math.max(longestStreak, tempStreak);
 
     return { currentStreak, longestStreak };
+  }
+
+  /**
+   * Get bodyweight history for a user
+   */
+  static async getBodyweightHistory(userId: string): Promise<{ date: string; bodyweight: number }[]> {
+    const { data, error } = await supabase
+      .from('workout_history')
+      .select('completed_at, workout_data')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to get bodyweight history: ${error.message}`);
+    }
+
+    const workouts = data || [];
+    
+    return workouts
+      .filter(workout => workout.workout_data.metadata?.bodyweight)
+      .map(workout => ({
+        date: new Date(workout.completed_at).toISOString().split('T')[0],
+        bodyweight: parseFloat(workout.workout_data.metadata.bodyweight) || 0,
+      }))
+      .filter(entry => entry.bodyweight > 0);
+  }
+
+  /**
+   * Get workout notes history for a user
+   */
+  static async getWorkoutNotesHistory(userId: string): Promise<{ date: string; notes: string; workoutName: string }[]> {
+    const { data, error } = await supabase
+      .from('workout_history')
+      .select('completed_at, workout_data')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to get workout notes history: ${error.message}`);
+    }
+
+    const workouts = data || [];
+    
+    return workouts
+      .filter(workout => workout.workout_data.metadata?.notes)
+      .map(workout => ({
+        date: new Date(workout.completed_at).toISOString().split('T')[0],
+        notes: workout.workout_data.metadata.notes,
+        workoutName: workout.workout_data.name,
+      }));
   }
 }
