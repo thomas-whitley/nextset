@@ -36,7 +36,7 @@ function AppNavigator() {
               // User is authenticated - show main app
               <>
                 <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-                <Stack.Screen name="timer" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+                <Stack.Screen name="timer-main" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
                 <Stack.Screen name="program-detail" options={{ presentation: 'modal' }} />
                 <Stack.Screen name="create-program" options={{ presentation: 'modal' }} />
                 <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
