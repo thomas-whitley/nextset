@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock } from 'lucide-react-native';
+import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock, Watch } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -146,11 +146,25 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickTimer} onPress={handleQuickTimer}>
-            <Clock size={24} color={Colors.light.primary} />
-            <Text style={styles.quickTimerText}>Workout Timer</Text>
-            <Text style={styles.quickTimerSubtext}>Advanced timers & presets</Text>
-          </TouchableOpacity>
+          <View style={styles.quickActionRow}>
+            <TouchableOpacity 
+              style={styles.quickTimer} 
+              onPress={() => router.push('/timer')}
+            >
+              <Watch size={24} color={Colors.light.primary} />
+              <Text style={styles.quickTimerText}>Workout Timers</Text>
+              <Text style={styles.quickTimerSubtext}>Intervals & circuits</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickTimer} 
+              onPress={handleQuickTimer}
+            >
+              <Clock size={24} color={Colors.light.success} />
+              <Text style={styles.quickTimerText}>Rest Timer</Text>
+              <Text style={styles.quickTimerSubtext}>Between sets</Text>
+            </TouchableOpacity>
+          </View>
           
           <View style={styles.quickStats}>
             <View style={styles.quickStatItem}>
@@ -425,22 +439,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primary,
     borderRadius: 2,
   },
-  quickActions: {
+  quickActionRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  quickActions: {
     marginBottom: 40,
   },
   quickTimer: {
-    backgroundColor: Colors.light.card,
+    flex: 1,
+    backgroundColor: Colors.light.primaryLight,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    marginRight: 12,
+    marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 4,
-    flex: 1,
   },
   quickTimerText: {
     fontSize: 14,
