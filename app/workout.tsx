@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, Timer, Plus, Minus, X, Clock, User, FileText, Play, Pause, Dumbbell } from 'lucide-react-native';
+import { Check, Timer, Plus, Minus, X, Clock, User, FileText, Play, Pause, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { useTimer } from '@/contexts/TimerContext';
-import { WorkoutHistoryService } from '@/services/workoutHistoryService';
+import { WorkoutLogService } from '@/services/workoutLogService';
 import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
 
@@ -54,6 +54,7 @@ export default function WorkoutScreen() {
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [workoutTimerInterval, setWorkoutTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [isWarmupCollapsed, setIsWarmupCollapsed] = useState(false);
   const [selectedWarmup, setSelectedWarmup] = useState<WarmupOption | null>(null);
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
   const [metadata, setMetadata] = useState<WorkoutMetadata>({
@@ -198,19 +199,18 @@ export default function WorkoutScreen() {
               if (restTimerInterval) clearInterval(restTimerInterval);
 
               // Save workout to history with metadata
-              await WorkoutHistoryService.saveWorkoutHistory(
+              await WorkoutLogService.saveWorkout(
                 user.id,
                 {
                   ...currentWorkout,
                   metadata: {
                     ...metadata,
                     endTime,
-                    duration: durationMinutes,
+                    duration: workoutDuration,
                     exerciseNotes
                   }
                 },
-                durationMinutes,
-                {} // Health stats would be populated here if HealthKit integration is available
+                workoutDuration
               );
 
               finishWorkout();
@@ -312,7 +312,7 @@ export default function WorkoutScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header with Workout Timer */}
-      <View style={styles.header}>
+      <View style={[styles.header, { height: 60 }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <X size={20} color={Colors.light.text} />
         </TouchableOpacity>
@@ -330,27 +330,47 @@ export default function WorkoutScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Warmup Section */}
-        <View style={styles.warmupCard}>
-          <View style={styles.warmupHeader}>
-            <Dumbbell size={16} color={Colors.light.primary} />
-            <Text style={styles.warmupTitle}>Warmup</Text>
-          </View>
-          {selectedWarmup ? (
-            <View style={styles.selectedWarmup}>
-              <Text style={styles.selectedWarmupName}>{selectedWarmup.name}</Text>
-              <Text style={styles.selectedWarmupDuration}>{selectedWarmup.duration}</Text>
+        <TouchableOpacity 
+          style={styles.warmupCard} 
+          onPress={() => setIsWarmupCollapsed(!isWarmupCollapsed)}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <Dumbbell size={16} color={Colors.light.primary} />
+              <Text style={styles.sectionTitle}>Warmup</Text>
             </View>
-          ) : (
-            <TouchableOpacity 
-              style={styles.chooseWarmupButton}
-              onPress={() => setShowWarmupModal(true)}
-            >
-              <Text style={styles.chooseWarmupText}>Choose Warmup</Text>
-            </TouchableOpacity>
+            {isWarmupCollapsed ? 
+              <ChevronDown size={20} color={Colors.light.textTertiary} /> : 
+              <ChevronUp size={20} color={Colors.light.textTertiary} />
+            }
+          </View>
+          
+          {!isWarmupCollapsed && (
+            <>
+              {selectedWarmup ? (
+                <View style={styles.selectedWarmup}>
+                  <Text style={styles.selectedWarmupName}>{selectedWarmup.name}</Text>
+                  <Text style={styles.selectedWarmupDescription}>{selectedWarmup.description}</Text>
+                  <Text style={styles.selectedWarmupDuration}>{selectedWarmup.duration}</Text>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.chooseWarmupButton}
+                  onPress={() => setShowWarmupModal(true)}
+                >
+                  <Text style={styles.chooseWarmupText}>Choose Warmup</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
-        </View>
+        </TouchableOpacity>
 
         {/* Exercises */}
         {currentWorkout.exercises.map((exercise, exerciseIndex) => (
@@ -379,18 +399,15 @@ export default function WorkoutScreen() {
             </View>
 
             {/* Exercise Notes */}
-            <View style={styles.notesSection}>
-              <Text style={styles.notesLabel}>Notes for this session:</Text>
-              <TextInput
-                style={styles.notesInput}
-                value={exerciseNotes[exercise.id] || ''}
-                onChangeText={(value) => setExerciseNotes(prev => ({ ...prev, [exercise.id]: value }))}
-                placeholder="Add notes about form, weight progression, etc..."
-                placeholderTextColor={Colors.light.textTertiary}
-                multiline
-                numberOfLines={2}
-              />
-            </View>
+            <TextInput
+              style={styles.notesInput}
+              value={exerciseNotes[exercise.id] || ''}
+              onChangeText={(value) => setExerciseNotes(prev => ({ ...prev, [exercise.id]: value }))}
+              placeholder="Notes for this session..."
+              placeholderTextColor={Colors.light.textTertiary}
+              multiline
+              numberOfLines={2}
+            />
             
             <View style={styles.setHeader}>
               <Text style={styles.setHeaderText}>Set</Text>
@@ -399,9 +416,11 @@ export default function WorkoutScreen() {
               <Text style={styles.setHeaderText}>Reps</Text>
             </View>
 
-            {exercise.sets.map((set, setIndex) => 
-              renderSetRow(set, setIndex, exercise.id)
-            )}
+            <View style={styles.setsContainer}>
+              {exercise.sets.map((set, setIndex) => 
+                renderSetRow(set, setIndex, exercise.id)
+              )}
+            </View>
           </View>
         ))}
 
@@ -412,7 +431,8 @@ export default function WorkoutScreen() {
           <Plus size={16} color={Colors.light.primary} />
           <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Warmup Selection Modal */}
       <Modal
@@ -455,10 +475,13 @@ export default function WorkoutScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add Exercise</Text>
             <TouchableOpacity onPress={() => setShowExerciseModal(false)}>
-              <X size={20} color={Colors.light.text} />
+              <X size={24} color={Colors.light.text} />
             </TouchableOpacity>
           </View>
-          <BrowseExercisesScreen onExerciseSelect={handleAddExercise} />
+          <BrowseExercisesScreen 
+            onExerciseSelect={handleAddExercise} 
+            autoFocusSearch={false}
+          />
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -467,8 +490,8 @@ export default function WorkoutScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
+    flex: 1, 
+    backgroundColor: Colors.light.background
   },
   header: {
     flexDirection: 'row',
@@ -477,8 +500,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-    backgroundColor: Colors.light.card,
+    borderBottomColor: Colors.light.border, 
+    backgroundColor: Colors.light.card
   },
   headerContent: {
     flex: 1,
@@ -514,67 +537,68 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 12
   },
   warmupCard: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    elevation: 2
   },
-  warmupHeader: {
+  sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
-  warmupTitle: {
-    fontSize: 14,
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  sectionTitle: {
+    fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.text,
-    marginLeft: 6,
+    marginLeft: 8
   },
   chooseWarmupButton: {
     backgroundColor: Colors.light.primaryLight,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    alignItems: 'center',
+    alignItems: 'center'
   },
   chooseWarmupText: {
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
-    color: Colors.light.primary,
+    color: Colors.light.primary
   },
   selectedWarmup: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginTop: 8
   },
   selectedWarmupName: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
+    color: Colors.light.text
+  },
+  selectedWarmupDescription: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: Colors.light.textTertiary,
+    marginTop: 2
   },
   selectedWarmupDuration: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: Colors.light.textTertiary,
+    marginTop: 4
   },
   exerciseCard: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    elevation: 2
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -582,12 +606,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  exerciseName: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    flex: 1,
-  },
+  exerciseName: { fontSize: 16, fontFamily: 'Inter-Bold', color: Colors.light.text, flex: 1 },
   setControls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -603,34 +622,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  setCount: {
-    fontSize: 12,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginHorizontal: 8,
-    minWidth: 16,
-    textAlign: 'center',
-  },
-  notesSection: {
-    marginBottom: 8,
-  },
-  notesLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 4,
-  },
+  setCount: { fontSize: 12, fontFamily: 'Inter-Bold', color: Colors.light.text, marginHorizontal: 8, minWidth: 16, textAlign: 'center' },
   notesInput: {
     backgroundColor: Colors.light.background,
     borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: Colors.light.text,
     borderWidth: 1,
     borderColor: Colors.light.border,
     textAlignVertical: 'top',
+    marginBottom: 8,
+    minHeight: 60
   },
   setHeader: {
     flexDirection: 'row',
@@ -639,19 +644,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
     marginBottom: 6,
+    paddingHorizontal: 4
   },
   setHeaderText: {
     fontSize: 10,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.textTertiary,
-    flex: 1,
-    textAlign: 'center',
+    width: 50,
+    textAlign: 'center'
+  },
+  setsContainer: {
+    marginBottom: 4
   },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 4,
     position: 'relative',
+    marginBottom: 2
   },
   setIndicator: {
     width: 24,
@@ -662,30 +672,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.card,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6,
+    marginRight: 4
   },
   completedIndicator: {
     backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
+    borderColor: Colors.light.primary
   },
   activeRestIndicator: {
     borderColor: Colors.light.accent,
-    backgroundColor: Colors.light.accentLight,
+    backgroundColor: Colors.light.accentLight
   },
-  setNumber: {
-    fontSize: 10,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.primary,
-  },
-  previousData: {
-    fontSize: 10,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    flex: 1,
-    textAlign: 'center',
-  },
+  setNumber: { fontSize: 10, fontFamily: 'Inter-Bold', color: Colors.light.primary },
+  previousData: { fontSize: 10, fontFamily: 'Inter-Medium', color: Colors.light.textTertiary, width: 50, textAlign: 'center' },
   input: {
-    flex: 1,
+    width: 50,
     backgroundColor: Colors.light.background,
     borderRadius: 6,
     paddingVertical: 4,
@@ -694,13 +694,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.text,
     textAlign: 'center',
-    marginHorizontal: 2,
+    marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: Colors.light.border
   },
   inputComplete: {
     backgroundColor: Colors.light.primaryLight,
-    borderColor: Colors.light.primary,
+    borderColor: Colors.light.primary
   },
   restTimerBadge: {
     position: 'absolute',
@@ -711,14 +711,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center'
   },
-  restTimerText: {
-    fontSize: 10,
-    fontFamily: 'Inter-Bold',
-    color: '#FFFFFF',
-    marginLeft: 2,
-  },
+  restTimerText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#FFFFFF', marginLeft: 2 },
   addExerciseButton: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
@@ -730,13 +725,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    borderStyle: 'dashed',
+    borderStyle: 'dashed'
   },
   addExerciseButtonText: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.primary,
-    marginLeft: 6,
+    marginLeft: 6
   },
   emptyState: {
     flex: 1,
@@ -745,20 +740,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20
   },
   emptyTitle: {
     fontSize: 24,
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
     marginBottom: 12,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   emptySubtitle: {
     fontSize: 16,
@@ -766,22 +761,22 @@ const styles = StyleSheet.create({
     color: Colors.light.textTertiary,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: 32
   },
   startWorkoutButton: {
     backgroundColor: Colors.light.primary,
     borderRadius: 16,
     paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingHorizontal: 32
   },
   startWorkoutButtonText: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#FFFFFF',
+    color: '#FFFFFF'
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: Colors.light.background
   },
   modalHeader: {
     flexDirection: 'row',
@@ -791,16 +786,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
+    alignItems: 'center'
   },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-  },
+  modalTitle: { fontSize: 18, fontFamily: 'Inter-Bold', color: Colors.light.text },
   modalContent: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 16
   },
   warmupOption: {
     flexDirection: 'row',
@@ -810,31 +802,27 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    elevation: 2
   },
   warmupOptionContent: {
     flex: 1,
-    marginRight: 12,
+    marginRight: 12
   },
   warmupOptionName: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.text,
-    marginBottom: 4,
+    marginBottom: 4
   },
   warmupOptionDescription: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: Colors.light.textTertiary,
-    lineHeight: 16,
+    lineHeight: 16
   },
   warmupOptionDuration: {
     fontSize: 14,
     fontFamily: 'Inter-Bold',
-    color: Colors.light.primary,
+    color: Colors.light.primary
   },
 });
