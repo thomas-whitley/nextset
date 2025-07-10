@@ -1,4 +1,7 @@
 [
+  // =====================================================================
+  // CHEST EXERCISES
+  // =====================================================================
   {
     "id": 1,
     "name": "Barbell Bench Press",
@@ -13,32 +16,13 @@
       "action": ["Lower the bar in a controlled manner to your mid-chest.", "Keep elbows at a 45-75 degree angle to your torso.", "Press the bar back up explosively to the starting position."],
       "keyMentalCues": "\"Push yourself away from the bar, not the bar away from you.\""
     },
-    "commonMistakes": ["Flaring elbows too wide.", "Bouncing the bar off the chest."],
-    "contraindications": ["Shoulder impingement syndrome", "Acute wrist or elbow pain"],
+    "commonMistakes": ["Flaring elbows too wide.", "Bouncing the bar off the chest.", "Lifting buttocks off the bench."],
+    "contraindications": ["Shoulder impingement syndrome", "Acute wrist or elbow pain", "Pectoral tear history"],
     "progressionId": 2,
     "regressionId": 3
   },
   {
     "id": 2,
-    "name": "Close-Grip Barbell Bench Press",
-    "isKeystone": false,
-    "movementPattern": "Push",
-    "primaryMuscleGroup": "Triceps",
-    "secondaryMuscleGroups": ["Chest", "Shoulders"],
-    "equipment": "Barbell",
-    "difficulty": "Advanced",
-    "executionCues": {
-      "setup": ["Same setup as Barbell Bench Press, but with a shoulder-width grip.", "Keep shoulder blades retracted."],
-      "action": ["Lower the bar towards your lower chest, keeping elbows tucked close to your body.", "Press upwards, focusing on triceps contraction."],
-      "keyMentalCues": "\"Tuck your elbows to your ribs.\""
-    },
-    "commonMistakes": ["Using too wide a grip, negating the triceps focus.", "Flaring elbows on the press."],
-    "contraindications": ["Elbow tendonitis", "Acute wrist pain"],
-    "progressionId": null,
-    "regressionId": 1
-  },
-  {
-    "id": 3,
     "name": "Dumbbell Bench Press",
     "isKeystone": true,
     "movementPattern": "Push",
@@ -51,10 +35,29 @@
       "action": ["Press the dumbbells upwards until arms are fully extended.", "Lower them slowly and with control, allowing for a deeper stretch than a barbell."],
       "keyMentalCues": "\"Drive your back into the bench.\""
     },
-    "commonMistakes": ["Not controlling the negative (lowering) phase.", "Clanging the dumbbells together at the top."],
-    "contraindications": [],
+    "commonMistakes": ["Not controlling the negative (lowering) phase.", "Clanging the dumbbells together at the top.", "Letting dumbbells drift too wide, stressing the shoulder joint."],
+    "contraindications": ["Shoulder instability", "Pectoral strains"],
     "progressionId": 1,
     "regressionId": 4
+  },
+  {
+    "id": 3,
+    "name": "Incline Dumbbell Press",
+    "isKeystone": false,
+    "movementPattern": "Push",
+    "primaryMuscleGroup": "Chest",
+    "secondaryMuscleGroups": ["Shoulders", "Triceps"],
+    "equipment": "Dumbbell",
+    "difficulty": "Intermediate",
+    "executionCues": {
+      "setup": ["Set a bench to a 30-45 degree incline.", "Sit and bring dumbbells to your chest."],
+      "action": ["Press the dumbbells up and slightly inwards.", "Lower with control, feeling a stretch in the upper chest."],
+      "keyMentalCues": "\"Press towards the ceiling, not just straight up.\""
+    },
+    "commonMistakes": ["Using too steep an incline, turning it into a shoulder press.", "Flaring elbows."],
+    "contraindications": ["Shoulder impingement", "AC joint issues"],
+    "progressionId": null,
+    "regressionId": 5
   },
   {
     "id": 4,
@@ -70,9 +73,9 @@
       "action": ["Lower your body until your chest nearly touches the floor.", "Keep your elbows from flaring out excessively.", "Push back up to the starting position."],
       "keyMentalCues": "\"Screw your hands into the floor.\""
     },
-    "commonMistakes": ["Sagging hips.", "Not achieving full range of motion."],
-    "contraindications": [],
-    "progressionId": 3,
+    "commonMistakes": ["Sagging hips.", "Not achieving full range of motion.", "Leading with the head."],
+    "contraindications": ["Acute wrist pain", "AC joint sprain"],
+    "progressionId": 2,
     "regressionId": 5
   },
   {
@@ -89,51 +92,13 @@
       "action": ["Lower your chest to the surface.", "Push back up powerfully."],
       "keyMentalCues": "\"Brace your core like you're about to be punched.\""
     },
-    "commonMistakes": ["Bending at the waist instead of moving the whole body."],
-    "contraindications": [],
+    "commonMistakes": ["Bending at the waist instead of moving the whole body.", "Shrugging shoulders towards ears."],
+    "contraindications": ["Shoulder impingement"],
     "progressionId": 4,
     "regressionId": null
   },
   {
     "id": 6,
-    "name": "Incline Dumbbell Press",
-    "isKeystone": false,
-    "movementPattern": "Push",
-    "primaryMuscleGroup": "Chest",
-    "secondaryMuscleGroups": ["Shoulders", "Triceps"],
-    "equipment": "Dumbbell",
-    "difficulty": "Intermediate",
-    "executionCues": {
-      "setup": ["Set a bench to a 30-45 degree incline.", "Sit and bring dumbbells to your chest."],
-      "action": ["Press the dumbbells up and slightly inwards.", "Lower with control, feeling a stretch in the upper chest."],
-      "keyMentalCues": "\"Press towards the ceiling, not just straight up.\""
-    },
-    "commonMistakes": ["Using too steep an incline, turning it into a shoulder press."],
-    "contraindications": [],
-    "progressionId": 7,
-    "regressionId": 5
-  },
-  {
-    "id": 7,
-    "name": "Incline Barbell Press",
-    "isKeystone": false,
-    "movementPattern": "Push",
-    "primaryMuscleGroup": "Chest",
-    "secondaryMuscleGroups": ["Shoulders", "Triceps"],
-    "equipment": "Barbell",
-    "difficulty": "Intermediate",
-    "executionCues": {
-      "setup": ["Set a bench to a 30-45 degree incline within a rack.", "Grip the bar slightly wider than shoulder-width."],
-      "action": ["Unrack the bar and lower it to your upper chest.", "Drive the bar up forcefully."],
-      "keyMentalCues": "\"Lead with your chest.\""
-    },
-    "commonMistakes": ["Bouncing the bar off the chest."],
-    "contraindications": [],
-    "progressionId": null,
-    "regressionId": 6
-  },
-  {
-    "id": 8,
     "name": "Dumbbell Flye",
     "isKeystone": false,
     "movementPattern": "Push",
@@ -147,12 +112,34 @@
       "keyMentalCues": "\"Imagine you are hugging a giant tree.\""
     },
     "commonMistakes": ["Bending elbows too much, turning it into a press.", "Using momentum instead of muscle."],
-    "contraindications": ["Pectoral strains"],
+    "contraindications": ["Pectoral strains", "Shoulder instability"],
     "progressionId": null,
     "regressionId": null
   },
+  // =====================================================================
+  // BACK EXERCISES
+  // =====================================================================
   {
-    "id": 10,
+    "id": 7,
+    "name": "Barbell Deadlift",
+    "isKeystone": true,
+    "movementPattern": "Hinge",
+    "primaryMuscleGroup": "Back",
+    "secondaryMuscleGroups": ["Glutes", "Hamstrings", "Core", "Quads"],
+    "equipment": "Barbell",
+    "difficulty": "Advanced",
+    "executionCues": {
+        "setup": ["Stand with your mid-foot under the barbell.", "Hinge at the hips and bend your knees to grip the bar.", "Keep your back straight, chest up, and shoulders back."],
+        "action": ["Drive through your legs to lift the weight.", "Keep the bar close to your body.", "Stand up tall, pulling your shoulders back at the top.", "Lower the bar with control by hinging at the hips first."],
+        "keyMentalCues": "\"Push the world away with your feet.\""
+    },
+    "commonMistakes": ["Rounding the lower back.", "Jerking the weight off the floor."],
+    "contraindications": ["Herniated disc", "Acute lower back injuries", "Sciatica"],
+    "progressionId": null,
+    "regressionId": 8
+  },
+  {
+    "id": 8,
     "name": "Barbell Bent-Over Row",
     "isKeystone": true,
     "movementPattern": "Pull",
@@ -166,12 +153,12 @@
       "keyMentalCues": "\"Pull with your elbows, not your hands.\""
     },
     "commonMistakes": ["Rounding the lower back.", "Using body English to lift the weight."],
-    "contraindications": ["Lower back pain"],
-    "progressionId": null,
-    "regressionId": 11
+    "contraindications": ["Lower back pain", "Poor hip hinge mechanics"],
+    "progressionId": 7,
+    "regressionId": 9
   },
   {
-    "id": 11,
+    "id": 9,
     "name": "Dumbbell Row",
     "isKeystone": false,
     "movementPattern": "Pull",
@@ -184,13 +171,13 @@
       "action": ["Pull the dumbbell up towards your hip.", "Focus on squeezing your lat.", "Lower with control."],
       "keyMentalCues": "\"Imagine starting a lawnmower.\""
     },
-    "commonMistakes": ["Twisting the torso to lift the weight."],
-    "contraindications": [],
-    "progressionId": 10,
-    "regressionId": 12
+    "commonMistakes": ["Twisting the torso to lift the weight.", "Pulling with the bicep instead of the back."],
+    "contraindications": ["Elbow tendonitis"],
+    "progressionId": 8,
+    "regressionId": 10
   },
   {
-    "id": 12,
+    "id": 10,
     "name": "Seated Cable Row",
     "isKeystone": false,
     "movementPattern": "Pull",
@@ -203,13 +190,13 @@
       "action": ["Pull the handle towards your abdomen.", "Squeeze your shoulder blades together.", "Slowly return to the starting position."],
       "keyMentalCues": "\"Drive your elbows back.\""
     },
-    "commonMistakes": ["Leaning back and using momentum."],
-    "contraindications": [],
-    "progressionId": 11,
+    "commonMistakes": ["Leaning back and using momentum.", "Rounding the shoulders forward."],
+    "contraindications": ["Lower back strain"],
+    "progressionId": 9,
     "regressionId": null
   },
   {
-    "id": 13,
+    "id": 11,
     "name": "Pull-up",
     "isKeystone": true,
     "movementPattern": "Pull",
@@ -218,17 +205,17 @@
     "equipment": "Bodyweight",
     "difficulty": "Advanced",
     "executionCues": {
-      "setup": ["Grab a pull-up bar with an overhand grip, slightly wider than your shoulders."],
+      "setup": ["Grab a pull-up bar with an overhand grip, slightly wider than your shoulders.", "Start from a dead hang."],
       "action": ["Pull your chest towards the bar.", "Drive your elbows down and back.", "Lower yourself with control until your arms are straight."],
       "keyMentalCues": "\"Try to break the bar in half.\""
     },
-    "commonMistakes": ["Not using a full range of motion.", "Swinging or kipping excessively."],
-    "contraindications": [],
-    "progressionId": 14,
-    "regressionId": 15
+    "commonMistakes": ["Not using a full range of motion.", "Swinging or kipping excessively (for strength training)."],
+    "contraindications": ["Shoulder impingement", "Elbow tendonitis"],
+    "progressionId": 12,
+    "regressionId": 13
   },
   {
-    "id": 14,
+    "id": 12,
     "name": "Weighted Pull-up",
     "isKeystone": false,
     "movementPattern": "Pull",
@@ -241,13 +228,13 @@
       "action": ["Perform a pull-up with the added resistance, maintaining strict form."],
       "keyMentalCues": "\"Stay tight, own the weight.\""
     },
-    "commonMistakes": ["Sacrificing form for more weight."],
-    "contraindications": [],
+    "commonMistakes": ["Sacrificing form for more weight.", "Losing core tension."],
+    "contraindications": ["Any pre-existing shoulder, elbow, or wrist condition"],
     "progressionId": null,
-    "regressionId": 13
+    "regressionId": 11
   },
   {
-    "id": 15,
+    "id": 13,
     "name": "Lat Pulldown",
     "isKeystone": false,
     "movementPattern": "Pull",
@@ -260,13 +247,13 @@
       "action": ["Pull the bar down to your upper chest.", "Squeeze your lats and keep your torso stationary.", "Return slowly to the start."],
       "keyMentalCues": "\"Pull with your back, not your arms.\""
     },
-    "commonMistakes": ["Leaning too far back.", "Using momentum."],
-    "contraindications": [],
-    "progressionId": 13,
-    "regressionId": 16
+    "commonMistakes": ["Leaning too far back.", "Using momentum.", "Pulling the bar behind the neck."],
+    "contraindications": ["Shoulder impingement"],
+    "progressionId": 11,
+    "regressionId": 14
   },
   {
-    "id": 16,
+    "id": 14,
     "name": "Inverted Row",
     "isKeystone": false,
     "movementPattern": "Pull",
@@ -279,17 +266,20 @@
       "action": ["Pull your chest towards the bar.", "Lower yourself with control."],
       "keyMentalCues": "\"Imagine rowing your body up.\""
     },
-    "commonMistakes": ["Sagging hips."],
-    "contraindications": [],
-    "progressionId": 15,
+    "commonMistakes": ["Sagging hips.", "Not pulling high enough."],
+    "contraindications": ["Wrist pain"],
+    "progressionId": 13,
     "regressionId": null
   },
+  // =====================================================================
+  // LEGS (QUADS, HAMSTRINGS, GLUTES)
+  // =====================================================================
   {
-    "id": 20,
+    "id": 15,
     "name": "Barbell Back Squat",
     "isKeystone": true,
     "movementPattern": "Squat",
-    "primaryMuscleGroup": "Upper Legs",
+    "primaryMuscleGroup": "Quads",
     "secondaryMuscleGroups": ["Glutes", "Core", "Hamstrings"],
     "equipment": "Barbell",
     "difficulty": "Advanced",
@@ -298,17 +288,17 @@
       "action": ["Take 2-3 steps back. Feet shoulder-width apart, toes slightly out.", "Brace your core, then descend by breaking at the hips and knees simultaneously.", "Keep your chest up and back straight. Go to at least parallel depth.", "Drive through your heels to return to standing."],
       "keyMentalCues": "\"Spread the floor with your feet.\""
     },
-    "commonMistakes": ["Knees caving inward (valgus collapse).", "Leaning too far forward.", "Not hitting adequate depth."],
-    "contraindications": ["Knee or hip injuries", "Lower back pain"],
+    "commonMistakes": ["Knees caving inward (valgus collapse).", "Leaning too far forward (good morning squat).", "Not hitting adequate depth."],
+    "contraindications": ["Knee or hip injuries", "Lower back pain", "Poor ankle mobility"],
     "progressionId": null,
-    "regressionId": 21
+    "regressionId": 16
   },
   {
-    "id": 21,
+    "id": 16,
     "name": "Goblet Squat",
     "isKeystone": true,
     "movementPattern": "Squat",
-    "primaryMuscleGroup": "Upper Legs",
+    "primaryMuscleGroup": "Quads",
     "secondaryMuscleGroups": ["Glutes", "Core"],
     "equipment": "Dumbbell",
     "difficulty": "Beginner",
@@ -317,17 +307,17 @@
       "action": ["Squat down between your legs, keeping your torso upright.", "The weight acts as a counterbalance, making it easier to maintain good form.", "Drive up to the start."],
       "keyMentalCues": "\"Keep the weight glued to your chest.\""
     },
-    "commonMistakes": ["Letting the chest fall forward."],
-    "contraindications": [],
-    "progressionId": 20,
-    "regressionId": 22
+    "commonMistakes": ["Letting the chest fall forward.", "Rising with hips first."],
+    "contraindications": ["Wrist pain", "Acute knee pain"],
+    "progressionId": 15,
+    "regressionId": 17
   },
   {
-    "id": 22,
+    "id": 17,
     "name": "Bodyweight Squat",
     "isKeystone": false,
     "movementPattern": "Squat",
-    "primaryMuscleGroup": "Upper Legs",
+    "primaryMuscleGroup": "Quads",
     "secondaryMuscleGroups": ["Glutes"],
     "equipment": "Bodyweight",
     "difficulty": "Beginner",
@@ -336,70 +326,13 @@
       "action": ["Descend as if sitting in a chair.", "Keep your back straight and chest up.", "Rise back to the starting position."],
       "keyMentalCues": "\"Sit back, not down.\""
     },
-    "commonMistakes": ["Not going low enough.", "Letting knees travel too far past toes."],
-    "contraindications": [],
-    "progressionId": 21,
+    "commonMistakes": ["Not going low enough.", "Letting knees travel too far past toes.", "Initiating movement with knees instead of hips."],
+    "contraindications": ["Severe balance issues"],
+    "progressionId": 16,
     "regressionId": null
   },
   {
-    "id": 23,
-    "name": "Leg Press",
-    "isKeystone": false,
-    "movementPattern": "Squat",
-    "primaryMuscleGroup": "Upper Legs",
-    "secondaryMuscleGroups": ["Glutes"],
-    "equipment": "Machine",
-    "difficulty": "Beginner",
-    "executionCues": {
-      "setup": ["Sit in the machine and place your feet on the platform.", "Release the safety catches."],
-      "action": ["Lower the platform by bending your knees.", "Press the weight back up, but do not lock out your knees at the top."],
-      "keyMentalCues": "\"Push with your whole foot.\""
-    },
-    "commonMistakes": ["Using a limited range of motion.", "Letting the lower back round off the pad."],
-    "contraindications": [],
-    "progressionId": null,
-    "regressionId": null
-  },
-  {
-    "id": 24,
-    "name": "Lunge",
-    "isKeystone": false,
-    "movementPattern": "Squat",
-    "primaryMuscleGroup": "Upper Legs",
-    "secondaryMuscleGroups": ["Glutes"],
-    "equipment": "Bodyweight",
-    "difficulty": "Beginner",
-    "executionCues": {
-      "setup": ["Stand with feet together."],
-      "action": ["Take a large step forward with one leg.", "Lower your hips until both knees are bent at a 90-degree angle.", "Push off the front foot to return to the start."],
-      "keyMentalCues": "\"Drop your hips straight down.\""
-    },
-    "commonMistakes": ["Front knee extending past the ankle.", "Losing balance."],
-    "contraindications": [],
-    "progressionId": null,
-    "regressionId": null
-  },
-  {
-    "id": 25,
-    "name": "Barbell Deadlift",
-    "isKeystone": true,
-    "movementPattern": "Hinge",
-    "primaryMuscleGroup": "Glutes",
-    "secondaryMuscleGroups": ["Hamstrings", "Back", "Core", "Upper Legs"],
-    "equipment": "Barbell",
-    "difficulty": "Advanced",
-    "executionCues": {
-      "setup": ["Stand with your mid-foot under the barbell.", "Hinge at the hips and bend your knees to grip the bar.", "Keep your back straight, chest up, and shoulders back."],
-      "action": ["Drive through your legs to lift the weight.", "Keep the bar close to your body.", "Stand up tall, pulling your shoulders back at the top.", "Lower the bar with control by hinging at the hips first."],
-      "keyMentalCues": "\"Push the world away with your feet.\""
-    },
-    "commonMistakes": ["Rounding the lower back.", "Jerking the weight off the floor."],
-    "contraindications": ["Herniated disc", "Lower back injuries"],
-    "progressionId": null,
-    "regressionId": 26
-  },
-  {
-    "id": 26,
+    "id": 18,
     "name": "Romanian Deadlift (RDL)",
     "isKeystone": false,
     "movementPattern": "Hinge",
@@ -408,17 +341,17 @@
     "equipment": "Barbell",
     "difficulty": "Intermediate",
     "executionCues": {
-      "setup": ["Stand tall holding a barbell.", "Keep a slight bend in your knees throughout the movement."],
-      "action": ["Hinge at your hips, pushing your butt back.", "Lower the bar while keeping it close to your legs.", "Go as low as you can without rounding your back.", "Squeeze your glutes to return to the standing position."],
-      "keyMentalCues": "\"Imagine closing a car door with your butt.\""
+        "setup": ["Stand tall holding a barbell.", "Keep a slight bend in your knees throughout the movement."],
+        "action": ["Hinge at your hips, pushing your butt back.", "Lower the bar while keeping it close to your legs.", "Go as low as you can without rounding your back.", "Squeeze your glutes to return to the standing position."],
+        "keyMentalCues": "\"Imagine closing a car door with your butt.\""
     },
     "commonMistakes": ["Bending the knees too much, turning it into a squat.", "Rounding the back."],
-    "contraindications": [],
-    "progressionId": 25,
-    "regressionId": 27
+    "contraindications": ["Poor hamstring flexibility", "Acute low back pain"],
+    "progressionId": 7,
+    "regressionId": 19
   },
   {
-    "id": 27,
+    "id": 19,
     "name": "Kettlebell Swing",
     "isKeystone": true,
     "movementPattern": "Hinge",
@@ -432,12 +365,72 @@
       "keyMentalCues": "\"This is a hip hinge, not a squat. It's an explosive movement.\""
     },
     "commonMistakes": ["Squatting the weight up.", "Using arms to lift the kettlebell."],
-    "contraindications": [],
-    "progressionId": 26,
+    "contraindications": ["Lower back injuries"],
+    "progressionId": 18,
     "regressionId": null
   },
   {
-    "id": 30,
+    "id": 20,
+    "name": "Lunge",
+    "isKeystone": false,
+    "movementPattern": "Squat",
+    "primaryMuscleGroup": "Quads",
+    "secondaryMuscleGroups": ["Glutes"],
+    "equipment": "Bodyweight",
+    "difficulty": "Beginner",
+    "executionCues": {
+      "setup": ["Stand with feet together."],
+      "action": ["Take a large step forward with one leg.", "Lower your hips until both knees are bent at a 90-degree angle.", "Push off the front foot to return to the start."],
+      "keyMentalCues": "\"Drop your hips straight down.\""
+    },
+    "commonMistakes": ["Front knee extending past the ankle.", "Losing balance.", "Pushing forward instead of straight down."],
+    "contraindications": ["Knee instability"],
+    "progressionId": 21,
+    "regressionId": null
+  },
+  {
+    "id": 21,
+    "name": "Bulgarian Split Squat",
+    "isKeystone": false,
+    "movementPattern": "Squat",
+    "primaryMuscleGroup": "Quads",
+    "secondaryMuscleGroups": ["Glutes"],
+    "equipment": "Dumbbell",
+    "difficulty": "Intermediate",
+    "executionCues": {
+        "setup": ["Place the top of your rear foot on a bench behind you.", "Hold dumbbells at your sides."],
+        "action": ["Lower your body until your front thigh is parallel to the ground.", "Keep your torso upright.", "Drive through your front foot to return to the start."],
+        "keyMentalCues": "\"Focus on the front leg doing the work.\""
+    },
+    "commonMistakes": ["Hopping on the front foot.", "Not controlling the descent."],
+    "contraindications": ["Hip mobility issues", "Balance issues"],
+    "progressionId": null,
+    "regressionId": 20
+  },
+  {
+    "id": 22,
+    "name": "Leg Press",
+    "isKeystone": false,
+    "movementPattern": "Squat",
+    "primaryMuscleGroup": "Quads",
+    "secondaryMuscleGroups": ["Glutes"],
+    "equipment": "Machine",
+    "difficulty": "Beginner",
+    "executionCues": {
+      "setup": ["Sit in the machine and place your feet on the platform.", "Release the safety catches."],
+      "action": ["Lower the platform by bending your knees.", "Press the weight back up, but do not lock out your knees at the top."],
+      "keyMentalCues": "\"Push with your whole foot.\""
+    },
+    "commonMistakes": ["Using a limited range of motion.", "Letting the lower back round off the pad.", "Knees collapsing inward."],
+    "contraindications": ["Knee pain", "Lower back issues"],
+    "progressionId": 15,
+    "regressionId": null
+  },
+  // =====================================================================
+  // SHOULDERS
+  // =====================================================================
+  {
+    "id": 23,
     "name": "Overhead Press (Barbell)",
     "isKeystone": true,
     "movementPattern": "Push",
@@ -450,13 +443,13 @@
       "action": ["Press the bar straight overhead.", "Push your head slightly through at the top to align the bar over your spine.", "Lower with control to the starting position."],
       "keyMentalCues": "\"Push your head through the window.\""
     },
-    "commonMistakes": ["Leaning back excessively.", "Not using a full range of motion."],
-    "contraindications": ["Shoulder impingement"],
+    "commonMistakes": ["Leaning back excessively.", "Not using a full range of motion.", "Flaring elbows out to the side."],
+    "contraindications": ["Shoulder impingement", "Lower back pain"],
     "progressionId": null,
-    "regressionId": 31
+    "regressionId": 24
   },
   {
-    "id": 31,
+    "id": 24,
     "name": "Seated Dumbbell Press",
     "isKeystone": false,
     "movementPattern": "Push",
@@ -469,13 +462,13 @@
       "action": ["Press the dumbbells overhead until they almost touch.", "Lower them with control."],
       "keyMentalCues": "\"Control the weight, don't let it control you.\""
     },
-    "commonMistakes": ["Arching the back excessively off the pad."],
-    "contraindications": [],
-    "progressionId": 30,
+    "commonMistakes": ["Arching the back excessively off the pad.", "Partial range of motion."],
+    "contraindications": ["Shoulder instability"],
+    "progressionId": 23,
     "regressionId": null
   },
   {
-    "id": 32,
+    "id": 25,
     "name": "Lateral Raise",
     "isKeystone": false,
     "movementPattern": "Push",
@@ -488,13 +481,35 @@
       "action": ["Raise the dumbbells out to your sides with a slight bend in your elbows.", "Lift until your arms are parallel to the floor.", "Lower with control."],
       "keyMentalCues": "\"Pour a jug of water at the top of the movement.\""
     },
-    "commonMistakes": ["Using momentum or 'shrugging' the weight up."],
-    "contraindications": [],
+    "commonMistakes": ["Using momentum or 'shrugging' the weight up.", "Lifting the weight too high."],
+    "contraindications": ["Rotator cuff injuries"],
     "progressionId": null,
     "regressionId": null
   },
   {
-    "id": 40,
+    "id": 26,
+    "name": "Face Pull",
+    "isKeystone": false,
+    "movementPattern": "Pull",
+    "primaryMuscleGroup": "Shoulders",
+    "secondaryMuscleGroups": ["Back"],
+    "equipment": "Cable",
+    "difficulty": "Beginner",
+    "executionCues": {
+      "setup": ["Set a cable pulley at head height with a rope attachment.", "Grip the rope with both hands, palms facing down."],
+      "action": ["Pull the rope towards your face, leading with your hands.", "Externally rotate your shoulders at the peak of the movement.", "Squeeze your rear delts and upper back."],
+      "keyMentalCues": "\"Pull apart the rope as you pull it towards you.\""
+    },
+    "commonMistakes": ["Using too much weight and turning it into a row.", "Not focusing on external rotation."],
+    "contraindications": ["Active shoulder pain"],
+    "progressionId": null,
+    "regressionId": null
+  },
+  // =====================================================================
+  // BICEPS
+  // =====================================================================
+  {
+    "id": 27,
     "name": "Barbell Curl",
     "isKeystone": false,
     "movementPattern": "Pull",
@@ -507,13 +522,13 @@
       "action": ["Curl the bar upwards towards your shoulders.", "Keep your elbows pinned to your sides.", "Squeeze the biceps at the top.", "Lower with control."],
       "keyMentalCues": "\"Imagine your elbows are fixed on a pivot.\""
     },
-    "commonMistakes": ["Swinging the back to lift the weight."],
-    "contraindications": [],
+    "commonMistakes": ["Swinging the back to lift the weight.", "Not using a full range of motion."],
+    "contraindications": ["Wrist pain", "Elbow tendonitis"],
     "progressionId": null,
-    "regressionId": 41
+    "regressionId": 28
   },
   {
-    "id": 41,
+    "id": 28,
     "name": "Dumbbell Curl",
     "isKeystone": false,
     "movementPattern": "Pull",
@@ -526,13 +541,13 @@
       "action": ["Curl the weights up, one at a time or simultaneously.", "Optionally, supinate (twist) your wrist as you lift.", "Lower with control."],
       "keyMentalCues": "\"Focus on the squeeze.\""
     },
-    "commonMistakes": ["Using too much momentum."],
-    "contraindications": [],
-    "progressionId": 40,
+    "commonMistakes": ["Using too much momentum.", "Elbows drifting forward."],
+    "contraindications": ["Tennis elbow"],
+    "progressionId": 27,
     "regressionId": null
   },
   {
-    "id": 42,
+    "id": 29,
     "name": "Chin-up",
     "isKeystone": true,
     "movementPattern": "Pull",
@@ -545,32 +560,16 @@
       "action": ["Pull your chest towards the bar.", "Lower yourself with control."],
       "keyMentalCues": "\"Lead with your chest.\""
     },
-    "commonMistakes": ["Not using a full range of motion."],
-    "contraindications": [],
+    "commonMistakes": ["Not using a full range of motion.", "Swinging the body."],
+    "contraindications": ["Golfer's elbow"],
     "progressionId": null,
-    "regressionId": 15
+    "regressionId": 13
   },
+  // =====================================================================
+  // TRICEPS
+  // =====================================================================
   {
-    "id": 50,
-    "name": "Triceps Pushdown",
-    "isKeystone": false,
-    "movementPattern": "Push",
-    "primaryMuscleGroup": "Triceps",
-    "secondaryMuscleGroups": [],
-    "equipment": "Cable",
-    "difficulty": "Beginner",
-    "executionCues": {
-      "setup": ["Attach a rope or bar to a high-pulley cable.", "Grip the attachment with elbows tucked at your sides."],
-      "action": ["Press the attachment down until your arms are fully extended.", "Focus on triceps contraction.", "Allow the weight to come back up with control."],
-      "keyMentalCues": "\"Keep your elbows locked in place.\""
-    },
-    "commonMistakes": ["Letting the elbows drift forward."],
-    "contraindications": [],
-    "progressionId": null,
-    "regressionId": null
-  },
-  {
-    "id": 51,
+    "id": 30,
     "name": "Dips (Triceps Version)",
     "isKeystone": true,
     "movementPattern": "Push",
@@ -583,13 +582,51 @@
       "action": ["Lower your body by bending your elbows.", "Press back up to the starting position."],
       "keyMentalCues": "\"Scrape your back against an imaginary wall.\""
     },
-    "commonMistakes": ["Leaning too far forward, which targets the chest more."],
-    "contraindications": [],
-    "progressionId": 2,
-    "regressionId": 52
+    "commonMistakes": ["Leaning too far forward, which targets the chest more.", "Flaring elbows out."],
+    "contraindications": ["Shoulder impingement", "Wrist pain"],
+    "progressionId": 31,
+    "regressionId": 32
   },
   {
-    "id": 52,
+    "id": 31,
+    "name": "Close-Grip Barbell Bench Press",
+    "isKeystone": false,
+    "movementPattern": "Push",
+    "primaryMuscleGroup": "Triceps",
+    "secondaryMuscleGroups": ["Chest", "Shoulders"],
+    "equipment": "Barbell",
+    "difficulty": "Advanced",
+    "executionCues": {
+        "setup": ["Same setup as Barbell Bench Press, but with a shoulder-width grip.", "Keep shoulder blades retracted."],
+        "action": ["Lower the bar towards your lower chest, keeping elbows tucked close to your body.", "Press upwards, focusing on triceps contraction."],
+        "keyMentalCues": "\"Tuck your elbows to your ribs.\""
+    },
+    "commonMistakes": ["Using too wide a grip, negating the triceps focus.", "Flaring elbows on the press."],
+    "contraindications": ["Elbow tendonitis", "Acute wrist pain"],
+    "progressionId": null,
+    "regressionId": 30
+  },
+  {
+    "id": 32,
+    "name": "Triceps Pushdown",
+    "isKeystone": false,
+    "movementPattern": "Push",
+    "primaryMuscleGroup": "Triceps",
+    "secondaryMuscleGroups": [],
+    "equipment": "Cable",
+    "difficulty": "Beginner",
+    "executionCues": {
+      "setup": ["Attach a rope or bar to a high-pulley cable.", "Grip the attachment with elbows tucked at your sides."],
+      "action": ["Press the attachment down until your arms are fully extended.", "Focus on triceps contraction.", "Allow the weight to come back up with control."],
+      "keyMentalCues": "\"Keep your elbows locked in place.\""
+    },
+    "commonMistakes": ["Letting the elbows drift forward.", "Using body momentum."],
+    "contraindications": ["Elbow pain"],
+    "progressionId": null,
+    "regressionId": 33
+  },
+  {
+    "id": 33,
     "name": "Bench Dips",
     "isKeystone": false,
     "movementPattern": "Push",
@@ -602,13 +639,16 @@
       "action": ["Slide your hips off the bench and lower your body.", "Push back up with your triceps."],
       "keyMentalCues": "\"Keep your back close to the bench.\""
     },
-    "commonMistakes": ["Going too low, which can stress the shoulders."],
-    "contraindications": ["Shoulder issues"],
-    "progressionId": 51,
+    "commonMistakes": ["Going too low, which can stress the shoulders.", "Hips are too far from the bench."],
+    "contraindications": ["Shoulder issues", "Wrist pain"],
+    "progressionId": 30,
     "regressionId": null
   },
+  // =====================================================================
+  // CORE
+  // =====================================================================
   {
-    "id": 60,
+    "id": 34,
     "name": "Plank",
     "isKeystone": true,
     "movementPattern": "Core",
@@ -622,12 +662,12 @@
       "keyMentalCues": "\"Don't let your hips sag.\""
     },
     "commonMistakes": ["Arching the back.", "Hips too high or too low."],
-    "contraindications": [],
-    "progressionId": null,
+    "contraindications": ["Lower back pain"],
+    "progressionId": 35,
     "regressionId": null
   },
   {
-    "id": 61,
+    "id": 35,
     "name": "Hanging Leg Raise",
     "isKeystone": false,
     "movementPattern": "Core",
@@ -640,13 +680,13 @@
       "action": ["Raise your legs up as high as you can without swinging.", "Lower with control."],
       "keyMentalCues": "\"Imagine tilting your pelvis upwards.\""
     },
-    "commonMistakes": ["Using momentum to swing the legs up."],
-    "contraindications": [],
+    "commonMistakes": ["Using momentum to swing the legs up.", "Not controlling the negative."],
+    "contraindications": ["Grip strength limitations", "Lower back issues"],
     "progressionId": null,
-    "regressionId": 62
+    "regressionId": 36
   },
   {
-    "id": 62,
+    "id": 36,
     "name": "Knee Raise",
     "isKeystone": false,
     "movementPattern": "Core",
@@ -659,17 +699,20 @@
       "action": ["Raise your knees towards your chest.", "Lower with control."],
       "keyMentalCues": "\"Crunch with your abs.\""
     },
-    "commonMistakes": ["Swinging."],
-    "contraindications": [],
-    "progressionId": 61,
+    "commonMistakes": ["Swinging the body.", "Not focusing on abdominal contraction."],
+    "contraindications": ["Hip flexor tightness"],
+    "progressionId": 35,
     "regressionId": null
   },
+  // =====================================================================
+  // CALVES AND FOREARMS
+  // =====================================================================
   {
-    "id": 70,
+    "id": 37,
     "name": "Standing Calf Raise",
     "isKeystone": false,
     "movementPattern": "Ankle",
-    "primaryMuscleGroup": "Lower Legs",
+    "primaryMuscleGroup": "Calves",
     "secondaryMuscleGroups": [],
     "equipment": "Bodyweight",
     "difficulty": "Beginner",
@@ -678,13 +721,13 @@
       "action": ["Lower your heels to feel a stretch.", "Press up onto the balls of your feet as high as possible.", "Squeeze at the top."],
       "keyMentalCues": "\"Pause at the top and bottom of the movement.\""
     },
-    "commonMistakes": ["Bouncing the reps."],
-    "contraindications": [],
+    "commonMistakes": ["Bouncing the reps.", "Using a limited range of motion."],
+    "contraindications": ["Achilles tendonitis"],
     "progressionId": null,
     "regressionId": null
   },
   {
-    "id": 80,
+    "id": 38,
     "name": "Wrist Curl",
     "isKeystone": false,
     "movementPattern": "Wrist",
@@ -697,47 +740,50 @@
       "action": ["Let the dumbbell roll down to your fingertips.", "Curl your wrist up to lift the weight."],
       "keyMentalCues": "\"Isolate the wrist movement.\""
     },
-    "commonMistakes": ["Using too much weight."],
-    "contraindications": [],
+    "commonMistakes": ["Using too much weight.", "Moving the forearm."],
+    "contraindications": ["Carpal tunnel syndrome"],
     "progressionId": null,
     "regressionId": null
   },
+  // =====================================================================
+  // CARDIO
+  // =====================================================================
   {
-    "id": 90,
+    "id": 39,
     "name": "Running",
     "isKeystone": false,
     "movementPattern": "Cardio",
     "primaryMuscleGroup": "Cardio",
-    "secondaryMuscleGroups": [],
-    "equipment": "Treadmill",
+    "secondaryMuscleGroups": ["Legs", "Core"],
+    "equipment": "Bodyweight",
     "difficulty": "Beginner",
     "executionCues": {
-      "setup": [],
-      "action": [],
-      "keyMentalCues": ""
+      "setup": ["Wear appropriate footwear.", "Maintain an upright posture."],
+      "action": ["Land mid-foot, not on your heel.", "Maintain a consistent pace and breathe rhythmically."],
+      "keyMentalCues": "\"Run tall and light on your feet.\""
     },
-    "commonMistakes": [],
-    "contraindications": [],
+    "commonMistakes": ["Overstriding.", "Poor posture (hunching over)."],
+    "contraindications": ["Joint issues (knees, hips)", "Shin splints"],
     "progressionId": null,
-    "regressionId": 91
+    "regressionId": 40
   },
   {
-    "id": 91,
+    "id": 40,
     "name": "Jogging",
     "isKeystone": false,
     "movementPattern": "Cardio",
     "primaryMuscleGroup": "Cardio",
-    "secondaryMuscleGroups": [],
+    "secondaryMuscleGroups": ["Legs"],
     "equipment": "Bodyweight",
     "difficulty": "Beginner",
     "executionCues": {
-      "setup": [],
-      "action": [],
-      "keyMentalCues": ""
+      "setup": ["Start with a brisk walk to warm up."],
+      "action": ["Transition into a slow, steady running pace.", "Focus on consistent breathing."],
+      "keyMentalCues": "\"Keep a conversational pace.\""
     },
-    "commonMistakes": [],
-    "contraindications": [],
-    "progressionId": 90,
+    "commonMistakes": ["Starting too fast.", "Heel striking."],
+    "contraindications": ["Cardiovascular conditions (consult a doctor)"],
+    "progressionId": 39,
     "regressionId": null
   }
 ]
