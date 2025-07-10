@@ -7,7 +7,7 @@ import Colors from '@/constants/Colors';
 
 export default function TimerTab() {
   const handleNavigateToTimers = () => {
-    router.push('/timer');
+    router.push('/timer-main');
   };
 
   return (
