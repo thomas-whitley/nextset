@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, Timer, Plus, Minus, X, Clock, User, FileText, Play, Pause, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Check, Timer, Plus, Minus, X, Clock, User, FileText, Play, Pause, Dumbbell, ChevronDown, ChevronUp, Watch } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -316,7 +316,7 @@ export default function WorkoutScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <X size={20} color={Colors.light.text} />
         </TouchableOpacity>
-        
+
         <View style={styles.headerContent}>
           <Text style={styles.workoutTitle}>{currentWorkout.name}</Text>
           <View style={styles.timerContainer}>
@@ -324,10 +324,18 @@ export default function WorkoutScreen() {
             <Text style={styles.workoutTimer}>{formatTime(workoutDuration)}</Text>
           </View>
         </View>
-
-        <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout}>
-          <Text style={styles.finishButtonText}>Finish</Text>
-        </TouchableOpacity>
+        
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.timerButton} 
+            onPress={() => router.push('/timer')}
+          >
+            <Watch size={20} color={Colors.light.text} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout}>
+            <Text style={styles.finishButtonText}>Finish</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <KeyboardAvoidingView 
@@ -506,6 +514,19 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
     alignItems: 'center',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timerButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.light.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   workoutTitle: {
     fontSize: 16,
