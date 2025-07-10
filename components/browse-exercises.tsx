@@ -4,29 +4,73 @@ import { Search } from 'lucide-react-native';
 import { useWorkout } from '../contexts/WorkoutContext';
 import { Exercise as DetailedExercise } from '../services/exercise.types';
 import Colors from '@/constants/Colors';
+import { supabase } from '@/data/supabase-client';
 
 interface BrowseExercisesScreenProps {
   onExerciseSelect?: (exercise: DetailedExercise) => void;
+  autoFocusSearch?: boolean;
 }
 
-export default function BrowseExercisesScreen({ onExerciseSelect }: BrowseExercisesScreenProps) {
+export default function BrowseExercisesScreen({ onExerciseSelect, autoFocusSearch = true }: BrowseExercisesScreenProps) {
   const {
-    masterExercises,
-    userCustomExercises,
-    isLoadingMasterExercises,
-    isLoadingUserCustomExercises,
-    loadMasterExercises,
-    loadUserCustomExercises,
+    masterExercises: contextMasterExercises,
+    userCustomExercises: contextUserCustomExercises,
+    isLoadingMasterExercises: contextIsLoadingMasterExercises,
+    isLoadingUserCustomExercises: contextIsLoadingUserCustomExercises,
+    loadMasterExercises: contextLoadMasterExercises,
+    loadUserCustomExercises: contextLoadUserCustomExercises,
   } = useWorkout();
 
+  const [masterExercises, setMasterExercises] = useState<DetailedExercise[]>([]);
+  const [userCustomExercises, setUserCustomExercises] = useState<DetailedExercise[]>([]);
+  const [isLoadingMasterExercises, setIsLoadingMasterExercises] = useState(true);
+  const [isLoadingUserCustomExercises, setIsLoadingUserCustomExercises] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredMasterExercises, setFilteredMasterExercises] = useState<DetailedExercise[]>([]);
   const [filteredCustomExercises, setFilteredCustomExercises] = useState<DetailedExercise[]>([]);
 
   useEffect(() => {
-    loadMasterExercises();
-    loadUserCustomExercises();
+    loadExercisesFromSupabase();
+    contextLoadUserCustomExercises();
   }, []);
+
+  const loadExercisesFromSupabase = async () => {
+    setIsLoadingMasterExercises(true);
+    try {
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*');
+      
+      if (error) {
+        console.error('Error fetching exercises from Supabase:', error);
+        // Fall back to context exercises if Supabase fetch fails
+        setMasterExercises(contextMasterExercises);
+      } else {
+        // Map Supabase data to match our DetailedExercise type
+        const mappedExercises = data.map(ex => ({
+          id: ex.id,
+          name: ex.name,
+          isKeystone: ex.is_keystone,
+          movementPattern: ex.movement_pattern,
+          primaryMuscleGroup: ex.primary_muscle_group,
+          secondaryMuscleGroups: ex.secondary_muscle_groups || [],
+          equipment: ex.equipment,
+          difficulty: ex.difficulty,
+          executionCues: ex.execution_cues,
+          commonMistakes: ex.common_mistakes || [],
+          contraindications: ex.contraindications || [],
+          progressionId: ex.progression_id,
+          regressionId: ex.regression_id
+        }));
+        setMasterExercises(mappedExercises);
+      }
+    } catch (error) {
+      console.error('Unexpected error fetching exercises:', error);
+      setMasterExercises(contextMasterExercises);
+    } finally {
+      setIsLoadingMasterExercises(false);
+    }
+  };
 
   useEffect(() => {
     // Filter exercises based on search query
@@ -34,8 +78,8 @@ export default function BrowseExercisesScreen({ onExerciseSelect }: BrowseExerci
       if (!searchQuery.trim()) return exercises;
       
       return exercises.filter(exercise =>
-        exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        exercise.primary_muscle_group.toLowerCase().includes(searchQuery.toLowerCase())
+        exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        exercise.primaryMuscleGroup.toLowerCase().includes(searchQuery.toLowerCase())
       );
     };
 
@@ -57,16 +101,16 @@ export default function BrowseExercisesScreen({ onExerciseSelect }: BrowseExerci
       <View style={styles.exerciseInfo}>
         <Text style={styles.exerciseName}>{item.name}</Text>
         <Text style={styles.exerciseDetail}>
-          {item.primary_muscle_group}
-          {item.secondary_muscle_groups && item.secondary_muscle_groups.length > 0 && 
-            ` • ${item.secondary_muscle_groups.join(', ')}`
+          {item.primaryMuscleGroup}
+          {item.secondaryMuscleGroups && item.secondaryMuscleGroups.length > 0 && 
+            ` • ${item.secondaryMuscleGroups.join(', ')}`
           }
         </Text>
-        <Text style={styles.exerciseEquipment}>{item.equipment}</Text>
+        <Text style={styles.exerciseEquipment}>Equipment: {item.equipment}</Text>
       </View>
       <View style={styles.exerciseBadge}>
         <Text style={styles.exerciseBadgeText}>
-          {item.difficulty_level || 'Beginner'}
+          {item.difficulty || 'Beginner'}
         </Text>
       </View>
     </TouchableOpacity>
@@ -95,6 +139,7 @@ export default function BrowseExercisesScreen({ onExerciseSelect }: BrowseExerci
       <View style={styles.searchContainer}>
         <Search size={20} color={Colors.light.textTertiary} />
         <TextInput
+          autoFocus={autoFocusSearch}
           style={styles.searchInput}
           placeholder="Search exercises..."
           placeholderTextColor={Colors.light.textTertiary}
@@ -236,13 +281,13 @@ const styles = StyleSheet.create({
   exerciseDetail: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
+    color: Colors.light.textSecondary,
     marginBottom: 2,
   },
   exerciseEquipment: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
+    color: Colors.light.textTertiary
   },
   exerciseBadge: {
     backgroundColor: Colors.light.primaryLight,
@@ -253,7 +298,7 @@ const styles = StyleSheet.create({
   exerciseBadgeText: {
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
-    color: Colors.light.primary,
+    color: Colors.light.primary
   },
   separator: {
     height: 8,
@@ -269,7 +314,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
+    color: Colors.light.textTertiary, 
+    textAlign: 'center'
   },
 });
