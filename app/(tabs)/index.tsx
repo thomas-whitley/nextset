@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock, Watch } from 'lucide-react-native';
+import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock, Watch, Calendar } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
+import WorkoutCalendarView from '@/components/WorkoutCalendarView';
 
 export default function HomeScreen() {
   const [streakModalVisible, setStreakModalVisible] = useState(false);
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const { currentProgram, startWorkout } = useWorkout();
   const { user, loading } = useAuth();
   
@@ -110,9 +112,13 @@ export default function HomeScreen() {
               <Text style={styles.streakTitle}>Weekly Streak</Text>
               <Text style={styles.streakSubtitle}>{weeklyStreak} weeks with 2+ workouts</Text>
             </View>
-            <View style={styles.streakBadge}>
+            <Pressable 
+              style={styles.streakBadge}
+              onPress={() => setCalendarModalVisible(true)}
+            >
+              <Calendar size={16} color="#FFFFFF" />
               <Text style={styles.streakNumber}>{weeklyStreak}</Text>
-            </View>
+            </Pressable>
           </View>
           
           <View style={styles.weekView}>
@@ -147,23 +153,17 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <View style={styles.quickActionRow}>
-            <TouchableOpacity 
-              style={styles.quickTimer} 
-              onPress={() => router.push('/timer')}
-            >
-              <Watch size={24} color={Colors.light.primary} />
-              <Text style={styles.quickTimerText}>Workout Timers</Text>
-              <Text style={styles.quickTimerSubtext}>Intervals & circuits</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.quickTimer} 
-              onPress={handleQuickTimer}
-            >
-              <Clock size={24} color={Colors.light.success} />
-              <Text style={styles.quickTimerText}>Rest Timer</Text>
-              <Text style={styles.quickTimerSubtext}>Between sets</Text>
-            </TouchableOpacity>
+            {/* Master Timer Integration */}
+            <View style={styles.masterTimerContainer}>
+              <TouchableOpacity 
+                style={styles.masterTimerButton}
+                onPress={() => router.push('/timer-main')}
+              >
+                <Watch size={32} color={Colors.light.primary} />
+                <Text style={styles.masterTimerTitle}>Master Timer</Text>
+                <Text style={styles.masterTimerSubtext}>Advanced workout timers</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           
           <View style={styles.quickStats}>
@@ -208,6 +208,12 @@ export default function HomeScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Workout Calendar Modal */}
+      <WorkoutCalendarView 
+        visible={calendarModalVisible}
+        onClose={() => setCalendarModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -361,11 +367,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   streakNumber: {
-    fontSize: 20,
+    fontSize: 16,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
+    marginLeft: 4,
   },
   weekView: {
     flexDirection: 'row',
@@ -447,13 +455,40 @@ const styles = StyleSheet.create({
   quickActions: {
     marginBottom: 40,
   },
-  quickTimer: {
+  masterTimerContainer: {
     flex: 1,
+  },
+  masterTimerButton: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: Colors.light.primaryLight,
+  },
+  masterTimerTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.text,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  masterTimerSubtext: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    textAlign: 'center',
+  },
+  quickTimer: {
     backgroundColor: Colors.light.primaryLight,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,

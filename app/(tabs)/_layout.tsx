@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Platform } from 'react-native';
-import { Zap, FileText, User, TrendingUp, TrendingUp as LucideTrendingUp, Clock } from 'lucide-react-native';
+import { Zap, FileText, User, TrendingUp, TrendingUp as LucideTrendingUp } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 
 export default function TabLayout() {
@@ -36,14 +36,6 @@ export default function TabLayout() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <LucideTrendingUp size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="timer"
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Clock size={size} color={color} />
           ),
         }}
       />
