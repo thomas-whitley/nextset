@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Calendar, Clock } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -13,6 +13,7 @@ export default function ProgramsScreen() {
   const { user } = useAuth();
   const [workoutHistory, setWorkoutHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasActiveProgram, setHasActiveProgram] = useState(false);
 
   const handleProgramPress = (program: any) => {
     setCurrentProgram(program);
@@ -29,8 +30,14 @@ export default function ProgramsScreen() {
   React.useEffect(() => {
     if (user) {
       loadWorkoutHistory();
+      checkActiveProgram();
     }
   }, [user]);
+
+  const checkActiveProgram = () => {
+    // Check if user has an active program set
+    setHasActiveProgram(!!currentProgram);
+  };
 
   const loadWorkoutHistory = async () => {
     if (!user) return;
@@ -44,6 +51,20 @@ export default function ProgramsScreen() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSelectProgram = async (program: any) => {
+    try {
+      await setCurrentProgram(program);
+      setHasActiveProgram(true);
+      Alert.alert('Program Selected', `${program.name} is now your active program!`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to set active program. Please try again.');
+    }
+  };
+
+  const handleCreateProgram = () => {
+    router.push('/create-program');
   };
 
   const formatDate = (dateString: string) => {
@@ -105,46 +126,56 @@ export default function ProgramsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Active Program Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Active Program</Text>
-        </View>
-        
-        <View style={styles.activeProgramContainer}>
-          {currentProgram ? (
-            <ProgramCard program={currentProgram} />
-          ) : (
-            <View style={styles.noProgramContainer}>
-              <Text style={styles.noProgramText}>No active program selected</Text>
+        {/* Conditional Rendering Based on Active Program Status */}
+        {hasActiveProgram ? (
+          /* Condition B: Show Active Program Details */
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Active Program</Text>
               <TouchableOpacity 
-                style={styles.selectProgramButton}
-                onPress={() => {}}
+                style={styles.changeProgramButton}
+                onPress={() => setHasActiveProgram(false)}
               >
-                <Text style={styles.selectProgramButtonText}>Select Program</Text>
+                <Text style={styles.changeProgramText}>Change Program</Text>
               </TouchableOpacity>
             </View>
-          )}
-        </View>
-        
-        {/* All Programs Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>All Programs</Text>
-        </View>
-        
-        <View style={styles.programList}>
-          {programs.map((program) => (
-            <ProgramCard key={program.id} program={program} />
-          ))}
-          
-          <TouchableOpacity 
-            style={styles.createButton} 
-            onPress={handleCreateProgram}
-            activeOpacity={0.8}
-          >
-            <Plus size={24} color={Colors.light.primary} />
-            <Text style={styles.createButtonText}>Create New Program</Text>
-          </TouchableOpacity>
-        </View>
+            
+            <View style={styles.activeProgramContainer}>
+              {currentProgram && <ProgramCard program={currentProgram} />}
+            </View>
+          </>
+        ) : (
+          /* Condition A: Show Program Selection */
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Choose Your Program</Text>
+            </View>
+            
+            <View style={styles.programList}>
+              {programs.map((program) => (
+                <TouchableOpacity
+                  key={program.id}
+                  onPress={() => handleSelectProgram(program)}
+                  activeOpacity={0.8}
+                >
+                  <ProgramCard program={program} />
+                </TouchableOpacity>
+              ))}
+              
+              <TouchableOpacity 
+                style={styles.createButton} 
+                onPress={handleCreateProgram}
+                activeOpacity={0.8}
+              >
+                <Plus size={24} color={Colors.light.primary} />
+                <Text style={styles.createButtonText}>Create Your Own Program</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* Visual Divider */}
+        <View style={styles.divider} />
         
         {/* Workout History Section */}
         <View style={styles.sectionHeader}>
@@ -224,7 +255,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: Colors.light.text
+    color: Colors.light.text,
+  },
+  changeProgramButton: {
+    backgroundColor: Colors.light.primaryLight,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  changeProgramText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.primary,
   },
   activeProgramContainer: {
     marginBottom: 8
@@ -255,6 +297,12 @@ const styles = StyleSheet.create({
   },
   programList: {
     paddingBottom: 40,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.light.border,
+    marginVertical: 24,
+    marginHorizontal: 16,
   },
   programCard: {
     backgroundColor: Colors.light.card,
