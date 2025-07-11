@@ -232,6 +232,10 @@ export default function LoginScreen() {
     router.push('/(auth)/forgotpassword');
   };
 
+  const navigateToWelcome = () => {
+    router.push('/(auth)/welcome');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView 
@@ -239,21 +243,23 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color={Colors.light.text} />
-          </TouchableOpacity>
-        </View>
-
         <ScrollView 
           style={styles.content} 
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          {/* App Logo and Branding */}
+          <View style={styles.brandingSection}>
+            <View style={styles.logoContainer}>
+              <View style={styles.logo}>
+                <Zap size={48} color="#FFFFFF" />
+              </View>
+            </View>
+            <Text style={styles.appName}>Momentum</Text>
+            <Text style={styles.appTagline}>Transform your fitness journey</Text>
+          </View>
+
           <View style={styles.titleSection}>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to continue your fitness journey</Text>
@@ -389,6 +395,12 @@ export default function LoginScreen() {
               Sign Up
             </Text>
           </Text>
+          <TouchableOpacity 
+            style={styles.welcomeLink}
+            onPress={navigateToWelcome}
+          >
+            <Text style={styles.welcomeLinkText}>Learn more about Momentum</Text>
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -403,29 +415,49 @@ const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   content: {
     flex: 1,
     paddingHorizontal: 24,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 20,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  brandingSection: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  logoContainer: {
+    marginBottom: 16,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.light.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  appName: {
+    fontSize: 32,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  appTagline: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    textAlign: 'center',
   },
   titleSection: {
     marginBottom: 32,
-    paddingTop: 16,
   },
   title: {
     fontSize: 32,
@@ -603,9 +635,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: Colors.light.textTertiary,
+    marginBottom: 16,
   },
   footerLink: {
     color: Colors.light.primary,
     fontFamily: 'Inter-SemiBold',
+  },
+  welcomeLink: {
+    paddingVertical: 8,
+  },
+  welcomeLinkText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.primary,
+    textAlign: 'center',
   },
 });
