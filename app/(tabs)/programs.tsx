@@ -63,10 +63,6 @@ export default function ProgramsScreen() {
     }
   };
 
-  const handleCreateProgram = () => {
-    router.push('/create-program');
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
