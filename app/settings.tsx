@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare } from 'lucide-react-native';
+import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
+import { supabase } from '@/data/supabase-client';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -13,6 +14,11 @@ type SettingItemProps = {
   rightElement?: React.ReactNode;
   onPress?: () => void;
   showBorder?: boolean;
+};
+
+type FAQItem = {
+  question: string;
+  answer: string;
 };
 
 function SettingItem({ icon, title, subtitle, rightElement, onPress, showBorder = true }: SettingItemProps) {
@@ -34,7 +40,80 @@ function SettingItem({ icon, title, subtitle, rightElement, onPress, showBorder 
 export default function SettingsScreen() {
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
+  const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
+  const [defaultRestTime, setDefaultRestTime] = useState(90); // seconds
+  const [showUnitsModal, setShowUnitsModal] = useState(false);
+  const [showRestTimeModal, setShowRestTimeModal] = useState(false);
+  const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
   const { signOut, user } = useAuth();
+
+  const restTimeOptions = [
+    { label: '15 seconds', value: 15 },
+    { label: '30 seconds', value: 30 },
+    { label: '45 seconds', value: 45 },
+    { label: '1:00', value: 60 },
+    { label: '1:15', value: 75 },
+    { label: '1:30', value: 90 },
+    { label: '1:45', value: 105 },
+    { label: '2:00', value: 120 },
+    { label: '2:30', value: 150 },
+    { label: '3:00', value: 180 },
+  ];
+
+  const faqItems: FAQItem[] = [
+    {
+      question: "How do I create a custom workout?",
+      answer: "Navigate to the Programs tab and tap 'Create Your Own Program'. You can add exercises, set rep ranges, and customize your workout schedule."
+    },
+    {
+      question: "How is my weekly streak calculated?",
+      answer: "Your weekly streak counts consecutive weeks where you complete at least 2 workouts. The streak resets if you have a week with fewer than 2 workouts."
+    },
+    {
+      question: "How do I reset my password?",
+      answer: "On the login screen, tap 'Forgot Password?' and enter your email. You'll receive a reset link to create a new password."
+    },
+    {
+      question: "Can I sync my workouts with other fitness apps?",
+      answer: "Currently, you can export your workout schedule as an .ics file from the calendar view. Full integration with other fitness apps is planned for future updates."
+    },
+    {
+      question: "How do I track my progress over time?",
+      answer: "Visit the Progress tab to see detailed analytics including volume trends, personal records, and workout frequency charts."
+    },
+    {
+      question: "What's the difference between the rest timer and Master Timer?",
+      answer: "The rest timer is a simple countdown between sets. The Master Timer is an advanced tool for interval training, circuits, and complex workout timing."
+    },
+    {
+      question: "How do I change my active workout program?",
+      answer: "In the Programs tab, tap 'Change Program' if you have an active program, or select a new program from the available options."
+    },
+    {
+      question: "Can I add custom exercises to my workouts?",
+      answer: "Yes! When adding exercises to a workout, you can browse our exercise library or create custom exercises with your own instructions."
+    },
+    {
+      question: "How do I view my workout history?",
+      answer: "Your workout history is available in the Programs tab. You can also view a calendar view by tapping the calendar icon on your weekly streak."
+    },
+    {
+      question: "What happens to my data if I delete the app?",
+      answer: "Your workout data is safely stored in the cloud. When you reinstall and log back in, all your data will be restored."
+    },
+    {
+      question: "How do I share my workout achievements?",
+      answer: "You can export your workout schedule and share progress screenshots from the Progress tab. Social sharing features are coming soon."
+    },
+    {
+      question: "Can I use the app offline?",
+      answer: "Basic workout logging works offline, but syncing, exercise browsing, and progress analytics require an internet connection."
+    },
+    {
+      question: "How do I contact support?",
+      answer: "Use the 'Provide Feedback' option in settings, or contact us through the Live Chat feature (coming soon) for immediate assistance."
+    }
+  ];
 
   const handleClose = () => {
     router.dismiss();
@@ -51,6 +130,56 @@ export default function SettingsScreen() {
 
   const handleAboutUs = () => {
     router.push('/aboutus');
+  };
+
+  const handleUnitsChange = async (newUnits: 'metric' | 'imperial') => {
+    setUnits(newUnits);
+    setShowUnitsModal(false);
+    
+    if (user) {
+      try {
+        const { error } = await supabase
+          .from('profile')
+          .update({ 
+            preferences: { 
+              units: newUnits,
+              defaultRestTime: defaultRestTime 
+            }
+          })
+          .eq('id', user.id);
+        
+        if (error) {
+          console.error('Error updating units preference:', error);
+        }
+      } catch (error) {
+        console.error('Error saving units preference:', error);
+      }
+    }
+  };
+
+  const handleRestTimeChange = async (newRestTime: number) => {
+    setDefaultRestTime(newRestTime);
+    setShowRestTimeModal(false);
+    
+    if (user) {
+      try {
+        const { error } = await supabase
+          .from('profile')
+          .update({ 
+            preferences: { 
+              units: units,
+              defaultRestTime: newRestTime 
+            }
+          })
+          .eq('id', user.id);
+        
+        if (error) {
+          console.error('Error updating rest time preference:', error);
+        }
+      } catch (error) {
+        console.error('Error saving rest time preference:', error);
+      }
+    }
   };
 
   const handleProvideFeedback = async () => {
@@ -73,6 +202,18 @@ export default function SettingsScreen() {
         'Unable to open the feedback form. Please try again later.'
       );
     }
+  };
+
+  const formatRestTime = (seconds: number) => {
+    if (seconds < 60) {
+      return `${seconds} seconds`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (remainingSeconds === 0) {
+      return `${minutes}:00`;
+    }
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -152,16 +293,55 @@ export default function SettingsScreen() {
           <View style={styles.settingsCard}>
             <SettingItem
               icon={<Weight size={20} color={Colors.light.primary} />}
-              title="Units"
-              subtitle="Kilograms (kg)"
+              title="Measurement Units"
+              subtitle={units === 'metric' ? 'Metric (kg, km)' : 'Imperial (lbs, miles)'}
+              onPress={() => setShowUnitsModal(true)}
             />
             
             <SettingItem
               icon={<Dumbbell size={20} color={Colors.light.primary} />}
-              title="Rest Timer Defaults"
-              subtitle="60s, 90s, 120s"
+              title="Default Rest Time"
+              subtitle={formatRestTime(defaultRestTime)}
+              onPress={() => setShowRestTimeModal(true)}
               showBorder={false}
             />
+          </View>
+        </View>
+
+        {/* Help & FAQ Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Help & FAQ</Text>
+          <View style={styles.settingsCard}>
+            {faqItems.map((item, index) => (
+              <View key={index}>
+                <TouchableOpacity
+                  style={styles.faqItem}
+                  onPress={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
+                >
+                  <Text style={styles.faqQuestion}>{item.question}</Text>
+                  {expandedFAQ === index ? (
+                    <ChevronUp size={20} color={Colors.light.textTertiary} />
+                  ) : (
+                    <ChevronDown size={20} color={Colors.light.textTertiary} />
+                  )}
+                </TouchableOpacity>
+                {expandedFAQ === index && (
+                  <View style={styles.faqAnswer}>
+                    <Text style={styles.faqAnswerText}>{item.answer}</Text>
+                  </View>
+                )}
+                {index < faqItems.length - 1 && <View style={styles.faqDivider} />}
+              </View>
+            ))}
+            
+            {/* Live Chat Placeholder */}
+            <View style={styles.liveChatPlaceholder}>
+              <MessageCircle size={20} color={Colors.light.textTertiary} />
+              <View style={styles.liveChatContent}>
+                <Text style={styles.liveChatTitle}>Live Chat Support</Text>
+                <Text style={styles.liveChatSubtitle}>Coming Soon - Get instant help from our team</Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -201,6 +381,65 @@ export default function SettingsScreen() {
         
         <Text style={styles.version}>Momentum v1.0.0</Text>
       </ScrollView>
+
+      {/* Units Selection Modal */}
+      <Modal visible={showUnitsModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Measurement Units</Text>
+            <TouchableOpacity
+              style={[styles.modalOption, units === 'metric' && styles.modalOptionSelected]}
+              onPress={() => handleUnitsChange('metric')}
+            >
+              <Text style={[styles.modalOptionText, units === 'metric' && styles.modalOptionTextSelected]}>
+                Metric (kg, km)
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalOption, units === 'imperial' && styles.modalOptionSelected]}
+              onPress={() => handleUnitsChange('imperial')}
+            >
+              <Text style={[styles.modalOptionText, units === 'imperial' && styles.modalOptionTextSelected]}>
+                Imperial (lbs, miles)
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowUnitsModal(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Rest Time Selection Modal */}
+      <Modal visible={showRestTimeModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Default Rest Time</Text>
+            <ScrollView style={styles.modalScrollView}>
+              {restTimeOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.modalOption, defaultRestTime === option.value && styles.modalOptionSelected]}
+                  onPress={() => handleRestTimeChange(option.value)}
+                >
+                  <Text style={[styles.modalOptionText, defaultRestTime === option.value && styles.modalOptionTextSelected]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowRestTimeModal(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -332,5 +571,110 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 32,
     marginBottom: 40,
+  },
+  faqItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  faqQuestion: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+    marginRight: 12,
+  },
+  faqAnswer: {
+    paddingBottom: 16,
+    paddingRight: 32,
+  },
+  faqAnswerText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textSecondary,
+    lineHeight: 20,
+  },
+  faqDivider: {
+    height: 1,
+    backgroundColor: Colors.light.border,
+    marginVertical: 8,
+  },
+  liveChatPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    opacity: 0.6,
+  },
+  liveChatContent: {
+    marginLeft: 16,
+  },
+  liveChatTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.textTertiary,
+  },
+  liveChatSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    marginTop: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.text,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalScrollView: {
+    maxHeight: 300,
+  },
+  modalOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: Colors.light.background,
+  },
+  modalOptionSelected: {
+    backgroundColor: Colors.light.primaryLight,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.text,
+    textAlign: 'center',
+  },
+  modalOptionTextSelected: {
+    color: Colors.light.primary,
+    fontFamily: 'Inter-Bold',
+  },
+  modalCancelButton: {
+    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: Colors.light.border,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
   },
 });
