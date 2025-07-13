@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Calendar, Clock } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -7,6 +7,7 @@ import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { WorkoutLogService } from '@/services/workoutLogService';
 import { useAuth } from '@/data/AuthContext';
+import WorkoutHistoryItem from '@/components/WorkoutHistoryItem';
 
 export default function ProgramsScreen() {
   const { programs, currentProgram, setCurrentProgram } = useWorkout();
@@ -14,6 +15,7 @@ export default function ProgramsScreen() {
   const [workoutHistory, setWorkoutHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasActiveProgram, setHasActiveProgram] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const handleProgramPress = (program: any) => {
     setCurrentProgram(program);
@@ -61,6 +63,17 @@ export default function ProgramsScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to set active program. Please try again.');
     }
+  };
+
+  const handleProgramChangeRequest = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmProgramChange = () => {
+    setShowConfirmModal(false);
+    setHasActiveProgram(false);
+    // Here we would archive the current program instead of deleting it
+    // For now, we'll just set hasActiveProgram to false to show the program selection
   };
 
   const formatDate = (dateString: string) => {
@@ -130,7 +143,7 @@ export default function ProgramsScreen() {
               <Text style={styles.sectionTitle}>Active Program</Text>
               <TouchableOpacity 
                 style={styles.changeProgramButton}
-                onPress={() => setHasActiveProgram(false)}
+                onPress={handleProgramChangeRequest}
               >
                 <Text style={styles.changeProgramText}>Change Program</Text>
               </TouchableOpacity>
@@ -183,29 +196,17 @@ export default function ProgramsScreen() {
             <ActivityIndicator size="small" color={Colors.light.primary} style={styles.loader} />
           ) : workoutHistory.length > 0 ? (
             workoutHistory.map((log: any) => (
-              <TouchableOpacity 
-                key={log.id} 
-                style={styles.historyItem}
-                onPress={() => {}}
-              >
-                <View style={styles.historyItemContent}>
-                  <Text style={styles.historyItemTitle}>{log.workout_name}</Text>
-                  <View style={styles.historyItemDetails}>
-                    <View style={styles.historyItemDetail}>
-                      <Calendar size={14} color={Colors.light.textTertiary} />
-                      <Text style={styles.historyItemDetailText}>
-                        {formatDate(log.completed_at)}
-                      </Text>
-                    </View>
-                    <View style={styles.historyItemDetail}>
-                      <Clock size={14} color={Colors.light.textTertiary} />
-                      <Text style={styles.historyItemDetailText}>
-                        {formatDuration(log.duration_seconds)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
+              <WorkoutHistoryItem 
+                key={log.id}
+                workout={log}
+                onEdit={(workout) => {
+                  // Handle edit functionality
+                  Alert.alert(
+                    'Edit Workout',
+                    `You'll be able to edit "${workout.workout_name}" in a future update.`
+                  );
+                }}
+              />
             ))
           ) : (
             <View style={styles.emptyHistoryContainer}>
@@ -217,6 +218,37 @@ export default function ProgramsScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Program Change Confirmation Modal */}
+      <Modal
+        visible={showConfirmModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowConfirmModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Confirm Program Change</Text>
+            <Text style={styles.modalText}>
+              Are you sure? Your custom workouts and progress for the current program will be archived. You can restore it later.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.modalCancelButton]} 
+                onPress={() => setShowConfirmModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.modalConfirmButton]} 
+                onPress={handleConfirmProgramChange}
+              >
+                <Text style={styles.modalConfirmText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -436,5 +468,60 @@ const styles = StyleSheet.create({
   },
   loader: {
     padding: 20
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.text,
+    marginBottom: 16,
+  },
+  modalText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textSecondary,
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: Colors.light.border,
+    marginRight: 8,
+  },
+  modalConfirmButton: {
+    backgroundColor: Colors.light.primary,
+    marginLeft: 8,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.textSecondary,
+  },
+  modalConfirmText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
   },
 });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert, Modal, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react-native';
+import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare, ChevronDown, ChevronUp, MessageCircle, FileDown, FileUp } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
@@ -204,6 +204,16 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleImportCSV = () => {
+    // Placeholder for future functionality
+    Alert.alert('Coming Soon', 'CSV import functionality will be available in a future update.');
+  };
+
+  const handleExportCSV = () => {
+    // Placeholder for future functionality
+    Alert.alert('Coming Soon', 'CSV export functionality will be available in a future update.');
+  };
+
   const formatRestTime = (seconds: number) => {
     if (seconds < 60) {
       return `${seconds} seconds`;
@@ -374,6 +384,27 @@ export default function SettingsScreen() {
               title="Log Out"
               onPress={handleLogOut}
               rightElement={<View />}
+              showBorder={false}
+            />
+          </View>
+        </View>
+
+        {/* Data Management Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Data Management</Text>
+          <View style={styles.settingsCard}>
+            <SettingItem
+              icon={<FileUp size={20} color={Colors.light.primary} />}
+              title="Import from CSV"
+              subtitle="Import your workout data from a CSV file"
+              onPress={handleImportCSV}
+            />
+            
+            <SettingItem
+              icon={<FileDown size={20} color={Colors.light.primary} />}
+              title="Export to CSV"
+              subtitle="Export your workout data to a CSV file"
+              onPress={handleExportCSV}
               showBorder={false}
             />
           </View>
