@@ -153,29 +153,40 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <View style={styles.quickActionRow}>
-            {/* Master Timer Integration */}
-            <View style={styles.masterTimerContainer}>
-              <TouchableOpacity 
-                style={styles.masterTimerButton}
-                onPress={() => router.push('/timer-main')}
-              >
-                <Watch size={32} color={Colors.light.primary} />
-                <Text style={styles.masterTimerTitle}>Master Timer</Text>
-                <Text style={styles.masterTimerSubtext}>Advanced workout timers</Text>
-              </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.quickTimer}
+              onPress={handleQuickTimer}
+            >
+              <Timer size={32} color={Colors.light.primary} />
+              <Text style={styles.quickTimerText}>Quick Timer</Text>
+              <Text style={styles.quickTimerSubtext}>Rest between sets</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.quickStats}>
+              <View style={styles.quickStatItem}>
+                <TrendingUp size={20} color={Colors.light.success} />
+                <Text style={styles.quickStatValue}>+12%</Text>
+                <Text style={styles.quickStatLabel}>This Month</Text>
+              </View>
+              <View style={styles.quickStatItem}>
+                <Trophy size={20} color={Colors.light.accent} />
+                <Text style={styles.quickStatValue}>47</Text>
+                <Text style={styles.quickStatLabel}>Total PRs</Text>
+              </View>
             </View>
           </View>
           
-          <View style={styles.quickStats}>
-            <View style={styles.quickStatItem}>
-              <TrendingUp size={20} color={Colors.light.success} />
-              <Text style={styles.quickStatValue}>+12%</Text>
-              <Text style={styles.quickStatLabel}>This Month</Text>
-            </View>
-            <View style={styles.quickStatItem}>
-              <Trophy size={20} color={Colors.light.accent} />
-              <Text style={styles.quickStatValue}>47</Text>
-              <Text style={styles.quickStatLabel}>Total PRs</Text>
+          <View style={styles.quickActionRow}>
+            {/* Timer Presets */}
+            <View style={styles.timerPresetsContainer}>
+              <TouchableOpacity 
+                style={styles.timerPresetsButton}
+                onPress={() => router.push('/timer')}
+              >
+                <Clock size={24} color={Colors.light.primary} />
+                <Text style={styles.timerPresetsTitle}>Timer Presets</Text>
+                <Text style={styles.timerPresetsSubtext}>HIIT, Tabata, and more</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -450,45 +461,18 @@ const styles = StyleSheet.create({
   quickActionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   quickActions: {
     marginBottom: 40,
   },
-  masterTimerContainer: {
-    flex: 1,
-  },
-  masterTimerButton: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 2,
-    borderColor: Colors.light.primaryLight,
-  },
-  masterTimerTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  masterTimerSubtext: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
-  },
   quickTimer: {
+    flex: 1,
     backgroundColor: Colors.light.primaryLight,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
+    marginRight: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -508,9 +492,37 @@ const styles = StyleSheet.create({
     color: Colors.light.textTertiary,
     textAlign: 'center',
   },
+  timerPresetsContainer: {
+    flex: 1,
+  },
+  timerPresetsButton: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  timerPresetsTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.text,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  timerPresetsSubtext: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    textAlign: 'center',
+  },
   quickStats: {
     flex: 1,
     flexDirection: 'row',
+    marginLeft: 8,
   },
   quickStatItem: {
     backgroundColor: Colors.light.card,
@@ -518,7 +530,7 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     flex: 1,
-    marginLeft: 6,
+    marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
