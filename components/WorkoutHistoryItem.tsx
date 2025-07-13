@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Calendar, Clock, Edit } from 'lucide-react-native';
+import { Calendar, Clock, CreditCard as Edit } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 import { WorkoutLogEntry } from '@/services/workoutLogService';
 import { router } from 'expo-router';
