@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock, Watch, Calendar } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -11,8 +11,63 @@ import WorkoutCalendarView from '@/components/WorkoutCalendarView';
 export default function HomeScreen() {
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
+  const [currentQuote, setCurrentQuote] = useState('');
   const { currentProgram, startWorkout } = useWorkout();
   const { user, loading } = useAuth();
+  
+  // Motivational quotes array
+  const motivationalQuotes = [
+    "The only bad workout is the one that didn't happen.",
+    "Strive for progress, not perfection.",
+    "Your body can stand almost anything. It's your mind you have to convince.",
+    "Success isn't always about greatness. It's about consistency.",
+    "Push yourself, because no one else is going to do it for you.",
+    "The pain you feel today will be the strength you feel tomorrow.",
+    "Believe in yourself and all that you are.",
+    "The secret to getting ahead is getting started.",
+    "You are stronger than you think.",
+    "Wake up with determination. Go to bed with satisfaction.",
+    "Do something today that your future self will thank you for.",
+    "It's not about having time. It's about making time.",
+    "The body achieves what the mind believes.",
+    "A little progress each day adds up to big results.",
+    "Don't limit your challenges. Challenge your limits.",
+    "The difference between try and triumph is a little 'umph'.",
+    "Success starts with self-discipline.",
+    "Be stronger than your strongest excuse.",
+    "Discipline is the bridge between goals and accomplishment.",
+    "Today's actions are tomorrow's results.",
+    "No pressure, no diamonds.",
+    "You don't have to be extreme, just consistent.",
+    "Fall in love with the process.",
+    "Become the best version of yourself.",
+    "Hustle for that muscle.",
+    "Sweat is just fat crying.",
+    "Consistency is what transforms average into excellence.",
+    "Your only limit is you.",
+    "Make today your masterpiece.",
+    "Doubt kills more dreams than failure ever will.",
+    "One workout at a time.",
+    "Focus on your goal. Don't look in any direction but ahead.",
+    "The hard part isn't getting your body in shape. The hard part is getting your mind in shape.",
+    "Commitment means staying loyal to what you said you were going to do.",
+    "Energy and persistence conquer all things.",
+    "Small steps every day.",
+    "Results are earned, not given.",
+    "Create healthy habits, not restrictions.",
+    "The goal is to get fit, make it a habit.",
+    "You get what you work for.",
+    "Train insane or remain the same.",
+    "Strength grows in the moments when you think you can't go on.",
+    "Let exercise be your stress relief.",
+    "Good things come to those who sweat.",
+    "Excuses don't burn calories.",
+    "Every rep counts.",
+    "Be the energy you want to attract.",
+    "Build your body, build your character.",
+    "Mindset is what separates the best from the rest.",
+    "Own your morning. Elevate your life."
+  ];
   
   const currentDate = new Date();
   const formatDate = (date: Date) => {
@@ -23,6 +78,12 @@ export default function HomeScreen() {
     };
     return date.toLocaleDateString('en-US', options);
   };
+
+  // Select a random quote on component mount
+  React.useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * motivationalQuotes.length);
+    setCurrentQuote(motivationalQuotes[randomIndex]);
+  }, []);
 
   const weeklyStreak = 3;
   const recentWorkouts = [
@@ -70,6 +131,11 @@ export default function HomeScreen() {
           <Text style={styles.date}>{formatDate(currentDate)}</Text>
         </View>
 
+        {/* Motivational Quote */}
+        <View style={styles.quoteContainer}>
+          <Text style={styles.quoteText}>"{currentQuote}"</Text>
+        </View>
+
         {/* Main Workout Card */}
         <TouchableOpacity style={styles.mainCard} onPress={handleStartWorkout}>
           <View style={styles.mainCardHeader}>
@@ -103,10 +169,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Streak Tile */}
-        <TouchableOpacity 
-          style={styles.streakCard}
-          onLongPress={() => setStreakModalVisible(true)}
-        >
+        <View style={styles.streakCard}>
           <View style={styles.streakHeader}>
             <View>
               <Text style={styles.streakTitle}>Weekly Streak</Text>
@@ -120,19 +183,21 @@ export default function HomeScreen() {
               <Text style={styles.streakNumber}>{weeklyStreak}</Text>
             </Pressable>
           </View>
-          
-          <View style={styles.weekView}>
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
-              <View key={index} style={styles.dayContainer}>
-                <Text style={styles.dayLabel}>{day}</Text>
+
+          <View style={styles.calendarView}>
+            {[14, 15, 16, 17, 18, 19, 20].map((date, index) => (
+              <View key={index} style={styles.dateContainer}>
+                <Text style={styles.dateLabel}>{date}</Text>
                 <View style={[
-                  styles.dayDot,
-                  [true, false, true, false, true, false, false][index] && styles.dayDotActive
-                ]} />
+                  styles.dateCircle,
+                  [true, false, true, false, true, false, false][index] && styles.dateCircleActive
+                ]}>
+                  {[true, false, true, false, true, false, false][index] && <Text style={styles.checkmark}>✓</Text>}
+                </View>
               </View>
             ))}
           </View>
-        </TouchableOpacity>
+        </View>
 
         {/* Active Goals */}
         <View style={styles.goalsCard}>
@@ -153,41 +218,28 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <View style={styles.quickActionRow}>
-            <TouchableOpacity 
-              style={styles.quickTimer}
-              onPress={handleQuickTimer}
-            >
-              <Timer size={32} color={Colors.light.primary} />
-              <Text style={styles.quickTimerText}>Quick Timer</Text>
-              <Text style={styles.quickTimerSubtext}>Rest between sets</Text>
-            </TouchableOpacity>
-            
-            <View style={styles.quickStats}>
-              <View style={styles.quickStatItem}>
-                <TrendingUp size={20} color={Colors.light.success} />
-                <Text style={styles.quickStatValue}>+12%</Text>
-                <Text style={styles.quickStatLabel}>This Month</Text>
-              </View>
-              <View style={styles.quickStatItem}>
-                <Trophy size={20} color={Colors.light.accent} />
-                <Text style={styles.quickStatValue}>47</Text>
-                <Text style={styles.quickStatLabel}>Total PRs</Text>
-              </View>
-            </View>
-          </View>
-          
-          <View style={styles.quickActionRow}>
-            {/* Timer Presets */}
-            <View style={styles.timerPresetsContainer}>
+            <View style={styles.quickTimerContainer}>
               <TouchableOpacity 
-                style={styles.timerPresetsButton}
-                onPress={() => router.push('/timer')}
+                style={styles.quickTimer}
+                onPress={handleQuickTimer}
               >
-                <Clock size={24} color={Colors.light.primary} />
-                <Text style={styles.timerPresetsTitle}>Timer Presets</Text>
-                <Text style={styles.timerPresetsSubtext}>HIIT, Tabata, and more</Text>
+                <Timer size={32} color={Colors.light.primary} />
+                <Text style={styles.quickTimerText}>Quick Timer</Text>
+                <Text style={styles.quickTimerSubtext}>Rest between sets</Text>
               </TouchableOpacity>
             </View>
+            
+            <TouchableOpacity style={styles.quickStatItem}>
+              <TrendingUp size={20} color={Colors.light.success} />
+              <Text style={styles.quickStatValue}>+12%</Text>
+              <Text style={styles.quickStatLabel}>This Month</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.quickStatItem}>
+              <Trophy size={20} color={Colors.light.accent} />
+              <Text style={styles.quickStatValue}>47</Text>
+              <Text style={styles.quickStatLabel}>Total PRs</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -262,6 +314,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: Colors.light.textTertiary,
+  },
+  quoteContainer: {
+    backgroundColor: Colors.light.primaryLight,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  quoteText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.primary,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   mainCard: {
     backgroundColor: Colors.light.card,
@@ -371,7 +436,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textTertiary,
     marginTop: 2,
   },
-  streakBadge: {
+  streakBadge: { 
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -386,27 +451,39 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginLeft: 4,
   },
-  weekView: {
+  calendarView: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 8,
   },
-  dayContainer: {
+  dateContainer: {
     alignItems: 'center',
+    width: 36,
   },
-  dayLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
+  dateLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
     marginBottom: 8,
   },
-  dayDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: Colors.light.border,
+  dateCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.light.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
-  dayDotActive: {
+  dateCircleActive: {
     backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
   },
   goalsCard: {
     backgroundColor: Colors.light.card,
@@ -462,17 +539,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
+    flexWrap: 'wrap',
   },
   quickActions: {
     marginBottom: 40,
   },
-  quickTimer: {
+  quickTimerContainer: {
     flex: 1,
+    marginRight: 8,
+  },
+  quickTimer: {
     backgroundColor: Colors.light.primaryLight,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    marginRight: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -520,36 +600,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   quickStats: {
-    flex: 1,
     flexDirection: 'row',
-    marginLeft: 8,
-  },
-  quickStatItem: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
+    justifyContent: 'space-between',
     flex: 1,
-    marginHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  quickStatValue: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  quickStatLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
