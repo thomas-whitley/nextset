@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
 import { Calendar, Clock, TrendingUp, Target, X } from 'lucide-react-native';
-import { Colors } from '@/constants/Colors';
+import Colors from '@/constants/Colors';
 import { router } from 'expo-router';
 import WorkoutCalendarView from '@/components/WorkoutCalendarView';
 
