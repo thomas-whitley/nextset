@@ -184,39 +184,52 @@ export default function WorkoutScreen() {
     const endTime = new Date();
     const durationMinutes = Math.round((endTime.getTime() - workoutStartTime.getTime()) / (1000 * 60));
 
-    try {
-      // Clear timers
-      if (workoutTimerInterval) clearInterval(workoutTimerInterval);
-      if (restTimerInterval) clearInterval(restTimerInterval);
+    Alert.alert(
+      'Finish Workout',
+      'Are you sure you want to finish this workout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Finish', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Clear timers
+              if (workoutTimerInterval) clearInterval(workoutTimerInterval);
+              if (restTimerInterval) clearInterval(restTimerInterval);
 
-      // Save workout to history with metadata
-      await WorkoutLogService.saveWorkout(
-        user.id,
-        {
-          ...currentWorkout,
-          metadata: {
-            ...metadata,
-            endTime,
-            duration: workoutDuration,
-            exerciseNotes
+              // Save workout to history with metadata
+              await WorkoutLogService.saveWorkout(
+                user.id,
+                {
+                  ...currentWorkout,
+                  metadata: {
+                    ...metadata,
+                    endTime,
+                    duration: workoutDuration,
+                    exerciseNotes
+                  }
+                },
+                workoutDuration
+              );
+
+              finishWorkout();
+              router.push('/');
+              
+              Alert.alert(
+                'Workout Complete!',
+                `Great job! Your workout lasted ${formatTime(workoutDuration)}.`,
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              console.error('Failed to save workout:', error);
+              finishWorkout();
+              router.push('/');
+            }
           }
-        },
-        workoutDuration
-      );
-
-      finishWorkout();
-      router.push('/');
-      
-      Alert.alert(
-        'Workout Complete!',
-        `Great job! Your workout lasted ${formatTime(workoutDuration)}.`,
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('Failed to save workout:', error);
-      finishWorkout();
-      router.push('/');
-    }
+        }
+      ]
+    );
   };
 
   const renderSetRow = (set: any, setIndex: number, exerciseId: string) => {
