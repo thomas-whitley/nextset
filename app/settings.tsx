@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -59,32 +59,6 @@ export default function SettingsScreen() {
     { label: '2:30', value: 150 },
     { label: '3:00', value: 180 },
   ];
-
-  const handleDarkModeToggle = async (value: boolean) => {
-    setDarkMode(value);
-    
-    if (user) {
-      try {
-        const { error } = await supabase
-          .from('profile')
-          .update({ 
-            preferences: { 
-              ...user.user_metadata?.preferences,
-              darkMode: value,
-              units: units,
-              defaultRestTime: defaultRestTime 
-            }
-          })
-          .eq('id', user.id);
-        
-        if (error) {
-          console.error('Error updating dark mode preference:', error);
-        }
-      } catch (error) {
-        console.error('Error saving dark mode preference:', error);
-      }
-    }
-  };
 
   const faqItems: FAQItem[] = [
     {
@@ -297,7 +271,7 @@ export default function SettingsScreen() {
               rightElement={
                 <Switch
                   value={darkMode}
-                  onValueChange={handleDarkModeToggle}
+                  onValueChange={setDarkMode}
                   trackColor={{ false: Colors.light.border, true: Colors.light.primaryLight }}
                   thumbColor={darkMode ? Colors.light.primary : Colors.light.textTertiary}
                 />
@@ -368,20 +342,6 @@ export default function SettingsScreen() {
                 <Text style={styles.liveChatSubtitle}>Coming Soon - Get instant help from our team</Text>
               </View>
             </View>
-          </View>
-        </View>
-
-        {/* CSV Import/Export Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data Management</Text>
-          <View style={styles.settingsCard}>
-            <TouchableOpacity style={styles.csvButton}>
-              <Text style={styles.csvButtonText}>Import from CSV</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.csvButton}>
-              <Text style={styles.csvButtonText}>Export to CSV</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -716,18 +676,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.textSecondary,
     textAlign: 'center',
-  },
-  csvButton: {
-    backgroundColor: Colors.light.primaryLight,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginVertical: 8,
-    alignItems: 'center',
-  },
-  csvButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.primary,
   },
 });
