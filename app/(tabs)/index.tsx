@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock, Watch, Calendar } from 'lucide-react-native';
+import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock, Calendar } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutCalendarView from '@/components/WorkoutCalendarView';
+import MotivationalQuote from '@/components/MotivationalQuote';
 
 export default function HomeScreen() {
   const [streakModalVisible, setStreakModalVisible] = useState(false);
@@ -69,6 +70,9 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>Hello, {user?.user_metadata?.full_name || user?.email || 'Alex'}</Text>
           <Text style={styles.date}>{formatDate(currentDate)}</Text>
         </View>
+
+        {/* Motivational Quote */}
+        <MotivationalQuote />
 
         {/* Main Workout Card */}
         <TouchableOpacity style={styles.mainCard} onPress={handleStartWorkout}>
@@ -177,17 +181,8 @@ export default function HomeScreen() {
           </View>
           
           <View style={styles.quickActionRow}>
-            {/* Timer Presets */}
-            <View style={styles.timerPresetsContainer}>
-              <TouchableOpacity 
-                style={styles.timerPresetsButton}
-                onPress={() => router.push('/timer')}
-              >
-                <Clock size={24} color={Colors.light.primary} />
-                <Text style={styles.timerPresetsTitle}>Timer Presets</Text>
-                <Text style={styles.timerPresetsSubtext}>HIIT, Tabata, and more</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Empty space to maintain layout after removing Timer Presets */}
+            <View style={styles.timerPresetsContainer} />
           </View>
         </View>
       </ScrollView>
