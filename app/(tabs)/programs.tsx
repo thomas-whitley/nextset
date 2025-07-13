@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Calendar, Clock } from 'lucide-react-native';
+import { Plus, Calendar, Clock, AlertCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -15,16 +15,16 @@ export default function ProgramsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasActiveProgram, setHasActiveProgram] = useState(false);
 
+  const handleCreateProgram = () => {
+    router.push('/create-program');
+  };
+
   const handleProgramPress = (program: any) => {
     setCurrentProgram(program);
     router.push({
       pathname: '/program-detail',
       params: { programId: program.id }
     });
-  };
-
-  const handleCreateProgram = () => {
-    router.push('/create-program');
   };
 
   React.useEffect(() => {
@@ -53,8 +53,33 @@ export default function ProgramsScreen() {
     }
   };
 
+  const showProgramChangeConfirmation = (program: any) => {
+    Alert.alert(
+      "Confirm Program Change",
+      "Are you sure? Your custom workouts and progress for the current program will be archived. You can restore it later.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Confirm",
+          onPress: () => handleSelectProgram(program)
+        }
+      ]
+    );
+  };
+
   const handleSelectProgram = async (program: any) => {
     try {
+      // If there's already an active program, archive it first
+      if (currentProgram) {
+        // Here you would implement the archiving logic
+        // For example: await archiveActiveProgram(currentProgram.id);
+        console.log('Archiving current program:', currentProgram.id);
+      }
+      
+      // Set the new program as active
       await setCurrentProgram(program);
       setHasActiveProgram(true);
       Alert.alert('Program Selected', `${program.name} is now your active program!`);
@@ -151,7 +176,7 @@ export default function ProgramsScreen() {
               {programs.map((program) => (
                 <TouchableOpacity
                   key={program.id}
-                  onPress={() => handleSelectProgram(program)}
+                  onPress={() => showProgramChangeConfirmation(program)}
                   activeOpacity={0.8}
                 >
                   <ProgramCard program={program} />
