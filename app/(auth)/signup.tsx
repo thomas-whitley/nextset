@@ -258,7 +258,7 @@ export default function SignUpScreen() {
   };
 
   const navigateToLogin = () => {
-    router.push('/(auth)/login');
+    router.push('/(auth)');
   };
 
   const successAnimatedStyle = useAnimatedStyle(() => ({
