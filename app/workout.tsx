@@ -5,8 +5,8 @@ import { Check, Timer, Plus, Minus, X, Clock, User, FileText, Play, Pause, Dumbb
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
-import { useTimer } from '@/contexts/TimerContext';
-import { WorkoutLogService } from '@/services/workoutLogService';
+import { useTimer, TimerContextType } from '@/contexts/TimerContext';
+import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
 
@@ -190,7 +190,7 @@ export default function WorkoutScreen() {
       if (restTimerInterval) clearInterval(restTimerInterval);
 
       // Save workout to history with metadata
-      await WorkoutLogService.saveWorkout(
+      await WorkoutHistoryService.saveWorkoutHistory(
         user.id,
         {
           ...currentWorkout,
