@@ -129,16 +129,13 @@ export default function HomeScreen() {
               <Text style={styles.streakTitle}>Weekly Streak</Text>
               <Text style={styles.streakSubtitle}>{weeklyStreak} weeks with 2+ workouts</Text>
             </View>
-            <Pressable 
+            <TouchableOpacity 
               style={styles.streakBadge}
               onPress={() => setCalendarModalVisible(true)}
-              accessibilityRole="button"
-              accessibilityLabel="View workout calendar"
-              accessibilityHint="Open calendar view to see workout history and schedule"
             >
               <Calendar size={16} color="#FFFFFF" />
               <Text style={styles.streakNumber}>{weeklyStreak}</Text>
-            </Pressable>
+            </TouchableOpacity>
           </View>
           
           <View style={styles.weekView}>
