@@ -75,7 +75,6 @@ export default function HomeScreen() {
         <MotivationalQuote />
 
         {/* Main Workout Card */}
-        <TouchableOpacity style={styles.mainCard} onPress={handleStartWorkout}>
           accessibilityRole="button"
           accessibilityLabel={`Start ${currentProgram ? currentProgram.workouts[0].name : 'Push Day'} workout`}
           accessibilityHint="Begin your scheduled workout session"
@@ -105,9 +104,6 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.startButton}>
-            accessibilityRole="button"
-            accessibilityLabel="Start workout button"
-          >
             <Text style={styles.startButtonText}>Start Workout</Text>
             <Zap size={20} color="#FFFFFF" />
           </View>
