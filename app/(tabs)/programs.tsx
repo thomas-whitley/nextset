@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Calendar, Clock } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { useWorkout } from '@/contexts/WorkoutContext';
-import { WorkoutLogService } from '@/services/workoutLogService';
+import { useWorkout, Workout } from '@/contexts/WorkoutContext';
+import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutHistoryItem from '@/components/WorkoutHistoryItem';
 
@@ -46,7 +46,7 @@ export default function ProgramsScreen() {
     
     setIsLoading(true);
     try {
-      const history = await WorkoutLogService.getWorkoutHistory(user.id, 10);
+      const history = await WorkoutHistoryService.getWorkoutHistory(user.id, 10);
       setWorkoutHistory(history);
     } catch (error) {
       console.error('Failed to load workout history:', error);
