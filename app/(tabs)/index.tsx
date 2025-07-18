@@ -113,12 +113,9 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Streak Tile */}
-        <TouchableOpacity 
+        <Pressable 
           style={styles.streakCard}
           onLongPress={() => setStreakModalVisible(true)}
-          accessibilityRole="button"
-          accessibilityLabel={`Weekly streak: ${weeklyStreak} weeks`}
-          accessibilityHint="Long press to view recent workouts, or tap calendar icon to view workout calendar"
         >
           <View style={styles.streakHeader}>
             <View>
@@ -148,7 +145,7 @@ export default function HomeScreen() {
               </View>
             ))}
           </View>
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Active Goals */}
         <View style={styles.goalsCard}>
