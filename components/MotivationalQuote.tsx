@@ -113,9 +113,9 @@ const MotivationalQuote = () => {
       <View style={styles.quoteIconContainer}>
         <Quote size={16} color={Colors.light.primary} />
       </View>
-      <Animated.Text style={[styles.quoteText, { opacity: fadeAnim }]}>
+      <Text style={styles.quoteText}>
         {quotes[quoteIndex]}
-      </Animated.Text>
+      </Text>
     </View>
   );
 };
