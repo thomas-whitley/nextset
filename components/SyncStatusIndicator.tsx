@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Wifi, WifiOff, Cloud, CloudOff, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react-native';
+import { Wifi, WifiOff, Cloud, CloudOff, RefreshCw, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 import { useLocalDatabase } from '@/hooks/useLocalDatabase';
 
