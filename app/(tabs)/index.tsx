@@ -76,6 +76,10 @@ export default function HomeScreen() {
 
         {/* Main Workout Card */}
         <TouchableOpacity style={styles.mainCard} onPress={handleStartWorkout}>
+          accessibilityRole="button"
+          accessibilityLabel={`Start ${currentProgram ? currentProgram.workouts[0].name : 'Push Day'} workout`}
+          accessibilityHint="Begin your scheduled workout session"
+        >
           <View style={styles.mainCardHeader}>
             <View style={styles.workoutInfo}>
               <Text style={styles.workoutLabel}>Today's Workout</Text>
@@ -110,6 +114,9 @@ export default function HomeScreen() {
         <TouchableOpacity 
           style={styles.streakCard}
           onLongPress={() => setStreakModalVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Weekly streak: ${weeklyStreak} weeks`}
+          accessibilityHint="Long press to view recent workouts, or tap calendar icon to view workout calendar"
         >
           <View style={styles.streakHeader}>
             <View>
@@ -119,6 +126,9 @@ export default function HomeScreen() {
             <Pressable 
               style={styles.streakBadge}
               onPress={() => setCalendarModalVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="View workout calendar"
+              accessibilityHint="Open calendar view to see workout history and schedule"
             >
               <Calendar size={16} color="#FFFFFF" />
               <Text style={styles.streakNumber}>{weeklyStreak}</Text>
@@ -160,6 +170,9 @@ export default function HomeScreen() {
             <TouchableOpacity 
               style={styles.quickTimer}
               onPress={handleQuickTimer}
+             accessibilityRole="button"
+             accessibilityLabel="Quick Timer"
+             accessibilityHint="Open timer for rest periods between sets"
             >
               <Timer size={32} color={Colors.light.primary} />
               <Text style={styles.quickTimerText}>Quick Timer</Text>

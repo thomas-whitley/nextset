@@ -96,6 +96,9 @@ export default function ProgramsScreen() {
       style={styles.programCard} 
       onPress={() => handleProgramPress(program)}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`${program.name} program by ${program.creator}`}
+      accessibilityHint={`${program.workouts.length} workouts available. Tap to view details.`}
     >
       <Image source={{ uri: program.imageUrl }} style={styles.programImage} />
       <View style={styles.programContent}>
@@ -144,6 +147,9 @@ export default function ProgramsScreen() {
               <TouchableOpacity 
                 style={styles.changeProgramButton}
                 onPress={handleProgramChangeRequest}
+                accessibilityRole="button"
+                accessibilityLabel="Change active program"
+                accessibilityHint="Switch to a different workout program"
               >
                 <Text style={styles.changeProgramText}>Change Program</Text>
               </TouchableOpacity>
@@ -166,6 +172,9 @@ export default function ProgramsScreen() {
                   key={program.id}
                   onPress={() => handleSelectProgram(program)}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${program.name} as active program`}
+                  accessibilityHint="Make this your current workout program"
                 >
                   <ProgramCard program={program} />
                 </TouchableOpacity>
@@ -175,6 +184,9 @@ export default function ProgramsScreen() {
                 style={styles.createButton} 
                 onPress={handleCreateProgram}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Create custom program"
+                accessibilityHint="Design your own workout program"
               >
                 <Plus size={24} color={Colors.light.primary} />
                 <Text style={styles.createButtonText}>Create Your Own Program</Text>

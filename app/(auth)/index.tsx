@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, AccessibilityInfo } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
@@ -70,6 +70,8 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
 
   // Animation values
   const dumbbellX = useSharedValue(-30);
@@ -297,6 +299,7 @@ export default function LoginScreen() {
               <Text style={styles.inputLabel}>Email Address</Text>
               <TextInput
                 style={[styles.textInput, error && error.includes('email') && styles.inputError]}
+                ref={emailInputRef}
                 value={formData.email}
                 onChangeText={(value) => updateFormData('email', value)}
                 placeholder="Enter your email"
@@ -305,8 +308,11 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
                 textContentType="emailAddress"
                 autoComplete="email"
+                accessibilityLabel="Email address"
+                accessibilityHint="Enter your email address to sign in"
               />
             </View>
 
@@ -315,6 +321,7 @@ export default function LoginScreen() {
               <View style={[styles.passwordContainer, error && error.includes('password') && styles.inputError]}>
                 <TextInput
                   style={styles.passwordInput}
+                  ref={passwordInputRef}
                   value={formData.password}
                   onChangeText={(value) => updateFormData('password', value)}
                   placeholder="Enter your password"
@@ -326,10 +333,15 @@ export default function LoginScreen() {
                   onSubmitEditing={handleLogin}
                   textContentType="password"
                   autoComplete="password"
+                  accessibilityLabel="Password"
+                  accessibilityHint="Enter your password to sign in"
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
                   onPress={() => setShowPassword(!showPassword)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                  accessibilityHint="Toggle password visibility"
                 >
                   {showPassword ? (
                     <EyeOff size={20} color={Colors.light.textTertiary} />
@@ -359,6 +371,10 @@ export default function LoginScreen() {
               style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
               onPress={handleLogin}
               disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in"
+              accessibilityHint="Sign in to your account"
+              accessibilityState={{ disabled: loading }}
             >
               <Text style={styles.loginButtonText}>
                 {loading ? 'Signing In...' : 'Sign In'}
@@ -378,6 +394,10 @@ export default function LoginScreen() {
               style={[styles.socialButton, socialLoading === 'google' && styles.socialButtonLoading]}
               onPress={() => handleSocialLogin('google')}
               disabled={socialLoading !== null}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Google"
+              accessibilityHint="Sign in using your Google account"
+              accessibilityState={{ disabled: socialLoading !== null }}
             >
               <GoogleIcon size={20} />
               <Text style={styles.socialButtonText}>
@@ -389,6 +409,10 @@ export default function LoginScreen() {
               style={[styles.socialButton, socialLoading === 'apple' && styles.socialButtonLoading]}
               onPress={() => handleSocialLogin('apple')}
               disabled={socialLoading !== null}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Apple"
+              accessibilityHint="Sign in using your Apple ID"
+              accessibilityState={{ disabled: socialLoading !== null }}
             >
               <AppleIcon size={20} />
               <Text style={styles.socialButtonText}>
