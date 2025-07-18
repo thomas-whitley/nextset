@@ -10,6 +10,7 @@ import { WorkoutProvider } from '@/contexts/WorkoutContext';
 import LoadingScreenComponent from '@/components/loadingscreen';
 import { Text, View } from 'react-native';
 import { AuthProvider, useAuth } from '@/data/AuthContext';
+import { initializeLocalDatabase } from '@/services/localDatabase';
 
 // Keep the splash screen visible until fonts are loaded
 SplashScreen.preventAutoHideAsync();
@@ -77,9 +78,10 @@ export default function RootLayout() {
     const initializeAppData = async () => {
       try {
         console.log('RootLayout - Initializing app data...');
-        // Initialize app data here if needed
-        // For example: await ExerciseService.initialize();
-        // await UserSettingsService.loadSettings();
+        
+        // Initialize local SQLite database
+        await initializeLocalDatabase();
+        console.log('RootLayout - Local database initialized');
         
         // Simulate initialization delay
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -93,7 +95,7 @@ export default function RootLayout() {
         console.error("App data failed to initialize:", e);
         // Only update state if component is still mounted
         if (isMountedRef.current) {
-          setInitializationError("Failed to load essential app data. Please restart.");
+          setInitializationError("Failed to initialize local database. Please restart the app.");
         }
       }
     };
