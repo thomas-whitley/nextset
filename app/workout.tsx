@@ -232,6 +232,10 @@ export default function WorkoutScreen() {
             isActiveRest && styles.activeRestIndicator
           ]}
           onPress={() => handleSetComplete(exerciseId, set.id)}
+          accessibilityRole="checkbox"
+          accessibilityLabel={`Set ${setIndex + 1} ${isCompleted ? 'completed' : 'incomplete'}`}
+          accessibilityHint="Tap to mark this set as complete or incomplete"
+          accessibilityState={{ checked: isCompleted }}
         >
           {isCompleted ? (
             <Check size={12} color="#FFFFFF" />
@@ -252,6 +256,8 @@ export default function WorkoutScreen() {
           placeholder="kg"
           placeholderTextColor={Colors.light.textTertiary}
           editable={!isCompleted}
+          accessibilityLabel={`Weight for set ${setIndex + 1}`}
+          accessibilityHint="Enter the weight used for this set"
         />
         
         <TextInput
@@ -262,6 +268,8 @@ export default function WorkoutScreen() {
           placeholder="reps"
           placeholderTextColor={Colors.light.textTertiary}
           editable={!isCompleted}
+          accessibilityLabel={`Repetitions for set ${setIndex + 1}`}
+          accessibilityHint="Enter the number of repetitions completed"
         />
 
         {isActiveRest && (
@@ -300,7 +308,12 @@ export default function WorkoutScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header with Workout Timer */}
       <View style={[styles.header, { height: 60 }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity 
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Close workout"
+          accessibilityHint="Exit current workout session"
+        >
           <X size={20} color={Colors.light.text} />
         </TouchableOpacity>
 
@@ -316,10 +329,19 @@ export default function WorkoutScreen() {
           <TouchableOpacity 
             style={styles.timerButton} 
             onPress={() => router.push('/timer')}
+            accessibilityRole="button"
+            accessibilityLabel="Open timer"
+            accessibilityHint="Access workout timers and intervals"
           >
             <Watch size={20} color={Colors.light.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout}>
+          <TouchableOpacity 
+            style={styles.finishButton} 
+            onPress={handleFinishWorkout}
+            accessibilityRole="button"
+            accessibilityLabel="Finish workout"
+            accessibilityHint="Complete and save your workout session"
+          >
             <Text style={styles.finishButtonText}>Finish</Text>
           </TouchableOpacity>
         </View>
@@ -335,6 +357,9 @@ export default function WorkoutScreen() {
         <TouchableOpacity 
           style={styles.warmupCard} 
           onPress={() => setIsWarmupCollapsed(!isWarmupCollapsed)}
+          accessibilityRole="button"
+          accessibilityLabel={`Warmup section ${isWarmupCollapsed ? 'collapsed' : 'expanded'}`}
+          accessibilityHint="Tap to expand or collapse warmup options"
         >
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
@@ -359,6 +384,9 @@ export default function WorkoutScreen() {
                 <TouchableOpacity 
                   style={styles.chooseWarmupButton}
                   onPress={() => setShowWarmupModal(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Choose warmup exercise"
+                  accessibilityHint="Select a warmup routine for your workout"
                 >
                   <Text style={styles.chooseWarmupText}>Choose Warmup</Text>
                 </TouchableOpacity>
@@ -422,6 +450,9 @@ export default function WorkoutScreen() {
         <TouchableOpacity 
           style={styles.addExerciseButton}
           onPress={() => setShowExerciseModal(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Add exercise to workout"
+          accessibilityHint="Browse and add new exercises to your current workout"
         >
           <Plus size={16} color={Colors.light.primary} />
           <Text style={styles.addExerciseButtonText}>Add Exercise</Text>

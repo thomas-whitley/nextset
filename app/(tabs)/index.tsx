@@ -105,6 +105,9 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.startButton}>
+            accessibilityRole="button"
+            accessibilityLabel="Start workout button"
+          >
             <Text style={styles.startButtonText}>Start Workout</Text>
             <Zap size={20} color="#FFFFFF" />
           </View>

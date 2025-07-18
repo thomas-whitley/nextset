@@ -26,6 +26,9 @@ function SettingItem({ icon, title, subtitle, rightElement, onPress, showBorder 
     <TouchableOpacity 
       style={[styles.settingItem, !showBorder && styles.settingItemNoBorder]} 
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityHint={subtitle || "Tap to modify this setting"}
     >
       <View style={styles.settingIcon}>{icon}</View>
       <View style={styles.settingContent}>
@@ -270,6 +273,8 @@ export default function SettingsScreen() {
                   onValueChange={setNotifications}
                   trackColor={{ false: Colors.light.border, true: Colors.light.primaryLight }}
                   thumbColor={notifications ? Colors.light.primary : Colors.light.textTertiary}
+                  accessibilityLabel="Notifications toggle"
+                  accessibilityHint="Enable or disable workout reminders and achievements"
                 />
               }
             />
@@ -284,6 +289,8 @@ export default function SettingsScreen() {
                   onValueChange={setDarkMode}
                   trackColor={{ false: Colors.light.border, true: Colors.light.primaryLight }}
                   thumbColor={darkMode ? Colors.light.primary : Colors.light.textTertiary}
+                  accessibilityLabel="Dark mode toggle"
+                  accessibilityHint="Switch between light and dark theme"
                 />
               }
             />
@@ -327,6 +334,10 @@ export default function SettingsScreen() {
                 <TouchableOpacity
                   style={styles.faqItem}
                   onPress={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`FAQ: ${item.question}`}
+                  accessibilityHint={expandedFAQ === index ? "Tap to collapse answer" : "Tap to expand answer"}
+                  accessibilityState={{ expanded: expandedFAQ === index }}
                 >
                   <Text style={styles.faqQuestion}>{item.question}</Text>
                   {expandedFAQ === index ? (
