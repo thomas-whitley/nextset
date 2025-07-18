@@ -82,10 +82,6 @@ export default function HomeScreen() {
           accessibilityLabel={`Start ${currentProgram ? currentProgram.workouts[0].name : 'Push Day'} workout`}
           accessibilityHint="Begin your scheduled workout session"
         >
-          accessibilityRole="button"
-          accessibilityLabel={`Start ${currentProgram ? currentProgram.workouts[0].name : 'Push Day'} workout`}
-          accessibilityHint="Begin your scheduled workout session"
-        >
           <View style={styles.mainCardHeader}>
             <View style={styles.workoutInfo}>
               <Text style={styles.workoutLabel}>Today's Workout</Text>
@@ -132,6 +128,9 @@ export default function HomeScreen() {
             <TouchableOpacity 
               style={styles.streakBadge}
               onPress={() => setCalendarModalVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="View workout calendar"
+              accessibilityHint="Open calendar view to see workout schedule"
             >
               <Calendar size={16} color="#FFFFFF" />
               <Text style={styles.streakNumber}>{weeklyStreak}</Text>
