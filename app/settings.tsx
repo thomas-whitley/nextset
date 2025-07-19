@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert, Modal, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare, ChevronDown, ChevronUp, MessageCircle, FileDown, FileUp } from 'lucide-react-native';
+import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare, FileDown, FileUp } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
 import { supabase } from '@/data/supabase-client';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
+import { useLocalDatabase } from '@/hooks/useLocalDatabase';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -14,11 +16,6 @@ type SettingItemProps = {
   rightElement?: React.ReactNode;
   onPress?: () => void;
   showBorder?: boolean;
-};
-
-type FAQItem = {
-  question: string;
-  answer: string;
 };
 
 function SettingItem({ icon, title, subtitle, rightElement, onPress, showBorder = true }: SettingItemProps) {
@@ -47,8 +44,8 @@ export default function SettingsScreen() {
   const [defaultRestTime, setDefaultRestTime] = useState(90); // seconds
   const [showUnitsModal, setShowUnitsModal] = useState(false);
   const [showRestTimeModal, setShowRestTimeModal] = useState(false);
-  const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
   const { signOut, user } = useAuth();
+  const { syncToCloud } = useLocalDatabase();
 
   const restTimeOptions = [
     { label: '15 seconds', value: 15 },
@@ -63,61 +60,6 @@ export default function SettingsScreen() {
     { label: '3:00', value: 180 },
   ];
 
-  const faqItems: FAQItem[] = [
-    {
-      question: "How do I create a custom workout?",
-      answer: "Navigate to the Programs tab and tap 'Create Your Own Program'. You can add exercises, set rep ranges, and customize your workout schedule."
-    },
-    {
-      question: "How is my weekly streak calculated?",
-      answer: "Your weekly streak counts consecutive weeks where you complete at least 2 workouts. The streak resets if you have a week with fewer than 2 workouts."
-    },
-    {
-      question: "How do I reset my password?",
-      answer: "On the login screen, tap 'Forgot Password?' and enter your email. You'll receive a reset link to create a new password."
-    },
-    {
-      question: "Can I sync my workouts with other fitness apps?",
-      answer: "Currently, you can export your workout schedule as an .ics file from the calendar view. Full integration with other fitness apps is planned for future updates."
-    },
-    {
-      question: "How do I track my progress over time?",
-      answer: "Visit the Progress tab to see detailed analytics including volume trends, personal records, and workout frequency charts."
-    },
-    {
-      question: "What's the difference between the rest timer and Master Timer?",
-      answer: "The rest timer is a simple countdown between sets. The Master Timer is an advanced tool for interval training, circuits, and complex workout timing."
-    },
-    {
-      question: "How do I change my active workout program?",
-      answer: "In the Programs tab, tap 'Change Program' if you have an active program, or select a new program from the available options."
-    },
-    {
-      question: "Can I add custom exercises to my workouts?",
-      answer: "Yes! When adding exercises to a workout, you can browse our exercise library or create custom exercises with your own instructions."
-    },
-    {
-      question: "How do I view my workout history?",
-      answer: "Your workout history is available in the Programs tab. You can also view a calendar view by tapping the calendar icon on your weekly streak."
-    },
-    {
-      question: "What happens to my data if I delete the app?",
-      answer: "Your workout data is safely stored in the cloud. When you reinstall and log back in, all your data will be restored."
-    },
-    {
-      question: "How do I share my workout achievements?",
-      answer: "You can export your workout schedule and share progress screenshots from the Progress tab. Social sharing features are coming soon."
-    },
-    {
-      question: "Can I use the app offline?",
-      answer: "Basic workout logging works offline, but syncing, exercise browsing, and progress analytics require an internet connection."
-    },
-    {
-      question: "How do I contact support?",
-      answer: "Use the 'Provide Feedback' option in settings, or contact us through the Live Chat feature (coming soon) for immediate assistance."
-    }
-  ];
-
   const handleClose = () => {
     router.dismiss();
   };
@@ -129,6 +71,10 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  };
+
+  const handleHelpFAQ = () => {
+    router.push('/help-faq');
   };
 
   const handleAboutUs = () => {
@@ -331,41 +277,6 @@ export default function SettingsScreen() {
           <View style={styles.settingsCard}>
             {faqItems.map((item, index) => (
               <View key={index}>
-                <TouchableOpacity
-                  style={styles.faqItem}
-                  onPress={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`FAQ: ${item.question}`}
-                  accessibilityHint={expandedFAQ === index ? "Tap to collapse answer" : "Tap to expand answer"}
-                  accessibilityState={{ expanded: expandedFAQ === index }}
-                >
-                  <Text style={styles.faqQuestion}>{item.question}</Text>
-                  {expandedFAQ === index ? (
-                    <ChevronUp size={20} color={Colors.light.textTertiary} />
-                  ) : (
-                    <ChevronDown size={20} color={Colors.light.textTertiary} />
-                  )}
-                </TouchableOpacity>
-                {expandedFAQ === index && (
-                  <View style={styles.faqAnswer}>
-                    <Text style={styles.faqAnswerText}>{item.answer}</Text>
-                  </View>
-                )}
-                {index < faqItems.length - 1 && <View style={styles.faqDivider} />}
-              </View>
-            ))}
-            
-            {/* Live Chat Placeholder */}
-            <View style={styles.liveChatPlaceholder}>
-              <MessageCircle size={20} color={Colors.light.textTertiary} />
-              <View style={styles.liveChatContent}>
-                <Text style={styles.liveChatTitle}>Live Chat Support</Text>
-                <Text style={styles.liveChatSubtitle}>Coming Soon - Get instant help from our team</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
         {/* Support & Account */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support & Account</Text>
@@ -388,6 +299,7 @@ export default function SettingsScreen() {
               icon={<HelpCircle size={20} color={Colors.light.primary} />}
               title="Help & FAQ"
               subtitle="Get support and answers"
+              onPress={handleHelpFAQ}
             />
             
             <SettingItem
@@ -557,55 +469,19 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginBottom: 12,
+  syncSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
   },
-  settingsCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-  },
-  settingItemNoBorder: {
-    borderBottomWidth: 0,
-  },
-  settingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  settingContent: {
-    flex: 1,
-  },
-  settingTitle: {
+  syncSectionTitle: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.text,
+    marginBottom: 12,
   },
-  settingSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginTop: 2,
-  },
+  sectionTitle: {
   version: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
