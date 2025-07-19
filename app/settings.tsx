@@ -286,24 +286,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Help & FAQ Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Help & FAQ</Text>
-          <View style={styles.settingsCard}>
-            {faqItems.map((item, index) => (
-              <View key={index}>
-                <View style={styles.faqItem}>
-                  <Text style={styles.faqQuestion}>{item.question}</Text>
-                </View>
-                <View style={styles.faqAnswer}>
-                  <Text style={styles.faqAnswerText}>{item.answer}</Text>
-                </View>
-                {index < faqItems.length - 1 && <View style={styles.faqDivider} />}
-              </View>
-            ))}
-          </View>
-        </View>
-
         {/* Support & Account */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support & Account</Text>
