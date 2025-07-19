@@ -60,6 +60,21 @@ export default function SettingsScreen() {
     { label: '3:00', value: 180 },
   ];
 
+  const faqItems = [
+    {
+      question: "How do I track my workouts?",
+      answer: "You can track your workouts by creating a new workout session and adding exercises with sets, reps, and weights."
+    },
+    {
+      question: "Can I sync my data across devices?",
+      answer: "Yes, your data is automatically synced to the cloud when you're logged in."
+    },
+    {
+      question: "How do I change my workout routine?",
+      answer: "You can create custom workout routines in the Workouts tab and modify them anytime."
+    }
+  ];
+
   const handleClose = () => {
     router.dismiss();
   };
@@ -277,6 +292,18 @@ export default function SettingsScreen() {
           <View style={styles.settingsCard}>
             {faqItems.map((item, index) => (
               <View key={index}>
+                <View style={styles.faqItem}>
+                  <Text style={styles.faqQuestion}>{item.question}</Text>
+                </View>
+                <View style={styles.faqAnswer}>
+                  <Text style={styles.faqAnswerText}>{item.answer}</Text>
+                </View>
+                {index < faqItems.length - 1 && <View style={styles.faqDivider} />}
+              </View>
+            ))}
+          </View>
+        </View>
+
         {/* Support & Account */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support & Account</Text>
@@ -482,6 +509,48 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+    marginBottom: 12,
+  },
+  settingsCard: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  settingItemNoBorder: {
+    borderBottomWidth: 0,
+  },
+  settingIcon: {
+    marginRight: 16,
+  },
+  settingContent: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  settingSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textSecondary,
+  },
   version: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
@@ -495,6 +564,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   faqQuestion: {
     flex: 1,
@@ -505,7 +575,7 @@ const styles = StyleSheet.create({
   },
   faqAnswer: {
     paddingBottom: 16,
-    paddingRight: 32,
+    paddingHorizontal: 20,
   },
   faqAnswerText: {
     fontSize: 14,
@@ -517,6 +587,7 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.light.border,
     marginVertical: 8,
+    marginHorizontal: 20,
   },
   liveChatPlaceholder: {
     flexDirection: 'row',
