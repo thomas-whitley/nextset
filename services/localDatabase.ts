@@ -4,6 +4,14 @@ import { Exercise, Workout, WorkoutExercise, ExerciseSet } from './exercise.type
 // Database instance
 let db: SQLite.SQLiteDatabase;
 
+// Export the database instance for use in other services
+export const getDatabase = (): SQLite.SQLiteDatabase => {
+  if (!db) {
+    throw new Error('Database not initialized. Call initializeLocalDatabase() first.');
+  }
+  return db;
+};
+
 // Initialize the local SQLite database
 export const initializeLocalDatabase = async (): Promise<void> => {
   try {
