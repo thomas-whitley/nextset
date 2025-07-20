@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Platform } from 'react-native';
-import { Zap, FileText, Plus, User, TrendingUp, TrendingUp as LucideTrendingUp } from 'lucide-react-native';
+import { Zap, FileText, User, TrendingUp, TrendingUp as LucideTrendingUp } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 
 export default function TabLayout() {
@@ -13,38 +13,47 @@ export default function TabLayout() {
         tabBarShowLabel: false,
         tabBarLabelStyle: styles.tabBarLabel,
         headerShown: false,
+        tabBarAccessibilityLabel: 'Main navigation',
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
+          title: 'Home',
           tabBarIcon: ({ color, size }) => (
             <Zap size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: 'Home tab',
         }}
       />
       <Tabs.Screen
         name="programs"
         options={{
+          title: 'Programs',
           tabBarIcon: ({ color, size }) => (
             <FileText size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: 'Programs tab',
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
+          title: 'Progress',
           tabBarIcon: ({ color, size }) => (
             <LucideTrendingUp size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: 'Progress tab',
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <User size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: 'Profile tab',
         }}
       />
     </Tabs>

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert, Modal, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare } from 'lucide-react-native';
+import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare, FileDown, FileUp } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
+import { supabase } from '@/data/supabase-client';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
+import { useLocalDatabase } from '@/hooks/useLocalDatabase';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -20,6 +23,9 @@ function SettingItem({ icon, title, subtitle, rightElement, onPress, showBorder 
     <TouchableOpacity 
       style={[styles.settingItem, !showBorder && styles.settingItemNoBorder]} 
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityHint={subtitle || "Tap to modify this setting"}
     >
       <View style={styles.settingIcon}>{icon}</View>
       <View style={styles.settingContent}>
@@ -34,7 +40,40 @@ function SettingItem({ icon, title, subtitle, rightElement, onPress, showBorder 
 export default function SettingsScreen() {
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
+  const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
+  const [defaultRestTime, setDefaultRestTime] = useState(90); // seconds
+  const [showUnitsModal, setShowUnitsModal] = useState(false);
+  const [showRestTimeModal, setShowRestTimeModal] = useState(false);
   const { signOut, user } = useAuth();
+  const { syncToCloud } = useLocalDatabase();
+
+  const restTimeOptions = [
+    { label: '15 seconds', value: 15 },
+    { label: '30 seconds', value: 30 },
+    { label: '45 seconds', value: 45 },
+    { label: '1:00', value: 60 },
+    { label: '1:15', value: 75 },
+    { label: '1:30', value: 90 },
+    { label: '1:45', value: 105 },
+    { label: '2:00', value: 120 },
+    { label: '2:30', value: 150 },
+    { label: '3:00', value: 180 },
+  ];
+
+  const faqItems = [
+    {
+      question: "How do I track my workouts?",
+      answer: "You can track your workouts by creating a new workout session and adding exercises with sets, reps, and weights."
+    },
+    {
+      question: "Can I sync my data across devices?",
+      answer: "Yes, your data is automatically synced to the cloud when you're logged in."
+    },
+    {
+      question: "How do I change my workout routine?",
+      answer: "You can create custom workout routines in the Workouts tab and modify them anytime."
+    }
+  ];
 
   const handleClose = () => {
     router.dismiss();
@@ -49,8 +88,62 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleHelpFAQ = () => {
+    router.push('/help-faq');
+  };
+
   const handleAboutUs = () => {
     router.push('/aboutus');
+  };
+
+  const handleUnitsChange = async (newUnits: 'metric' | 'imperial') => {
+    setUnits(newUnits);
+    setShowUnitsModal(false);
+    
+    if (user) {
+      try {
+        const { error } = await supabase
+          .from('profile')
+          .update({ 
+            preferences: { 
+              units: newUnits,
+              defaultRestTime: defaultRestTime 
+            }
+          })
+          .eq('id', user.id);
+        
+        if (error) {
+          console.error('Error updating units preference:', error);
+        }
+      } catch (error) {
+        console.error('Error saving units preference:', error);
+      }
+    }
+  };
+
+  const handleRestTimeChange = async (newRestTime: number) => {
+    setDefaultRestTime(newRestTime);
+    setShowRestTimeModal(false);
+    
+    if (user) {
+      try {
+        const { error } = await supabase
+          .from('profile')
+          .update({ 
+            preferences: { 
+              units: units,
+              defaultRestTime: newRestTime 
+            }
+          })
+          .eq('id', user.id);
+        
+        if (error) {
+          console.error('Error updating rest time preference:', error);
+        }
+      } catch (error) {
+        console.error('Error saving rest time preference:', error);
+      }
+    }
   };
 
   const handleProvideFeedback = async () => {
@@ -73,6 +166,28 @@ export default function SettingsScreen() {
         'Unable to open the feedback form. Please try again later.'
       );
     }
+  };
+
+  const handleImportCSV = () => {
+    // Placeholder for future functionality
+    Alert.alert('Coming Soon', 'CSV import functionality will be available in a future update.');
+  };
+
+  const handleExportCSV = () => {
+    // Placeholder for future functionality
+    Alert.alert('Coming Soon', 'CSV export functionality will be available in a future update.');
+  };
+
+  const formatRestTime = (seconds: number) => {
+    if (seconds < 60) {
+      return `${seconds} seconds`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (remainingSeconds === 0) {
+      return `${minutes}:00`;
+    }
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -119,6 +234,8 @@ export default function SettingsScreen() {
                   onValueChange={setNotifications}
                   trackColor={{ false: Colors.light.border, true: Colors.light.primaryLight }}
                   thumbColor={notifications ? Colors.light.primary : Colors.light.textTertiary}
+                  accessibilityLabel="Notifications toggle"
+                  accessibilityHint="Enable or disable workout reminders and achievements"
                 />
               }
             />
@@ -133,6 +250,8 @@ export default function SettingsScreen() {
                   onValueChange={setDarkMode}
                   trackColor={{ false: Colors.light.border, true: Colors.light.primaryLight }}
                   thumbColor={darkMode ? Colors.light.primary : Colors.light.textTertiary}
+                  accessibilityLabel="Dark mode toggle"
+                  accessibilityHint="Switch between light and dark theme"
                 />
               }
             />
@@ -152,14 +271,16 @@ export default function SettingsScreen() {
           <View style={styles.settingsCard}>
             <SettingItem
               icon={<Weight size={20} color={Colors.light.primary} />}
-              title="Units"
-              subtitle="Kilograms (kg)"
+              title="Measurement Units"
+              subtitle={units === 'metric' ? 'Metric (kg, km)' : 'Imperial (lbs, miles)'}
+              onPress={() => setShowUnitsModal(true)}
             />
             
             <SettingItem
               icon={<Dumbbell size={20} color={Colors.light.primary} />}
-              title="Rest Timer Defaults"
-              subtitle="60s, 90s, 120s"
+              title="Default Rest Time"
+              subtitle={formatRestTime(defaultRestTime)}
+              onPress={() => setShowRestTimeModal(true)}
               showBorder={false}
             />
           </View>
@@ -187,6 +308,7 @@ export default function SettingsScreen() {
               icon={<HelpCircle size={20} color={Colors.light.primary} />}
               title="Help & FAQ"
               subtitle="Get support and answers"
+              onPress={handleHelpFAQ}
             />
             
             <SettingItem
@@ -198,9 +320,89 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
+
+        {/* Data Management Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Data Management</Text>
+          <View style={styles.settingsCard}>
+            <SettingItem
+              icon={<FileUp size={20} color={Colors.light.primary} />}
+              title="Import from CSV"
+              subtitle="Import your workout data from a CSV file"
+              onPress={handleImportCSV}
+            />
+            
+            <SettingItem
+              icon={<FileDown size={20} color={Colors.light.primary} />}
+              title="Export to CSV"
+              subtitle="Export your workout data to a CSV file"
+              onPress={handleExportCSV}
+              showBorder={false}
+            />
+          </View>
+        </View>
         
         <Text style={styles.version}>Momentum v1.0.0</Text>
       </ScrollView>
+
+      {/* Units Selection Modal */}
+      <Modal visible={showUnitsModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Measurement Units</Text>
+            <TouchableOpacity
+              style={[styles.modalOption, units === 'metric' && styles.modalOptionSelected]}
+              onPress={() => handleUnitsChange('metric')}
+            >
+              <Text style={[styles.modalOptionText, units === 'metric' && styles.modalOptionTextSelected]}>
+                Metric (kg, km)
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalOption, units === 'imperial' && styles.modalOptionSelected]}
+              onPress={() => handleUnitsChange('imperial')}
+            >
+              <Text style={[styles.modalOptionText, units === 'imperial' && styles.modalOptionTextSelected]}>
+                Imperial (lbs, miles)
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowUnitsModal(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Rest Time Selection Modal */}
+      <Modal visible={showRestTimeModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Default Rest Time</Text>
+            <ScrollView style={styles.modalScrollView}>
+              {restTimeOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.modalOption, defaultRestTime === option.value && styles.modalOptionSelected]}
+                  onPress={() => handleRestTimeChange(option.value)}
+                >
+                  <Text style={[styles.modalOptionText, defaultRestTime === option.value && styles.modalOptionTextSelected]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowRestTimeModal(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -276,16 +478,27 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
+  syncSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  syncSectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+    marginBottom: 12,
+  },
   sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
     color: Colors.light.text,
     marginBottom: 12,
   },
   settingsCard: {
     backgroundColor: Colors.light.card,
     borderRadius: 16,
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -295,7 +508,8 @@ const styles = StyleSheet.create({
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
@@ -303,12 +517,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   settingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginRight: 16,
   },
   settingContent: {
@@ -318,12 +526,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.text,
+    marginBottom: 2,
   },
   settingSubtitle: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginTop: 2,
+    color: Colors.light.textSecondary,
   },
   version: {
     fontSize: 14,
@@ -332,5 +540,112 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 32,
     marginBottom: 40,
+  },
+  faqItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  faqQuestion: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+    marginRight: 12,
+  },
+  faqAnswer: {
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+  },
+  faqAnswerText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textSecondary,
+    lineHeight: 20,
+  },
+  faqDivider: {
+    height: 1,
+    backgroundColor: Colors.light.border,
+    marginVertical: 8,
+    marginHorizontal: 20,
+  },
+  liveChatPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    opacity: 0.6,
+  },
+  liveChatContent: {
+    marginLeft: 16,
+  },
+  liveChatTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.textTertiary,
+  },
+  liveChatSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    marginTop: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.text,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalScrollView: {
+    maxHeight: 300,
+  },
+  modalOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: Colors.light.background,
+  },
+  modalOptionSelected: {
+    backgroundColor: Colors.light.primaryLight,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.text,
+    textAlign: 'center',
+  },
+  modalOptionTextSelected: {
+    color: Colors.light.primary,
+    fontFamily: 'Inter-Bold',
+  },
+  modalCancelButton: {
+    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: Colors.light.border,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
   },
 });

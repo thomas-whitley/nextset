@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock } from 'lucide-react-native';
+import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock, Calendar } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
+import WorkoutCalendarView from '@/components/WorkoutCalendarView';
+import MotivationalQuote from '@/components/MotivationalQuote';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
+import { useLocalDatabase } from '@/hooks/useLocalDatabase';
 
 export default function HomeScreen() {
   const [streakModalVisible, setStreakModalVisible] = useState(false);
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const { currentProgram, startWorkout } = useWorkout();
   const { user, loading } = useAuth();
+  const { workoutSessions, getLocalStats, syncToCloud } = useLocalDatabase();
   
   const currentDate = new Date();
   const formatDate = (date: Date) => {
@@ -24,10 +30,11 @@ export default function HomeScreen() {
 
   const weeklyStreak = 3;
   const recentWorkouts = [
-    { name: 'Push Day', date: 'Yesterday', volume: '8,500kg' },
-    { name: 'Pull Day', date: '2 days ago', volume: '7,200kg' },
-    { name: 'Legs Day', date: '4 days ago', volume: '9,800kg' },
-    { name: 'Upper Body', date: '6 days ago', volume: '6,900kg' },
+    ...workoutSessions.slice(0, 4).map(session => ({
+      name: session.name,
+      date: new Date(session.completed_at || session.started_at).toLocaleDateString(),
+      volume: `${Math.round(session.total_volume)}kg`
+    }))
   ];
 
   const activeGoals = [
@@ -68,8 +75,20 @@ export default function HomeScreen() {
           <Text style={styles.date}>{formatDate(currentDate)}</Text>
         </View>
 
+        {/* Sync Status Indicator */}
+        <SyncStatusIndicator onSyncPress={() => syncToCloud(true)} />
+
+        {/* Motivational Quote */}
+        <MotivationalQuote />
+
         {/* Main Workout Card */}
-        <TouchableOpacity style={styles.mainCard} onPress={handleStartWorkout}>
+        <TouchableOpacity 
+          style={styles.mainCard}
+          onPress={handleStartWorkout}
+          accessibilityRole="button"
+          accessibilityLabel={`Start ${currentProgram ? currentProgram.workouts[0].name : 'Push Day'} workout`}
+          accessibilityHint="Begin your scheduled workout session"
+        >
           <View style={styles.mainCardHeader}>
             <View style={styles.workoutInfo}>
               <Text style={styles.workoutLabel}>Today's Workout</Text>
@@ -101,7 +120,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Streak Tile */}
-        <TouchableOpacity 
+        <Pressable 
           style={styles.streakCard}
           onLongPress={() => setStreakModalVisible(true)}
         >
@@ -110,9 +129,16 @@ export default function HomeScreen() {
               <Text style={styles.streakTitle}>Weekly Streak</Text>
               <Text style={styles.streakSubtitle}>{weeklyStreak} weeks with 2+ workouts</Text>
             </View>
-            <View style={styles.streakBadge}>
+            <TouchableOpacity 
+              style={styles.streakBadge}
+              onPress={() => setCalendarModalVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="View workout calendar"
+              accessibilityHint="Open calendar view to see workout schedule"
+            >
+              <Calendar size={16} color="#FFFFFF" />
               <Text style={styles.streakNumber}>{weeklyStreak}</Text>
-            </View>
+            </TouchableOpacity>
           </View>
           
           <View style={styles.weekView}>
@@ -126,7 +152,7 @@ export default function HomeScreen() {
               </View>
             ))}
           </View>
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Active Goals */}
         <View style={styles.goalsCard}>
@@ -146,23 +172,36 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickTimer} onPress={handleQuickTimer}>
-            <Clock size={24} color={Colors.light.primary} />
-            <Text style={styles.quickTimerText}>Workout Timer</Text>
-            <Text style={styles.quickTimerSubtext}>Advanced timers & presets</Text>
-          </TouchableOpacity>
+          <View style={styles.quickActionRow}>
+            <TouchableOpacity 
+              style={styles.quickTimer}
+              onPress={handleQuickTimer}
+             accessibilityRole="button"
+             accessibilityLabel="Quick Timer"
+             accessibilityHint="Open timer for rest periods between sets"
+            >
+              <Timer size={32} color={Colors.light.primary} />
+              <Text style={styles.quickTimerText}>Quick Timer</Text>
+              <Text style={styles.quickTimerSubtext}>Rest between sets</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.quickStats}>
+              <View style={styles.quickStatItem}>
+                <TrendingUp size={20} color={Colors.light.success} />
+                <Text style={styles.quickStatValue}>+12%</Text>
+                <Text style={styles.quickStatLabel}>This Month</Text>
+              </View>
+              <View style={styles.quickStatItem}>
+                <Trophy size={20} color={Colors.light.accent} />
+                <Text style={styles.quickStatValue}>47</Text>
+                <Text style={styles.quickStatLabel}>Total PRs</Text>
+              </View>
+            </View>
+          </View>
           
-          <View style={styles.quickStats}>
-            <View style={styles.quickStatItem}>
-              <TrendingUp size={20} color={Colors.light.success} />
-              <Text style={styles.quickStatValue}>+12%</Text>
-              <Text style={styles.quickStatLabel}>This Month</Text>
-            </View>
-            <View style={styles.quickStatItem}>
-              <Trophy size={20} color={Colors.light.accent} />
-              <Text style={styles.quickStatValue}>47</Text>
-              <Text style={styles.quickStatLabel}>Total PRs</Text>
-            </View>
+          <View style={styles.quickActionRow}>
+            {/* Empty space to maintain layout after removing Timer Presets */}
+            <View style={styles.timerPresetsContainer} />
           </View>
         </View>
       </ScrollView>
@@ -194,6 +233,12 @@ export default function HomeScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Workout Calendar Modal */}
+      <WorkoutCalendarView 
+        visible={calendarModalVisible}
+        onClose={() => setCalendarModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -347,11 +392,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   streakNumber: {
-    fontSize: 20,
+    fontSize: 16,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
+    marginLeft: 4,
   },
   weekView: {
     flexDirection: 'row',
@@ -425,22 +472,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primary,
     borderRadius: 2,
   },
-  quickActions: {
+  quickActionRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  quickActions: {
     marginBottom: 40,
   },
   quickTimer: {
-    backgroundColor: Colors.light.card,
+    flex: 1,
+    backgroundColor: Colors.light.primaryLight,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 4,
-    flex: 1,
   },
   quickTimerText: {
     fontSize: 14,
@@ -455,9 +506,37 @@ const styles = StyleSheet.create({
     color: Colors.light.textTertiary,
     textAlign: 'center',
   },
+  timerPresetsContainer: {
+    flex: 1,
+  },
+  timerPresetsButton: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  timerPresetsTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.text,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  timerPresetsSubtext: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    textAlign: 'center',
+  },
   quickStats: {
     flex: 1,
     flexDirection: 'row',
+    marginLeft: 8,
   },
   quickStatItem: {
     backgroundColor: Colors.light.card,
@@ -465,7 +544,7 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     flex: 1,
-    marginLeft: 6,
+    marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
