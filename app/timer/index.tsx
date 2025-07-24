@@ -151,6 +151,7 @@ export default function PresetTimerScreen() {
         <TouchableOpacity 
           style={styles.customButton}
           onPress={handleCustomTimer}
+
         >
           <Clock size={24} color={Colors.light.primary} />
           <Text style={styles.customButtonText}>Create Custom Timer</Text>

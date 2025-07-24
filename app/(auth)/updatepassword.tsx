@@ -65,7 +65,7 @@ export default function UpdatePasswordScreen() {
           [
             {
               text: 'OK',
-              onPress: () => router.push('/(auth)/login'),
+              onPress: () => router.push('/(auth)'),
             },
           ]
         );
@@ -174,7 +174,7 @@ export default function UpdatePasswordScreen() {
         </View>
 
         <View style={styles.footerSection}>
-          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+          <TouchableOpacity onPress={() => router.push('/(auth)')}>
             <Text style={styles.footerLink}>Back to Sign In</Text>
           </TouchableOpacity>
         </View>
