@@ -8,12 +8,15 @@ import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutCalendarView from '@/components/WorkoutCalendarView';
 import MotivationalQuote from '@/components/MotivationalQuote';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
+import { useLocalDatabase } from '@/hooks/useLocalDatabase';
 
 export default function HomeScreen() {
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const { currentProgram, startWorkout } = useWorkout();
   const { user, loading } = useAuth();
+  const { workoutSessions, getLocalStats, syncToCloud } = useLocalDatabase();
   
   const currentDate = new Date();
   const formatDate = (date: Date) => {
@@ -27,10 +30,11 @@ export default function HomeScreen() {
 
   const weeklyStreak = 3;
   const recentWorkouts = [
-    { name: 'Push Day', date: 'Yesterday', volume: '8,500kg' },
-    { name: 'Pull Day', date: '2 days ago', volume: '7,200kg' },
-    { name: 'Legs Day', date: '4 days ago', volume: '9,800kg' },
-    { name: 'Upper Body', date: '6 days ago', volume: '6,900kg' },
+    ...workoutSessions.slice(0, 4).map(session => ({
+      name: session.name,
+      date: new Date(session.completed_at || session.started_at).toLocaleDateString(),
+      volume: `${Math.round(session.total_volume)}kg`
+    }))
   ];
 
   const activeGoals = [
@@ -71,11 +75,20 @@ export default function HomeScreen() {
           <Text style={styles.date}>{formatDate(currentDate)}</Text>
         </View>
 
+        {/* Sync Status Indicator */}
+        <SyncStatusIndicator onSyncPress={() => syncToCloud(true)} />
+
         {/* Motivational Quote */}
         <MotivationalQuote />
 
         {/* Main Workout Card */}
-        <TouchableOpacity style={styles.mainCard} onPress={handleStartWorkout}>
+        <TouchableOpacity 
+          style={styles.mainCard}
+          onPress={handleStartWorkout}
+          accessibilityRole="button"
+          accessibilityLabel={`Start ${currentProgram ? currentProgram.workouts[0].name : 'Push Day'} workout`}
+          accessibilityHint="Begin your scheduled workout session"
+        >
           <View style={styles.mainCardHeader}>
             <View style={styles.workoutInfo}>
               <Text style={styles.workoutLabel}>Today's Workout</Text>
@@ -107,7 +120,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Streak Tile */}
-        <TouchableOpacity 
+        <Pressable 
           style={styles.streakCard}
           onLongPress={() => setStreakModalVisible(true)}
         >
@@ -116,13 +129,16 @@ export default function HomeScreen() {
               <Text style={styles.streakTitle}>Weekly Streak</Text>
               <Text style={styles.streakSubtitle}>{weeklyStreak} weeks with 2+ workouts</Text>
             </View>
-            <Pressable 
+            <TouchableOpacity 
               style={styles.streakBadge}
               onPress={() => setCalendarModalVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="View workout calendar"
+              accessibilityHint="Open calendar view to see workout schedule"
             >
               <Calendar size={16} color="#FFFFFF" />
               <Text style={styles.streakNumber}>{weeklyStreak}</Text>
-            </Pressable>
+            </TouchableOpacity>
           </View>
           
           <View style={styles.weekView}>
@@ -136,7 +152,7 @@ export default function HomeScreen() {
               </View>
             ))}
           </View>
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Active Goals */}
         <View style={styles.goalsCard}>
@@ -160,6 +176,9 @@ export default function HomeScreen() {
             <TouchableOpacity 
               style={styles.quickTimer}
               onPress={handleQuickTimer}
+             accessibilityRole="button"
+             accessibilityLabel="Quick Timer"
+             accessibilityHint="Open timer for rest periods between sets"
             >
               <Timer size={32} color={Colors.light.primary} />
               <Text style={styles.quickTimerText}>Quick Timer</Text>
