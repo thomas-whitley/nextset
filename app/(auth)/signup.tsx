@@ -119,18 +119,18 @@ export default function SignUpScreen() {
   };
 
   const validateForm = () => {
-    if (!formData.fullName.trim()) {
-      setError('Please enter your full name');
-      return false;
-    }
-    if (!formData.username.trim()) {
-      setError('Please enter a username');
-      return false;
-    }
-    if (formData.username.trim().length < 3) {
-      setError('Username must be at least 3 characters long');
-      return false;
-    }
+    // if (!formData.fullName.trim()) {
+    //   setError('Please enter your full name');
+    //   return false;
+    // }
+    // if (!formData.username.trim()) {
+    //   setError('Please enter a username');
+    //   return false;
+    // }
+    // if (formData.username.trim().length < 3) {
+    //   setError('Username must be at least 3 characters long');
+    //   return false;
+    // }
     if (!formData.email.trim()) {
       setError('Please enter your email address');
       return false;
@@ -168,11 +168,11 @@ export default function SignUpScreen() {
         email: formData.email.trim(),
         password: formData.password,
         options: {
-          data: {
-            full_name: formData.fullName.trim(),
-            username: formData.username.trim(),
-            phone: formData.phone.trim(),
-          },
+          // data: {
+          //   full_name: formData.fullName.trim(),
+          //   username: formData.username.trim(),
+          //   phone: formData.phone.trim(),
+          // },
           emailRedirectTo: 'momentum://auth/confirm',
         },
       });
@@ -421,7 +421,7 @@ export default function SignUpScreen() {
           )}
 
           <View style={styles.formSection}>
-            <View style={styles.inputGroup}>
+            {/* <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Full Name</Text>
               <TextInput
                 style={[styles.textInput, error && error.includes('full name') && styles.inputError]}
@@ -434,9 +434,9 @@ export default function SignUpScreen() {
                 textContentType="name"
                 autoComplete="name"
               />
-            </View>
+            </View> */}
 
-            <View style={styles.inputGroup}>
+            {/* <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Username</Text>
               <TextInput
                 style={[styles.textInput, error && error.includes('username') && styles.inputError]}
@@ -450,7 +450,7 @@ export default function SignUpScreen() {
                 textContentType="username"
                 autoComplete="username"
               />
-            </View>
+            </View> */}
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email Address</Text>
@@ -469,7 +469,7 @@ export default function SignUpScreen() {
               />
             </View>
 
-            <View style={styles.inputGroup}>
+            {/* <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Phone Number (Optional)</Text>
               <TextInput
                 style={styles.textInput}
@@ -482,7 +482,7 @@ export default function SignUpScreen() {
                 textContentType="telephoneNumber"
                 autoComplete="tel"
               />
-            </View>
+            </View> */}
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Password</Text>
