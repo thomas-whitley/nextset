@@ -28,9 +28,6 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Profile</Text>
         <View style={styles.headerButtons}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleEditProfile}>
-            <Edit size={24} color={Colors.light.textTertiary} />
-          </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleSettingsPress}>
             <Settings size={24} color={Colors.light.textTertiary} />
           </TouchableOpacity>
