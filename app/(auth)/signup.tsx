@@ -356,14 +356,14 @@ export default function SignUpScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton} 
             onPress={() => router.back()}
           >
             <ArrowLeft size={24} color={Colors.light.text} />
           </TouchableOpacity>
-        </View>
+        </View> */}
 
         <ScrollView 
           style={styles.content} 
@@ -372,8 +372,8 @@ export default function SignUpScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.titleSection}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join Momentum and start your fitness transformation</Text>
+            <Text style={styles.title}>Welcome to Momentum</Text>
+            <Text style={styles.subtitle}>Join us and start your fitness transformation</Text>
           </View>
 
           {error && (
