@@ -178,6 +178,10 @@ export default function SettingsScreen() {
     Alert.alert('Coming Soon', 'CSV export functionality will be available in a future update.');
   };
 
+  const handleEditProfile = () => {
+      router.push('/edit-profile');
+    };
+
   const formatRestTime = (seconds: number) => {
     if (seconds < 60) {
       return `${seconds} seconds`;
@@ -204,7 +208,7 @@ export default function SettingsScreen() {
         {/* User Profile Section */}
         {user && (
           <View style={styles.profileSection}>
-            <View style={styles.profileCard}>
+            <TouchableOpacity style={styles.profileCard} onPress={handleEditProfile}>
               <View style={styles.profileIcon}>
                 <Text style={styles.profileInitial}>
                   {user.user_metadata?.full_name?.[0] || user.email?.[0] || 'U'}
@@ -216,7 +220,7 @@ export default function SettingsScreen() {
                 </Text>
                 <Text style={styles.profileEmail}>{user.email}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         )}
 
