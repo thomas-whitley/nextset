@@ -61,6 +61,8 @@ export default function SignUpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
 
   // Animation values
   const successScale = useSharedValue(0);
@@ -111,6 +113,19 @@ export default function SignUpScreen() {
       };
     }
   }, [success, emailSent]);
+
+  // Resend timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [resendTimer]);
 
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -266,9 +281,11 @@ export default function SignUpScreen() {
   };
 
   const handleResendEmail = async () => {
-    if (!formData.email) return;
+    if (!formData.email || resendTimer > 0 || resendLoading) return;
     
-    setLoading(true);
+    setResendLoading(true);
+    setError(null);
+    
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -280,17 +297,25 @@ export default function SignUpScreen() {
 
       if (error) {
         console.error('Resend email error:', error);
-        setError('Failed to resend email. Please try again.');
+        if (error.message.includes('rate limit') || error.message.includes('too many')) {
+          setError('Please wait before requesting another email. Check your spam folder.');
+        } else {
+          setError('Failed to resend email. Please try again.');
+        }
       } else {
-        // Show success message briefly
+        // Start 60-second timer
+        setResendTimer(60);
         setError(null);
-        // You could add a toast or temporary success message here
+        // Show brief success message
+        const successMessage = 'Verification email sent! Check your inbox.';
+        setError(null);
+        // You could add a toast notification here instead
       }
     } catch (error) {
       console.error('Unexpected resend error:', error);
       setError('Failed to resend email. Please try again.');
     } finally {
-      setLoading(false);
+      setResendLoading(false);
     }
   };
 
@@ -329,11 +354,31 @@ export default function SignUpScreen() {
             After clicking the link, you can return here to sign in.
           </Text>
           
+          {error && (
+            <View style={styles.resendErrorContainer}>
+              <Text style={styles.resendErrorText}>{error}</Text>
+            </View>
+          )}
+          
           <TouchableOpacity 
-            style={styles.resendButton}
+            style={[
+              styles.resendButton,
+              (resendTimer > 0 || resendLoading) && styles.resendButtonDisabled
+            ]}
             onPress={handleResendEmail}
+            disabled={resendTimer > 0 || resendLoading}
           >
-            <Text style={styles.resendText}>Resend verification email</Text>
+            <Text style={[
+              styles.resendText,
+              (resendTimer > 0 || resendLoading) && styles.resendTextDisabled
+            ]}>
+              {resendLoading 
+                ? 'Sending...' 
+                : resendTimer > 0 
+                  ? `Resend in ${resendTimer}s` 
+                  : 'Resend verification email'
+              }
+            </Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -939,6 +984,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.primary,
+    textAlign: 'center',
+  },
+  resendButtonDisabled: {
+    opacity: 0.5,
+  },
+  resendTextDisabled: {
+    color: Colors.light.textTertiary,
+  },
+  resendErrorContainer: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  resendErrorText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#DC2626',
     textAlign: 'center',
   },
 });
