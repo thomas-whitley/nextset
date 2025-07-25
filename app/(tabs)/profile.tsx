@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Settings, Trophy, Target, TrendingUp } from 'lucide-react-native';
+import { Settings, Trophy, Target, TrendingUp, Edit } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { AuthProvider, useAuth } from '@/data/AuthContext';
@@ -11,6 +11,10 @@ export default function ProfileScreen() {
 
   const handleSettingsPress = () => {
     router.push('/settings');
+  };
+
+  const handleEditProfile = () => {
+    router.push('/edit-profile');
   };
 
   const lifetimeStats = [
@@ -23,9 +27,14 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity style={styles.settingsButton} onPress={handleSettingsPress}>
-          <Settings size={24} color={Colors.light.textTertiary} />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.headerButton} onPress={handleEditProfile}>
+            <Edit size={24} color={Colors.light.textTertiary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerButton} onPress={handleSettingsPress}>
+            <Settings size={24} color={Colors.light.textTertiary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -134,13 +143,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
   },
-  settingsButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: Colors.light.card,
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 8,
   },
   content: {
     flex: 1,
