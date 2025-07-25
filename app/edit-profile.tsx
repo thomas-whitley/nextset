@@ -15,7 +15,7 @@ interface ProfileData {
 }
 
 export default function EditProfileScreen() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [profileData, setProfileData] = useState<ProfileData>({
     full_name: '',
     username: '',
@@ -190,8 +190,25 @@ export default function EditProfileScreen() {
         }
       }
 
+      // Update auth user metadata to reflect changes immediately
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: {
+          full_name: profileData.full_name.trim(),
+          username: profileData.username.trim(),
+          phone: profileData.phone.trim() || null,
+        }
+      });
+
+      if (metadataError) {
+        console.error('Error updating user metadata:', metadataError);
+        // Don't return here as profile was still updated successfully
+      }
+
       // Update original data to reflect saved state
       setOriginalData({ ...profileData });
+      
+      // Refresh user data in AuthContext to reflect changes immediately
+      await refreshUser();
       
       // Navigate back immediately and show success
       router.back();
