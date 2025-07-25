@@ -60,6 +60,7 @@ export default function SignUpScreen() {
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   // Animation values
   const successScale = useSharedValue(0);
@@ -70,7 +71,7 @@ export default function SignUpScreen() {
 
   // Animate loading dots and auto-navigate after success
   useEffect(() => {
-    if (success) {
+    if (success && !emailSent) {
       // Start the loading dots animation
       const animateDots = () => {
         dot1Opacity.value = withSequence(
@@ -109,7 +110,7 @@ export default function SignUpScreen() {
         clearTimeout(navigationTimeout);
       };
     }
-  }, [success]);
+  }, [success, emailSent]);
 
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -210,17 +211,21 @@ export default function SignUpScreen() {
       console.log('Session:', data.session);
 
       if (data.user) {
-        // Show success animation
-        console.log('Showing success screen...');
-        setSuccess(true);
-        
-        // Trigger success animation
-        successScale.value = withSpring(1, { damping: 15, stiffness: 200 });
-        successOpacity.value = withTiming(1, { duration: 300 });
-        
-        // The AuthProvider will handle navigation automatically when the session is established
-        console.log('Waiting for auth state to update...');
-        
+        if (data.session) {
+          // User is immediately logged in (email confirmation disabled)
+          console.log('User logged in immediately, showing success screen...');
+          setSuccess(true);
+          
+          // Trigger success animation
+          successScale.value = withSpring(1, { damping: 15, stiffness: 200 });
+          successOpacity.value = withTiming(1, { duration: 300 });
+          
+          console.log('Waiting for auth state to update...');
+        } else {
+          // User needs to verify email
+          console.log('Email verification required');
+          setEmailSent(true);
+        }
       } else {
         console.error('No user returned from signup');
         setError('Failed to create account. Please try again.');
@@ -261,6 +266,47 @@ export default function SignUpScreen() {
     router.push('/(auth)');
   };
 
+  // Email verification screen
+  if (emailSent) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.emailVerificationContainer}>
+          <View style={styles.emailVerificationContent}>
+            <View style={styles.emailIcon}>
+              <Text style={styles.emailIconText}>📧</Text>
+            </View>
+            <Text style={styles.emailVerificationTitle}>Check Your Email</Text>
+            <Text style={styles.emailVerificationMessage}>
+              We've sent a verification link to{' '}
+              <Text style={styles.emailAddress}>{formData.email}</Text>
+            </Text>
+            <Text style={styles.emailVerificationInstructions}>
+              Please check your inbox and click the verification link to activate your account. 
+              You can then return here to sign in.
+            </Text>
+            
+            <TouchableOpacity 
+              style={styles.backToLoginButton}
+              onPress={navigateToLogin}
+            >
+              <Text style={styles.backToLoginText}>Back to Sign In</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.resendButton}
+              onPress={() => {
+                // Reset to allow resending
+                setEmailSent(false);
+                setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+              }}
+            >
+              <Text style={styles.resendText}>Didn't receive the email? Try again</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
   const successAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: successScale.value }],
     opacity: successOpacity.value,
@@ -782,6 +828,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     color: Colors.light.textTertiary,
+    textAlign: 'center',
+  },
+  // Email Verification Styles
+  emailVerificationContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    backgroundColor: Colors.light.background,
+  },
+  emailVerificationContent: {
+    alignItems: 'center',
+    maxWidth: 400,
+  },
+  emailIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.light.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emailIconText: {
+    fontSize: 40,
+  },
+  emailVerificationTitle: {
+    fontSize: 28,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  emailVerificationMessage: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  emailAddress: {
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.primary,
+  },
+  emailVerificationInstructions: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 32,
+  },
+  backToLoginButton: {
+    backgroundColor: Colors.light.primary,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    marginBottom: 16,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  backToLoginText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+  },
+  resendButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  resendText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.primary,
     textAlign: 'center',
   },
 });
