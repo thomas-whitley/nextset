@@ -473,13 +473,13 @@ export default function SignUpScreen() {
               disabled={loading}
             >
               <Text style={styles.signUpButtonText}>
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? 'Creating Account...' : 'Create New Account'}
               </Text>
             </TouchableOpacity>
           </View>
 
           {/* Social Login Buttons */}
-          <View style={styles.socialSection}>
+          {/*<View style={styles.socialSection}>
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>OR</Text>
@@ -507,18 +507,18 @@ export default function SignUpScreen() {
                 {socialLoading === 'apple' ? 'Connecting...' : 'Continue with Apple'}
               </Text>
             </TouchableOpacity>
-          </View>
+          </View>*/}
 
-          <View style={styles.footerSection}>
-            <Text style={styles.footerText}>
-              Already have an account?{' '}
-              <Text 
-                style={styles.footerLink} 
-                onPress={navigateToLogin}
-              >
-                Sign In
+          <View style={styles.inputGroup}>
+            <TouchableOpacity 
+              style={styles.LogInButton} 
+              onPress={navigateToLogin}
+              activeOpacity={0.6} 
+            >
+              <Text style={styles.LogInButtonText}>
+                Log In
               </Text>
-            </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -658,6 +658,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
+  },
+  LogInButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    marginTop: 16,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  LogInButtonDisabled: {
+    opacity: 0.5,
+  },
+  LogInButtonText: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.primary,
   },
   socialSection: {
     marginBottom: 32,
