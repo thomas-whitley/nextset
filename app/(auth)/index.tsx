@@ -372,12 +372,12 @@ export default function LoginScreen() {
               onPress={handleLogin}
               disabled={loading}
               accessibilityRole="button"
-              accessibilityLabel="Sign in"
-              accessibilityHint="Sign in to your account"
+              accessibilityLabel="Log in"
+              accessibilityHint="Log in to your account"
               accessibilityState={{ disabled: loading }}
             >
               <Text style={styles.loginButtonText}>
-                {loading ? 'Signing In...' : 'Sign In'}
+                {loading ? 'Logging In...' : 'Log In'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -420,19 +420,19 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
 
-        <View style={styles.footerSection}>
-          <Text style={styles.footerText}>
-            Don't have an account?{' '}
-            <Text 
-              style={styles.footerLink} 
+          <View style={styles.inputGroup}>
+            <TouchableOpacity 
+              style={styles.SignInButton} 
               onPress={navigateToSignUp}
+              activeOpacity={0.6} 
             >
-              Sign Up
-            </Text>
-          </Text>
-        </View>
+              <Text style={styles.SignInButtonText}>
+                Sign Up
+              </Text>
+            </TouchableOpacity>
+          </View>            
+          </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -591,6 +591,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
+  },
+  SignInButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    marginTop: 16,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  SignInButtonText: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: Colors.light.primary,
   },
   socialSection: {
     marginBottom: 20,
