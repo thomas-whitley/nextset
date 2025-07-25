@@ -118,28 +118,36 @@ export default function EditProfileScreen() {
     if (!validateForm()) return;
     if (!user) return;
 
-    // Check if email is being changed
-    const emailChanged = profileData.email !== originalData.email;
-    
-    if (emailChanged) {
-      Alert.alert(
-        'Email Change',
-        'Changing your email will require verification. You will need to confirm the new email address.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', onPress: () => saveProfile(true) }
-        ]
-      );
-    } else {
+    setSaving(true);
+    setError(null);
+
+    try {
+      // Check if email is being changed
+      const emailChanged = profileData.email !== originalData.email;
+      
+      if (emailChanged) {
+        Alert.alert(
+          'Email Change',
+          'Changing your email will require verification. You will need to confirm the new email address.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Continue', onPress: () => saveProfile(true) }
+          ]
+        );
+        return;
+      }
+
       await saveProfile(false);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      setError('Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const saveProfile = async (emailChanged: boolean) => {
     if (!user) return;
-
-    setSaving(true);
-    setError(null);
 
     try {
       // Update profile table
@@ -166,7 +174,6 @@ export default function EditProfileScreen() {
         } else {
           setError('Failed to update profile. Please try again.');
         }
-        setSaving(false);
         return;
       }
 
@@ -179,7 +186,6 @@ export default function EditProfileScreen() {
         if (authError) {
           console.error('Error updating auth email:', authError);
           setError('Profile updated but email change failed. Please try updating email again.');
-          setSaving(false);
           return;
         }
       }
@@ -220,8 +226,6 @@ export default function EditProfileScreen() {
     } catch (error) {
       console.error('Unexpected error saving profile:', error);
       setError('An unexpected error occurred. Please try again.');
-    } finally {
-      setSaving(false);
     }
   };
 
