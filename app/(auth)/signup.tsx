@@ -173,8 +173,7 @@ export default function SignUpScreen() {
             username: formData.username.trim(),
             phone: formData.phone.trim(),
           },
-          // Disable email confirmation for immediate login
-          emailRedirectTo: undefined,
+          emailRedirectTo: 'momentum://auth/confirm',
         },
       });
 
@@ -266,6 +265,35 @@ export default function SignUpScreen() {
     router.push('/(auth)');
   };
 
+  const handleResendEmail = async () => {
+    if (!formData.email) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email.trim(),
+        options: {
+          emailRedirectTo: 'momentum://auth/confirm',
+        },
+      });
+
+      if (error) {
+        console.error('Resend email error:', error);
+        setError('Failed to resend email. Please try again.');
+      } else {
+        // Show success message briefly
+        setError(null);
+        // You could add a toast or temporary success message here
+      }
+    } catch (error) {
+      console.error('Unexpected resend error:', error);
+      setError('Failed to resend email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const successAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: successScale.value }],
     opacity: successOpacity.value,
@@ -297,26 +325,22 @@ export default function SignUpScreen() {
             <Text style={styles.emailAddress}>{formData.email}</Text>
           </Text>
           <Text style={styles.emailVerificationInstructions}>
-            Please check your inbox and click the verification link to activate your account. 
-            You can then return here to sign in.
+            Please check your inbox (including spam folder) and click the verification link to activate your account. 
+            After clicking the link, you can return here to sign in.
           </Text>
+          
+          <TouchableOpacity 
+            style={styles.resendButton}
+            onPress={handleResendEmail}
+          >
+            <Text style={styles.resendText}>Resend verification email</Text>
+          </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.backToLoginButton}
             onPress={navigateToLogin}
           >
             <Text style={styles.backToLoginText}>Back to Sign In</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.resendButton}
-            onPress={() => {
-              // Reset to allow resending
-              setEmailSent(false);
-              setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
-            }}
-          >
-            <Text style={styles.resendText}>Didn't receive the email? Try again</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -905,8 +929,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   resendButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    backgroundColor: Colors.light.primaryLight,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginBottom: 16,
   },
   resendText: {
     fontSize: 14,
