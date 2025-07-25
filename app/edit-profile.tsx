@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, User, Mail, Phone, AtSign, Camera, Save, AlertCircle } from 'lucide-react-native';
+import { X, User, Mail, Phone, AtSign, Camera, Save, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';

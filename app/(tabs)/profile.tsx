@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Settings, Trophy, Target, TrendingUp, Edit } from 'lucide-react-native';
+import { Settings, Trophy, Target, TrendingUp, CreditCard as Edit } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { AuthProvider, useAuth } from '@/data/AuthContext';
