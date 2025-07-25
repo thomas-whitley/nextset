@@ -7,6 +7,7 @@ export interface AuthContextType {
   loading: boolean;
   user: User | null;
   signOut: () => Promise<{ error: Error | null }>;
+  refreshUser: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,10 +59,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(currentSession?.user ?? null);
           
           // Handle user profile creation/update for all sign-in events
-          if ((event === 'SIGNED_UP' || event === 'SIGNED_IN') && currentSession?.user) {
-            console.log('AuthProvider: Ensuring user profile exists for:', event);
-            await ensureUserProfile(currentSession.user);
-          }
+          // Profile creation is now handled by database trigger
+          // No need to manually create profiles
           
           if (loading) {
             console.log('AuthProvider: Setting loading to false after auth state change');
@@ -77,103 +76,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [loading]);
 
-  const ensureUserProfile = async (user: User) => {
-    try {
-      console.log('Ensuring user profile exists for:', user.id);
-      console.log('User metadata:', user.user_metadata);
-      
-      // First check if profile already exists using the correct table name 'profile'
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profile')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Error checking existing profile:', checkError);
-        // Continue with creation attempt even if check fails
-      }
-
-      if (existingProfile) {
-        console.log('User profile already exists, updating if needed');
-        
-        // Update profile with any new social data
-        const socialData = {
-          full_name: user.user_metadata?.full_name || user.user_metadata?.name,
-          avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
-        };
-
-        const updateData: any = {};
-        if (socialData.full_name) updateData.full_name = socialData.full_name;
-        if (socialData.avatar_url) updateData.avatar_url = socialData.avatar_url;
-
-        if (Object.keys(updateData).length > 0) {
-          const { error: updateError } = await supabase
-            .from('profile')
-            .update(updateData)
-            .eq('id', user.id);
-
-          if (updateError) {
-            console.error('Error updating user profile:', updateError);
-          } else {
-            console.log('User profile updated successfully');
-          }
-        }
-        return;
-      }
-
-      // Create new profile using the correct table name 'profile'
-      console.log('Creating new user profile');
-      
-      const profileData = {
-        id: user.id,
-        email: user.email!,
-        full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
-        username: user.user_metadata?.username || null,
-        phone: user.user_metadata?.phone || null,
-        avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
-        role: 'user' as const,
-        is_active: true,
-      };
-
-      console.log('Profile data to insert:', profileData);
-
-      const { data: newProfile, error: insertError } = await supabase
-        .from('profile')
-        .insert(profileData)
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('Error creating user profile:', insertError);
-        
-        // If it's a duplicate key error, that's actually fine
-        if (insertError.code === '23505') {
-          console.log('Profile already exists (duplicate key), this is fine');
-          return;
-        }
-        
-        // Don't throw the error to prevent auth flow from breaking
-        console.error('Profile creation failed, but continuing with auth flow');
-      } else {
-        console.log('User profile created successfully:', newProfile);
-      }
-    } catch (error) {
-      console.error('Error in ensureUserProfile:', error);
-      // Don't throw the error to prevent auth flow from breaking
-    }
-  };
 
   const signOut = async () => {
     console.log('AuthProvider: Signing out...');
     return await supabase.auth.signOut();
   };
 
+  const refreshUser = async () => {
+    try {
+      console.log('AuthProvider: Refreshing user data...');
+      const { data: { user: refreshedUser }, error } = await supabase.auth.getUser();
+      
+      if (error) {
+        console.error('Error refreshing user:', error);
+        return;
+      }
+      
+      if (refreshedUser) {
+        console.log('AuthProvider: User data refreshed');
+        setUser(refreshedUser);
+        setSession(prev => prev ? { ...prev, user: refreshedUser } : null);
+      }
+    } catch (error) {
+      console.error('Unexpected error refreshing user:', error);
+    }
+  };
   const value = {
     session,
     user,
     loading,
     signOut,
+    refreshUser,
   };
 
   console.log('AuthProvider: Rendering with session:', !!session, 'loading:', loading);

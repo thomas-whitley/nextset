@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { 
   initializeLocalDatabase,
   saveWorkoutSession,
@@ -72,6 +73,14 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
   // Initialize database on mount
   useEffect(() => {
     const initialize = async () => {
+      // Skip database initialization on web platform
+      if (Platform.OS === 'web') {
+        console.log('useLocalDatabase: Skipping database initialization on web platform');
+        setIsInitialized(true);
+        setIsLoading(false);
+        return;
+      }
+      
       try {
         setIsLoading(true);
         setError(null);
@@ -100,7 +109,7 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
 
   // Load workout sessions from local database
   const loadWorkoutSessions = async (limit?: number): Promise<void> => {
-    if (!user) return;
+    if (!user || Platform.OS === 'web') return;
     
     try {
       const sessions = await getWorkoutSessions(user.id, limit);
@@ -115,6 +124,10 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
   const createWorkoutSession = async (
     workout: Omit<LocalWorkoutSession, 'id' | 'created_at' | 'updated_at' | 'needs_sync'>
   ): Promise<string> => {
+    if (Platform.OS === 'web') {
+      throw new Error('Local database not available on web platform');
+    }
+    
     try {
       const sessionId = await saveWorkoutSession(workout);
       
@@ -131,6 +144,10 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
 
   // Update workout session
   const updateWorkoutSessionData = async (id: string, updates: Partial<LocalWorkoutSession>): Promise<void> => {
+    if (Platform.OS === 'web') {
+      throw new Error('Local database not available on web platform');
+    }
+    
     try {
       await updateWorkoutSession(id, updates);
       
@@ -157,6 +174,10 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
     sessionId: string, 
     exercise: Omit<LocalWorkoutExercise, 'id' | 'created_at' | 'needs_sync'>
   ): Promise<string> => {
+    if (Platform.OS === 'web') {
+      throw new Error('Local database not available on web platform');
+    }
+    
     try {
       const exerciseId = await saveWorkoutExercise(exercise);
       await refreshSyncStatus();
@@ -172,6 +193,10 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
     exerciseId: string,
     set: Omit<LocalExerciseSet, 'id' | 'created_at' | 'needs_sync'>
   ): Promise<string> => {
+    if (Platform.OS === 'web') {
+      throw new Error('Local database not available on web platform');
+    }
+    
     try {
       const setId = await saveExerciseSet(set);
       await refreshSyncStatus();
@@ -184,6 +209,10 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
 
   // Update exercise set
   const updateSet = async (setId: string, updates: Partial<LocalExerciseSet>): Promise<void> => {
+    if (Platform.OS === 'web') {
+      throw new Error('Local database not available on web platform');
+    }
+    
     try {
       await updateExerciseSet(setId, updates);
       await refreshSyncStatus();
@@ -195,7 +224,7 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
 
   // Get local statistics
   const getLocalStats = async (days: number = 30): Promise<any> => {
-    if (!user) return null;
+    if (!user || Platform.OS === 'web') return null;
     
     try {
       return await calculateLocalStats(user.id, days);
@@ -207,6 +236,17 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
 
   // Sync to cloud
   const syncToCloud = async (force: boolean = false): Promise<SyncResult> => {
+    if (Platform.OS === 'web') {
+      console.log('useLocalDatabase: Sync not available on web platform');
+      const webResult: SyncResult = {
+        success: false,
+        syncedCounts: { workoutSessions: 0, workoutExercises: 0, exerciseSets: 0, personalRecords: 0 },
+        errors: ['Sync not available on web platform']
+      };
+      setLastSyncResult(webResult);
+      return webResult;
+    }
+    
     setIsSyncing(true);
     try {
       const result = await SyncService.syncToSupabase(force);
@@ -243,7 +283,7 @@ export const useLocalDatabase = (): LocalDatabaseHook => {
 
   // Refresh sync status periodically
   useEffect(() => {
-    if (!isInitialized) return;
+    if (!isInitialized || Platform.OS === 'web') return;
 
     const interval = setInterval(refreshSyncStatus, 30000); // Every 30 seconds
     return () => clearInterval(interval);
