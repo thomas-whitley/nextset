@@ -70,6 +70,10 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showResendEmail, setShowResendEmail] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const emailInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
 
@@ -94,6 +98,36 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     }
   }, [authLoading, user]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendCooldown > 0) {
+      interval = setInterval(() => {
+        setResendCooldown(prev => {
+          if (prev <= 1) {
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [resendCooldown]);
+
+  // Auto-hide resend success message
+  useEffect(() => {
+    if (resendSuccess) {
+      const timeout = setTimeout(() => {
+        setResendSuccess(false);
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [resendSuccess]);
   
   
   // Start animation on mount and repeat every 30 seconds
@@ -190,6 +224,7 @@ export default function LoginScreen() {
         
         if (loginError.message.includes('Email not confirmed')) {
           setError('Please check your email and click the confirmation link before signing in.');
+          setShowResendEmail(true);
           return;
         }
         
@@ -253,6 +288,54 @@ export default function LoginScreen() {
     router.push('/(auth)/forgotpassword');
   };
 
+  const handleResendConfirmation = async () => {
+    if (!formData.email.trim()) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    if (resendCooldown > 0) {
+      return;
+    }
+
+    setResendLoading(true);
+    setError(null);
+    setResendSuccess(false);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email.trim(),
+        options: {
+          emailRedirectTo: 'momentum://auth/confirm',
+        },
+      });
+
+      if (error) {
+        console.error('Resend confirmation error:', error);
+        
+        if (error.message.includes('rate limit') || error.message.includes('too many')) {
+          setError('Too many requests. Please wait before trying again.');
+          setResendCooldown(120); // 2 minutes for rate limit
+        } else if (error.message.includes('not found') || error.message.includes('invalid')) {
+          setError('No unconfirmed account found with this email address.');
+          setShowResendEmail(false);
+        } else {
+          setError('Failed to resend confirmation email. Please try again.');
+        }
+      } else {
+        setResendSuccess(true);
+        setResendCooldown(60); // 60 seconds normal cooldown
+        setError(null);
+      }
+    } catch (error: any) {
+      console.error('Unexpected resend error:', error);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView 
@@ -291,6 +374,36 @@ export default function LoginScreen() {
                   <Text style={styles.errorActionText}>Create New Account</Text>
                 </TouchableOpacity>
               )}
+              {showResendEmail && error.includes('confirmation link') && (
+                <TouchableOpacity 
+                  style={[
+                    styles.resendButton,
+                    (resendCooldown > 0 || resendLoading) && styles.resendButtonDisabled
+                  ]}
+                  onPress={handleResendConfirmation}
+                  disabled={resendCooldown > 0 || resendLoading}
+                >
+                  <Text style={[
+                    styles.resendButtonText,
+                    (resendCooldown > 0 || resendLoading) && styles.resendButtonTextDisabled
+                  ]}>
+                    {resendLoading 
+                      ? 'Sending...' 
+                      : resendCooldown > 0 
+                        ? `Resend in ${resendCooldown}s`
+                        : 'Resend confirmation email'
+                    }
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {resendSuccess && (
+            <View style={styles.successContainer}>
+              <Text style={styles.successText}>
+                ✅ Confirmation email sent! Please check your inbox and spam folder.
+              </Text>
             </View>
           )}
 
@@ -504,6 +617,39 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.primary,
     textDecorationLine: 'underline',
+  },
+  resendButton: {
+    backgroundColor: Colors.light.primaryLight,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  resendButtonDisabled: {
+    backgroundColor: Colors.light.border,
+    opacity: 0.6,
+  },
+  resendButtonText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.primary,
+  },
+  resendButtonTextDisabled: {
+    color: Colors.light.textTertiary,
+  },
+  successContainer: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  successText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#15803D',
   },
   formSection: {
     marginBottom: 32,
