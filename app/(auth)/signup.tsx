@@ -266,47 +266,6 @@ export default function SignUpScreen() {
     router.push('/(auth)');
   };
 
-  // Email verification screen
-  if (emailSent) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.emailVerificationContainer}>
-          <View style={styles.emailVerificationContent}>
-            <View style={styles.emailIcon}>
-              <Text style={styles.emailIconText}>📧</Text>
-            </View>
-            <Text style={styles.emailVerificationTitle}>Check Your Email</Text>
-            <Text style={styles.emailVerificationMessage}>
-              We've sent a verification link to{' '}
-              <Text style={styles.emailAddress}>{formData.email}</Text>
-            </Text>
-            <Text style={styles.emailVerificationInstructions}>
-              Please check your inbox and click the verification link to activate your account. 
-              You can then return here to sign in.
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.backToLoginButton}
-              onPress={navigateToLogin}
-            >
-              <Text style={styles.backToLoginText}>Back to Sign In</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.resendButton}
-              onPress={() => {
-                // Reset to allow resending
-                setEmailSent(false);
-                setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
-              }}
-            >
-              <Text style={styles.resendText}>Didn't receive the email? Try again</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
   const successAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: successScale.value }],
     opacity: successOpacity.value,
@@ -324,29 +283,76 @@ export default function SignUpScreen() {
     opacity: dot3Opacity.value,
   }));
 
-  // Success Screen
-  if (success) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.successContainer}>
-          <Animated.View style={[styles.successContent, successAnimatedStyle]}>
-            <View style={styles.successIcon}>
-              <CheckCircle size={64} color={Colors.light.success} />
-            </View>
-            <Text style={styles.successTitle}>Welcome to Momentum!</Text>
-            <Text style={styles.successMessage}>
-              Your account has been created successfully. Get ready to transform your fitness journey!
-            </Text>
-            <View style={styles.loadingDots}>
-              <Animated.View style={[styles.dot, dot1AnimatedStyle]} />
-              <Animated.View style={[styles.dot, dot2AnimatedStyle]} />
-              <Animated.View style={[styles.dot, dot3AnimatedStyle]} />
-            </View>
-            <Text style={styles.loadingText}>Setting up your account...</Text>
-          </Animated.View>
+  // Email verification screen
+  const renderEmailVerificationScreen = () => (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.emailVerificationContainer}>
+        <View style={styles.emailVerificationContent}>
+          <View style={styles.emailIcon}>
+            <Text style={styles.emailIconText}>📧</Text>
+          </View>
+          <Text style={styles.emailVerificationTitle}>Check Your Email</Text>
+          <Text style={styles.emailVerificationMessage}>
+            We've sent a verification link to{' '}
+            <Text style={styles.emailAddress}>{formData.email}</Text>
+          </Text>
+          <Text style={styles.emailVerificationInstructions}>
+            Please check your inbox and click the verification link to activate your account. 
+            You can then return here to sign in.
+          </Text>
+          
+          <TouchableOpacity 
+            style={styles.backToLoginButton}
+            onPress={navigateToLogin}
+          >
+            <Text style={styles.backToLoginText}>Back to Sign In</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.resendButton}
+            onPress={() => {
+              // Reset to allow resending
+              setEmailSent(false);
+              setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+            }}
+          >
+            <Text style={styles.resendText}>Didn't receive the email? Try again</Text>
+          </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    );
+      </View>
+    </SafeAreaView>
+  );
+
+  // Success Screen
+  const renderSuccessScreen = () => (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.successContainer}>
+        <Animated.View style={[styles.successContent, successAnimatedStyle]}>
+          <View style={styles.successIcon}>
+            <CheckCircle size={64} color={Colors.light.success} />
+          </View>
+          <Text style={styles.successTitle}>Welcome to Momentum!</Text>
+          <Text style={styles.successMessage}>
+            Your account has been created successfully. Get ready to transform your fitness journey!
+          </Text>
+          <View style={styles.loadingDots}>
+            <Animated.View style={[styles.dot, dot1AnimatedStyle]} />
+            <Animated.View style={[styles.dot, dot2AnimatedStyle]} />
+            <Animated.View style={[styles.dot, dot3AnimatedStyle]} />
+          </View>
+          <Text style={styles.loadingText}>Setting up your account...</Text>
+        </Animated.View>
+      </View>
+    </SafeAreaView>
+  );
+
+  // Render appropriate screen based on state
+  if (emailSent) {
+    return renderEmailVerificationScreen();
+  }
+
+  if (success) {
+    return renderSuccessScreen();
   }
 
   return (
