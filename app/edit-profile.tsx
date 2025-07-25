@@ -193,13 +193,18 @@ export default function EditProfileScreen() {
       // Update original data to reflect saved state
       setOriginalData({ ...profileData });
       
-      Alert.alert(
-        'Profile Updated',
-        emailChanged 
-          ? 'Your profile has been updated. Please check your email to verify your new email address.'
-          : 'Your profile has been updated successfully!',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // Navigate back immediately and show success
+      router.back();
+      
+      // Show success message after navigation
+      setTimeout(() => {
+        Alert.alert(
+          'Profile Updated',
+          emailChanged 
+            ? 'Your profile has been updated. Please check your email to verify your new email address.'
+            : 'Your profile has been updated successfully!'
+        );
+      }, 100);
 
     } catch (error) {
       console.error('Unexpected error saving profile:', error);
