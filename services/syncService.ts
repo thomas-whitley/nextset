@@ -1,4 +1,5 @@
 import { supabase } from '../data/supabase-client';
+import { Platform } from 'react-native';
 import { 
   getRecordsNeedingSync, 
   markRecordsAsSynced,
@@ -28,6 +29,12 @@ export class SyncService {
    * Initialize network monitoring
    */
   static initialize(): void {
+    // Skip initialization on web platform
+    if (Platform.OS === 'web') {
+      console.log('SyncService: Skipping initialization on web platform');
+      return;
+    }
+    
     NetInfo.addEventListener(state => {
       this.isOnline = state.isConnected ?? false;
       console.log('Network status:', this.isOnline ? 'Online' : 'Offline');
@@ -43,6 +50,11 @@ export class SyncService {
    * Check if device is connected to Wi-Fi
    */
   static async isConnectedToWiFi(): Promise<boolean> {
+    // Always return false on web platform
+    if (Platform.OS === 'web') {
+      return false;
+    }
+    
     try {
       const state = await NetInfo.fetch();
       return state.isConnected === true && state.type === 'wifi';
@@ -56,6 +68,16 @@ export class SyncService {
    * Main sync function - uploads local data to Supabase
    */
   static async syncToSupabase(forceSync: boolean = false): Promise<SyncResult> {
+    // Skip sync on web platform
+    if (Platform.OS === 'web') {
+      console.log('SyncService: Sync not available on web platform');
+      return {
+        success: false,
+        syncedCounts: { workoutSessions: 0, workoutExercises: 0, exerciseSets: 0, personalRecords: 0 },
+        errors: ['Sync not available on web platform']
+      };
+    }
+    
     if (this.isSyncing) {
       console.log('Sync already in progress');
       return {
@@ -345,6 +367,16 @@ export class SyncService {
     };
     errors: string[];
   }> {
+    // Skip download on web platform
+    if (Platform.OS === 'web') {
+      console.log('SyncService: Download not available on web platform');
+      return {
+        success: false,
+        downloadedCounts: { workoutSessions: 0 },
+        errors: ['Download not available on web platform']
+      };
+    }
+    
     const errors: string[] = [];
     let downloadedCounts = { workoutSessions: 0 };
 
@@ -421,6 +453,16 @@ export class SyncService {
     isOnline: boolean;
     isWiFi: boolean;
   }> {
+    // Return default values for web platform
+    if (Platform.OS === 'web') {
+      return {
+        pendingSync: 0,
+        lastSyncAt: null,
+        isOnline: true,
+        isWiFi: false
+      };
+    }
+    
     try {
       const recordsToSync = await getRecordsNeedingSync();
       const pendingSync = Object.values(recordsToSync).reduce(
