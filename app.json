@@ -8,6 +8,8 @@
     "scheme": "momentum",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "privacy": "public",
+    "privacyPolicyUrl": "https://room12loading.github.io/privacy-policy/",
     "ios": {
       "supportsTablet": true
     },
