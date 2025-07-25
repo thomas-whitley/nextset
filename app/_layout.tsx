@@ -45,6 +45,7 @@ function AppNavigator() {
                 <Stack.Screen name="browse-exercises" options={{ presentation: 'modal' }} />
                 <Stack.Screen name="create-super-admin" options={{ presentation: 'modal' }} />
                 <Stack.Screen name="aboutus" options={{ presentation: 'modal' }} />
+                <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
               </>
             ) : (
               // User is not authenticated - show auth flow
