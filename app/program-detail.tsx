@@ -1,16 +1,32 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Play, ArrowUp, ArrowDown, GripVertical } from 'lucide-react-native';
+import { X, Play, ArrowUp, ArrowDown, GripVertical, Move } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { GestureHandlerRootView, PanGestureHandler, State } from 'react-native-gesture-handler';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  useAnimatedGestureHandler, 
+  runOnJS,
+  withSpring 
+} from 'react-native-reanimated';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 
 export default function ProgramDetailScreen() {
   const params = useLocalSearchParams();
   const { currentProgram, startWorkout, reorderWorkouts } = useWorkout();
-  const [isReordering, setIsReordering] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [workoutOrder, setWorkoutOrder] = useState<string[]>([]);
 
+  // Initialize workout order when program loads
+  React.useEffect(() => {
+    if (currentProgram) {
+      const sortedWorkouts = [...currentProgram.workouts].sort((a, b) => a.order - b.order);
+      setWorkoutOrder(sortedWorkouts.map(w => w.id));
+    }
+  }, [currentProgram]);
   const handleStartWorkout = (workout: any) => {
     startWorkout(workout);
     router.dismiss();
@@ -21,145 +37,182 @@ export default function ProgramDetailScreen() {
     router.dismiss();
   };
 
-  const handleMoveWorkout = async (workoutId: string, direction: 'up' | 'down') => {
-    if (!currentProgram) return;
-
-    const workouts = [...currentProgram.workouts].sort((a, b) => a.order - b.order);
-    const currentIndex = workouts.findIndex(w => w.id === workoutId);
-    
-    if (currentIndex === -1) return;
-    
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    
-    if (newIndex < 0 || newIndex >= workouts.length) return;
-
-    // Swap the workouts
-    [workouts[currentIndex], workouts[newIndex]] = [workouts[newIndex], workouts[currentIndex]];
-    
-    // Get the new order of workout IDs
-    const newWorkoutOrder = workouts.map(w => w.id);
-    
+  const handleReorderComplete = async (newOrder: string[]) => {
     try {
-      await reorderWorkouts(newWorkoutOrder);
+      await reorderWorkouts(newOrder);
+      setWorkoutOrder(newOrder);
     } catch (error) {
       Alert.alert('Error', 'Failed to reorder workouts. Please try again.');
     }
+  };
+
+  const moveWorkout = (fromIndex: number, toIndex: number) => {
+    const newOrder = [...workoutOrder];
+    const [movedItem] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, movedItem);
+    setWorkoutOrder(newOrder);
+    handleReorderComplete(newOrder);
   };
 
   if (!currentProgram) {
     return null;
   }
 
-  const sortedWorkouts = [...currentProgram.workouts].sort((a, b) => a.order - b.order);
+  // Get workouts in the current order
+  const orderedWorkouts = workoutOrder.map(id => 
+    currentProgram.workouts.find(w => w.id === id)
+  ).filter(Boolean);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleClose}>
-          <X size={24} color={Colors.light.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{currentProgram.name}</Text>
-        <TouchableOpacity onPress={() => setIsReordering(!isReordering)}>
-          <Text style={styles.reorderButton}>
-            {isReordering ? 'Done' : 'Reorder'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Image source={{ uri: currentProgram.imageUrl }} style={styles.programImage} />
-        
-        <View style={styles.programInfo}>
-          <Text style={styles.programName}>{currentProgram.name}</Text>
-          <Text style={styles.programCreator}>by {currentProgram.creator}</Text>
-          <Text style={styles.programDescription}>{currentProgram.description}</Text>
-          
-          {currentProgram.isTemplate === false && (
-            <View style={styles.customizationBadge}>
-              <Text style={styles.customizationBadgeText}>Customized Program</Text>
-            </View>
-          )}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleClose}>
+            <X size={24} color={Colors.light.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{currentProgram.name}</Text>
+          <View style={styles.dragHint}>
+            <Move size={16} color={Colors.light.textTertiary} />
+            <Text style={styles.dragHintText}>Hold to drag</Text>
+          </View>
         </View>
 
-        <View style={styles.workoutsList}>
-          <Text style={styles.workoutsTitle}>
-            Workouts ({sortedWorkouts.length})
-          </Text>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <Image source={{ uri: currentProgram.imageUrl }} style={styles.programImage} />
           
-          {sortedWorkouts.map((workout: any, index: number) => (
-            <View key={workout.id} style={styles.workoutCardContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.workoutCard,
-                  isReordering && styles.workoutCardReordering
-                ]}
-                onPress={() => !isReordering && handleStartWorkout(workout)}
-                disabled={isReordering}
-              >
-                {isReordering && (
-                  <View style={styles.reorderControls}>
-                    <GripVertical size={20} color={Colors.light.textTertiary} />
-                  </View>
-                )}
-                
-                <View style={styles.workoutInfo}>
-                  <Text style={styles.workoutName}>
-                    Day {index + 1}: {workout.name}
-                  </Text>
-                  <Text style={styles.workoutDescription}>{workout.description}</Text>
-                  <Text style={styles.exerciseCount}>
-                    {workout.exercises.length} exercises
-                  </Text>
-                  {workout.estimatedDuration && (
-                    <Text style={styles.estimatedDuration}>
-                      ~{workout.estimatedDuration} min
-                    </Text>
-                  )}
-                </View>
-                
-                {!isReordering && (
-                  <View style={styles.startButton}>
-                    <Play size={20} color={Colors.light.primary} />
-                  </View>
-                )}
-              </TouchableOpacity>
+          <View style={styles.programInfo}>
+            <Text style={styles.programName}>{currentProgram.name}</Text>
+            <Text style={styles.programCreator}>by {currentProgram.creator}</Text>
+            <Text style={styles.programDescription}>{currentProgram.description}</Text>
+            
+            {currentProgram.isTemplate === false && (
+              <View style={styles.customizationBadge}>
+                <Text style={styles.customizationBadgeText}>Customized Program</Text>
+              </View>
+            )}
+          </View>
 
-              {isReordering && (
-                <View style={styles.moveButtons}>
-                  <TouchableOpacity
-                    style={[
-                      styles.moveButton,
-                      index === 0 && styles.moveButtonDisabled
-                    ]}
-                    onPress={() => handleMoveWorkout(workout.id, 'up')}
-                    disabled={index === 0}
-                  >
-                    <ArrowUp 
-                      size={16} 
-                      color={index === 0 ? Colors.light.border : Colors.light.primary} 
-                    />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[
-                      styles.moveButton,
-                      index === sortedWorkouts.length - 1 && styles.moveButtonDisabled
-                    ]}
-                    onPress={() => handleMoveWorkout(workout.id, 'down')}
-                    disabled={index === sortedWorkouts.length - 1}
-                  >
-                    <ArrowDown 
-                      size={16} 
-                      color={index === sortedWorkouts.length - 1 ? Colors.light.border : Colors.light.primary} 
-                    />
-                  </TouchableOpacity>
-                </View>
+          <View style={styles.workoutsList}>
+            <Text style={styles.workoutsTitle}>
+              Workouts ({orderedWorkouts.length})
+            </Text>
+            
+            {orderedWorkouts.map((workout: any, index: number) => (
+              <DraggableWorkoutCard
+                key={workout.id}
+                workout={workout}
+                index={index}
+                onStartWorkout={handleStartWorkout}
+                onMove={moveWorkout}
+                isDragging={draggedIndex === index}
+                onDragStart={() => setDraggedIndex(index)}
+                onDragEnd={() => setDraggedIndex(null)}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </GestureHandlerRootView>
+  );
+}
+
+// Draggable Workout Card Component
+function DraggableWorkoutCard({ 
+  workout, 
+  index, 
+  onStartWorkout, 
+  onMove, 
+  isDragging,
+  onDragStart,
+  onDragEnd 
+}: {
+  workout: any;
+  index: number;
+  onStartWorkout: (workout: any) => void;
+  onMove: (fromIndex: number, toIndex: number) => void;
+  isDragging: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+}) {
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const gestureHandler = useAnimatedGestureHandler({
+    onStart: () => {
+      runOnJS(onDragStart)();
+      scale.value = withSpring(1.05);
+      opacity.value = withSpring(0.9);
+    },
+    onActive: (event) => {
+      translateY.value = event.translationY;
+    },
+    onEnd: (event) => {
+      const moveThreshold = 80; // Minimum distance to trigger reorder
+      const direction = event.translationY > 0 ? 1 : -1;
+      const shouldMove = Math.abs(event.translationY) > moveThreshold;
+      
+      if (shouldMove) {
+        const newIndex = index + direction;
+        if (newIndex >= 0) {
+          runOnJS(onMove)(index, newIndex);
+        }
+      }
+      
+      translateY.value = withSpring(0);
+      scale.value = withSpring(1);
+      opacity.value = withSpring(1);
+      runOnJS(onDragEnd)();
+    },
+  });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value }
+    ],
+    opacity: opacity.value,
+    zIndex: isDragging ? 1000 : 1,
+  }));
+
+  return (
+    <Animated.View style={[styles.workoutCardContainer, animatedStyle]}>
+      <PanGestureHandler onGestureEvent={gestureHandler}>
+        <Animated.View>
+          <TouchableOpacity 
+            style={[
+              styles.workoutCard,
+              isDragging && styles.workoutCardDragging
+            ]}
+            onPress={() => !isDragging && onStartWorkout(workout)}
+            activeOpacity={isDragging ? 1 : 0.7}
+          >
+            <View style={styles.dragHandle}>
+              <GripVertical size={20} color={Colors.light.textTertiary} />
+            </View>
+            
+            <View style={styles.workoutInfo}>
+              <Text style={styles.workoutName}>
+                Day {index + 1}: {workout.name}
+              </Text>
+              <Text style={styles.workoutDescription}>{workout.description}</Text>
+              <Text style={styles.exerciseCount}>
+                {workout.exercises.length} exercises
+              </Text>
+              {workout.estimatedDuration && (
+                <Text style={styles.estimatedDuration}>
+                  ~{workout.estimatedDuration} min
+                </Text>
               )}
             </View>
-          ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            
+            <View style={styles.startButton}>
+              <Play size={20} color={Colors.light.primary} />
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+      </PanGestureHandler>
+    </Animated.View>
   );
 }
 
@@ -181,13 +234,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
-    flex: 1,
-    textAlign: 'center',
   },
-  reorderButton: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.primary,
+  dragHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dragHintText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    marginLeft: 4,
   },
   content: {
     flex: 1,
@@ -257,14 +313,21 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  workoutCardReordering: {
-    backgroundColor: Colors.light.primaryLight,
-    borderWidth: 2,
-    borderColor: Colors.light.primary,
+  workoutCardDragging: {
+    backgroundColor: Colors.light.card,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.primaryLight,
   },
-  reorderControls: {
+  dragHandle: {
     marginRight: 12,
     padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   workoutInfo: {
     flex: 1,
@@ -299,22 +362,5 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  moveButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  moveButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  moveButtonDisabled: {
-    backgroundColor: Colors.light.border,
   },
 });
