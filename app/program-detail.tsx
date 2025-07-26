@@ -15,6 +15,8 @@ import Animated, {
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 
+const workoutCardHeight = 100; // Define the height constant
+
 export default function ProgramDetailScreen() {
   const params = useLocalSearchParams();
   const { currentProgram, startWorkout, reorderWorkouts } = useWorkout();
@@ -29,6 +31,7 @@ export default function ProgramDetailScreen() {
       setWorkoutOrder(sortedWorkouts.map(w => w.id));
     }
   }, [currentProgram]);
+  
   const handleStartWorkout = (workout: any) => {
     startWorkout(workout);
     router.dismiss();
@@ -68,6 +71,7 @@ export default function ProgramDetailScreen() {
     setDraggedIndex(null);
     setDraggedWorkoutId(null);
   };
+  
   if (!currentProgram) {
     return null;
   }
@@ -174,6 +178,7 @@ function DraggableWorkoutCard({
       const direction = event.translationY > 0 ? 1 : -1;
       const shouldMove = Math.abs(event.translationY) > moveThreshold;
       
+      if (shouldMove) {
         // Calculate which cell the workout was dropped into
         const cellsMoved = Math.round(event.translationY / workoutCardHeight);
         const targetIndex = Math.max(0, Math.min(index + cellsMoved, totalWorkouts - 1));
@@ -214,6 +219,7 @@ function DraggableWorkoutCard({
       opacity: withTiming(1, { duration: 200 }),
     };
   });
+  
   return (
     <Animated.View style={[styles.workoutCardContainer, animatedStyle]}>
       <PanGestureHandler onGestureEvent={gestureHandler}>
@@ -256,14 +262,7 @@ function DraggableWorkoutCard({
 }
 
 const styles = StyleSheet.create({
-    <Animated.View 
-      style={[
-        styles.workoutCardContainer, 
-        animatedStyle,
-        !isDragging && placeholderStyle
-      ]} 
-      onLayout={onCardLayout}
-    >
+  container: {
     flex: 1,
     backgroundColor: Colors.light.background,
   },
