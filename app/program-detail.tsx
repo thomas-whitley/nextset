@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Play, ArrowUp, ArrowDown, GripVertical, Move } from 'lucide-react-native';
+import { X, Play, GripVertical } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { GestureHandlerRootView, PanGestureHandler, State } from 'react-native-gesture-handler';
 import Animated, { 
@@ -19,6 +19,7 @@ export default function ProgramDetailScreen() {
   const { currentProgram, startWorkout, reorderWorkouts } = useWorkout();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [workoutOrder, setWorkoutOrder] = useState<string[]>([]);
+  const workoutCardHeight = React.useRef(0);
 
   // Initialize workout order when program loads
   React.useEffect(() => {
@@ -27,6 +28,13 @@ export default function ProgramDetailScreen() {
       setWorkoutOrder(sortedWorkouts.map(w => w.id));
     }
   }, [currentProgram]);
+
+  const onCardLayout = React.useCallback((event) => {
+    if (workoutCardHeight.current === 0) { // Only set once
+      workoutCardHeight.current = event.nativeEvent.layout.height;
+    }
+  }, []);
+
   const handleStartWorkout = (workout: any) => {
     startWorkout(workout);
     router.dismiss();
@@ -71,10 +79,7 @@ export default function ProgramDetailScreen() {
             <X size={24} color={Colors.light.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{currentProgram.name}</Text>
-          <View style={styles.dragHint}>
-            <Move size={16} color={Colors.light.textTertiary} />
-            <Text style={styles.dragHintText}>Hold to drag</Text>
-          </View>
+          <View style={{ width: 24 }} /> {/* Placeholder for alignment */}
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -105,6 +110,7 @@ export default function ProgramDetailScreen() {
                 onStartWorkout={handleStartWorkout}
                 onMove={moveWorkout}
                 isDragging={draggedIndex === index}
+                workoutCardHeight={workoutCardHeight.current}
                 onDragStart={() => setDraggedIndex(index)}
                 onDragEnd={() => setDraggedIndex(null)}
               />
@@ -131,6 +137,7 @@ function DraggableWorkoutCard({
   onStartWorkout: (workout: any) => void;
   onMove: (fromIndex: number, toIndex: number) => void;
   isDragging: boolean;
+  workoutCardHeight: number;
   onDragStart: () => void;
   onDragEnd: () => void;
 }) {
@@ -148,13 +155,10 @@ function DraggableWorkoutCard({
       translateY.value = event.translationY;
     },
     onEnd: (event) => {
-      const moveThreshold = 80; // Minimum distance to trigger reorder
-      const direction = event.translationY > 0 ? 1 : -1;
-      const shouldMove = Math.abs(event.translationY) > moveThreshold;
-      
-      if (shouldMove) {
-        const newIndex = index + direction;
-        if (newIndex >= 0) {
+      if (workoutCardHeight > 0) {
+        const estimatedMovedItems = Math.round(event.translationY / workoutCardHeight);
+        const newIndex = Math.max(0, Math.min(index + estimatedMovedItems, orderedWorkouts.length - 1)); // Ensure index is within bounds
+        if (newIndex !== index) { // Only reorder if index actually changed
           runOnJS(onMove)(index, newIndex);
         }
       }
@@ -176,20 +180,20 @@ function DraggableWorkoutCard({
   }));
 
   return (
-    <Animated.View style={[styles.workoutCardContainer, animatedStyle]}>
-      <PanGestureHandler onGestureEvent={gestureHandler}>
-        <Animated.View>
-          <TouchableOpacity 
-            style={[
-              styles.workoutCard,
-              isDragging && styles.workoutCardDragging
-            ]}
-            onPress={() => !isDragging && onStartWorkout(workout)}
-            activeOpacity={isDragging ? 1 : 0.7}
-          >
-            <View style={styles.dragHandle}>
-              <GripVertical size={20} color={Colors.light.textTertiary} />
-            </View>
+    <Animated.View style={[styles.workoutCardContainer, animatedStyle]} onLayout={onCardLayout}>
+      <TouchableOpacity 
+        style={[
+          styles.workoutCard,
+          isDragging && styles.workoutCardDragging
+        ]}
+        onPress={() => !isDragging && onStartWorkout(workout)}
+        activeOpacity={isDragging ? 1 : 0.7}
+      >
+        <PanGestureHandler onGestureEvent={gestureHandler}>
+          <Animated.View style={styles.dragHandle}>
+            <GripVertical size={20} color={Colors.light.textTertiary} />
+          </Animated.View>
+        </PanGestureHandler>
             
             <View style={styles.workoutInfo}>
               <Text style={styles.workoutName}>
@@ -205,13 +209,7 @@ function DraggableWorkoutCard({
                 </Text>
               )}
             </View>
-            
-            <View style={styles.startButton}>
-              <Play size={20} color={Colors.light.primary} />
-            </View>
           </TouchableOpacity>
-        </Animated.View>
-      </PanGestureHandler>
     </Animated.View>
   );
 }
@@ -234,16 +232,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
-  },
-  dragHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dragHintText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginLeft: 4,
   },
   content: {
     flex: 1,
@@ -354,13 +342,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: Colors.light.success,
     marginTop: 2,
-  },
-  startButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
