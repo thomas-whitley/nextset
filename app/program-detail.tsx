@@ -111,7 +111,6 @@ export default function ProgramDetailScreen() {
                 onMove={moveWorkout}
                 isDragging={draggedIndex === index}
                 workoutCardHeight={workoutCardHeight.current}
-                onCardLayout={onCardLayout}
                 onDragStart={() => setDraggedIndex(index)}
                 onDragEnd={() => setDraggedIndex(null)}
               />
@@ -131,7 +130,6 @@ function DraggableWorkoutCard({
   onMove, 
   isDragging,
   onDragStart,
-  onCardLayout,
   onDragEnd 
 }: {
   workout: any;
@@ -140,7 +138,6 @@ function DraggableWorkoutCard({
   onMove: (fromIndex: number, toIndex: number) => void;
   isDragging: boolean;
   workoutCardHeight: number;
-  onCardLayout: (event: any) => void;
   onDragStart: () => void;
   onDragEnd: () => void;
 }) {
@@ -160,7 +157,7 @@ function DraggableWorkoutCard({
     onEnd: (event) => {
       if (workoutCardHeight > 0) {
         const estimatedMovedItems = Math.round(event.translationY / workoutCardHeight);
-        const newIndex = Math.max(0, index + estimatedMovedItems);
+        const newIndex = Math.max(0, Math.min(index + estimatedMovedItems, orderedWorkouts.length - 1)); // Ensure index is within bounds
         if (newIndex !== index) { // Only reorder if index actually changed
           runOnJS(onMove)(index, newIndex);
         }
@@ -197,7 +194,8 @@ function DraggableWorkoutCard({
             <GripVertical size={20} color={Colors.light.textTertiary} />
           </Animated.View>
         </PanGestureHandler>
-        <View style={styles.workoutInfo}>
+            
+            <View style={styles.workoutInfo}>
               <Text style={styles.workoutName}>
                 Day {index + 1}: {workout.name}
               </Text>
