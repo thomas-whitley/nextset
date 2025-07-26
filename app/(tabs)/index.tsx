@@ -8,7 +8,6 @@ import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutCalendarView from '@/components/WorkoutCalendarView';
 import MotivationalQuote from '@/components/MotivationalQuote';
-import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import { useLocalDatabase } from '@/hooks/useLocalDatabase';
 
 export default function HomeScreen() {
@@ -16,7 +15,7 @@ export default function HomeScreen() {
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const { currentProgram, startWorkout } = useWorkout();
   const { user, loading } = useAuth();
-  const { workoutSessions, getLocalStats, syncToCloud } = useLocalDatabase();
+  const { workoutSessions, getLocalStats } = useLocalDatabase();
   
   const currentDate = new Date();
   const formatDate = (date: Date) => {
@@ -74,9 +73,6 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>Hello, {user?.user_metadata?.full_name || user?.email || 'Alex'}</Text>
           <Text style={styles.date}>{formatDate(currentDate)}</Text>
         </View>
-
-        {/* Sync Status Indicator */}
-        <SyncStatusIndicator onSyncPress={() => syncToCloud(true)} />
 
         {/* Motivational Quote */}
         <MotivationalQuote />

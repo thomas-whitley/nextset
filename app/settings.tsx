@@ -6,8 +6,8 @@ import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
 import { supabase } from '@/data/supabase-client';
-import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import { useLocalDatabase } from '@/hooks/useLocalDatabase';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -202,6 +202,12 @@ export default function SettingsScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={{ width: 24 }} />
+      </View>
+
+      {/* Sync Status Section */}
+      <View style={styles.syncSection}>
+        <Text style={styles.syncSectionTitle}>Data Sync</Text>
+        <SyncStatusIndicator onSyncPress={() => syncToCloud(true)} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -481,6 +487,19 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: 24,
+  },
+  syncSection: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  syncSectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.light.text,
+    marginBottom: 12,
   },
   syncSection: {
     marginTop: 16,
