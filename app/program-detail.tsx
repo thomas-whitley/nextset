@@ -9,7 +9,9 @@ import Animated, {
   useAnimatedStyle, 
   runOnJS,
   withSpring,
-  withTiming
+  withTiming,
+  interpolate,
+  Extrapolate
 } from 'react-native-reanimated';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -21,13 +23,16 @@ export default function ProgramDetailScreen() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [workoutOrder, setWorkoutOrder] = useState<string[]>([]);
   const [draggedWorkoutId, setDraggedWorkoutId] = useState<string | null>(null);
+  const [tempWorkoutOrder, setTempWorkoutOrder] = useState<string[]>([]);
   const workoutCardHeight = React.useRef(100);
 
   // Initialize workout order when program loads
   React.useEffect(() => {
     if (currentProgram) {
       const sortedWorkouts = [...currentProgram.workouts].sort((a, b) => a.order - b.order);
-      setWorkoutOrder(sortedWorkouts.map(w => w.id));
+      const order = sortedWorkouts.map(w => w.id);
+      setWorkoutOrder(order);
+      setTempWorkoutOrder(order);
     }
   }, [currentProgram]);
   
@@ -51,20 +56,30 @@ export default function ProgramDetailScreen() {
     try {
       await reorderWorkouts(newOrder);
       setWorkoutOrder(newOrder);
+      setTempWorkoutOrder(newOrder);
     } catch (error) {
       Alert.alert('Error', 'Failed to reorder workouts. Please try again.');
     }
   };
 
-  const moveWorkout = (draggedWorkoutId: string, targetIndex: number) => {
-    const fromIndex = workoutOrder.findIndex(id => id === draggedWorkoutId);
+  const moveWorkoutDynamically = (draggedWorkoutId: string, targetIndex: number) => {
+    const fromIndex = tempWorkoutOrder.findIndex(id => id === draggedWorkoutId);
     if (fromIndex === -1 || fromIndex === targetIndex) return;
     
-    const newOrder = [...workoutOrder];
+    const newOrder = [...tempWorkoutOrder];
     const [movedItem] = newOrder.splice(fromIndex, 1);
     newOrder.splice(targetIndex, 0, movedItem);
-    setWorkoutOrder(newOrder);
-    handleReorderComplete(newOrder);
+    setTempWorkoutOrder(newOrder);
+  };
+
+  const finalizeReorder = () => {
+    if (JSON.stringify(tempWorkoutOrder) !== JSON.stringify(workoutOrder)) {
+      handleReorderComplete(tempWorkoutOrder);
+    }
+  };
+
+  const resetTempOrder = () => {
+    setTempWorkoutOrder([...workoutOrder]);
   };
 
   const handleDragStart = (workoutId: string, index: number) => {
@@ -75,6 +90,7 @@ export default function ProgramDetailScreen() {
   const handleDragEnd = () => {
     setDraggedIndex(null);
     setDraggedWorkoutId(null);
+    finalizeReorder();
   };
   
   if (!currentProgram) {
@@ -82,7 +98,7 @@ export default function ProgramDetailScreen() {
   }
 
   // Get workouts in the current order
-  const orderedWorkouts = workoutOrder.map(id => 
+  const orderedWorkouts = tempWorkoutOrder.map(id => 
     currentProgram.workouts.find(w => w.id === id)
   ).filter(Boolean);
 
@@ -127,12 +143,14 @@ export default function ProgramDetailScreen() {
                 index={index}
                 totalWorkouts={orderedWorkouts.length}
                 onStartWorkout={handleStartWorkout}
-                onMove={moveWorkout}
+                onMove={moveWorkoutDynamically}
                 isDragging={draggedIndex === index}
                 onCardLayout={onCardLayout}
                 draggedWorkoutId={draggedWorkoutId}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                onDragCancel={resetTempOrder}
+                workoutCardHeight={workoutCardHeight.current}
               />
             ))}
           </View>
@@ -152,7 +170,9 @@ function DraggableWorkoutCard({
   isDragging,
   draggedWorkoutId,
   onDragStart,
-  onDragEnd 
+  onDragEnd,
+  onDragCancel,
+  workoutCardHeight
 }: {
   workout: any;
   index: number;
@@ -164,11 +184,16 @@ function DraggableWorkoutCard({
   draggedWorkoutId: string | null;
   onDragStart: (workoutId: string, index: number) => void;
   onDragEnd: () => void;
+  onDragCancel: () => void;
+  workoutCardHeight: number;
 }) {
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const zIndex = useSharedValue(1);
+
+  const maxDragDistance = workoutCardHeight * (totalWorkouts - 1);
+  const minDragDistance = -workoutCardHeight * index;
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
@@ -178,22 +203,40 @@ function DraggableWorkoutCard({
       zIndex.value = 1000;
     })
     .onUpdate((event) => {
-      translateY.value = event.translationY;
+      // Constrain dragging within bounds
+      const constrainedY = interpolate(
+        event.translationY,
+        [minDragDistance - 50, minDragDistance, maxDragDistance, maxDragDistance + 50],
+        [minDragDistance - 25, minDragDistance, maxDragDistance, maxDragDistance + 25],
+        Extrapolate.CLAMP
+      );
+      translateY.value = constrainedY;
+      
+      // Calculate target index and trigger dynamic reordering
+      if (workoutCardHeight > 0) {
+        const estimatedMovedItems = Math.round(constrainedY / workoutCardHeight);
+        const targetIndex = Math.max(0, Math.min(index + estimatedMovedItems, totalWorkouts - 1));
+        if (targetIndex !== index) {
+          runOnJS(onMove)(workout.id, targetIndex);
+        }
+      }
     })
     .onEnd((event) => {
-      // Calculate which cell the workout was dropped into
-      const cellsMoved = Math.round(event.translationY / 100); // Use default height for calculation
-      const targetIndex = Math.max(0, Math.min(index + cellsMoved, totalWorkouts - 1));
-      
-      if (targetIndex !== index) {
-        runOnJS(onMove)(workout.id, targetIndex);
-      }
-      
       translateY.value = withTiming(0, { duration: 300 });
       scale.value = withSpring(1);
       opacity.value = withSpring(1);
       zIndex.value = withTiming(1, { duration: 300 });
       runOnJS(onDragEnd)();
+    })
+    .onFinalize((event, success) => {
+      if (!success) {
+        // Gesture was cancelled, reset to original order
+        runOnJS(onDragCancel)();
+        translateY.value = withTiming(0, { duration: 300 });
+        scale.value = withSpring(1);
+        opacity.value = withSpring(1);
+        zIndex.value = withTiming(1, { duration: 300 });
+      }
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -207,9 +250,6 @@ function DraggableWorkoutCard({
 
   // Create placeholder style for other cards when something is being dragged
   const placeholderStyle = useAnimatedStyle(() => {
-    if (draggedWorkoutId && draggedWorkoutId !== workout.id) {
-      // Calculate if this card should move up or down to make space
-      const draggedIndex = index; // This will be updated by parent
       // For now, just add a subtle visual indication
       return {
         opacity: withTiming(0.7, { duration: 200 }),
@@ -220,7 +260,7 @@ function DraggableWorkoutCard({
     });
   
   return (
-    <Animated.View style={[styles.workoutCardContainer, animatedStyle]} onLayout={onCardLayout}>
+    <Animated.View style={[styles.workoutCardContainer, animatedStyle, placeholderStyle]} onLayout={onCardLayout}>
       <TouchableOpacity 
         style={[
           styles.workoutCard,
