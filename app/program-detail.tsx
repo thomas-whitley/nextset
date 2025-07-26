@@ -165,6 +165,7 @@ function DraggableWorkoutCard({
   workout, 
   index, 
   totalWorkouts,
+  onCardLayout,
   onStartWorkout, 
   onMove, 
   isDragging,
@@ -250,14 +251,11 @@ function DraggableWorkoutCard({
 
   // Create placeholder style for other cards when something is being dragged
   const placeholderStyle = useAnimatedStyle(() => {
-      // For now, just add a subtle visual indication
-      return {
-        opacity: withTiming(0.7, { duration: 200 }),
-      };
-    }
+    // For now, just add a subtle visual indication
     return {
       opacity: withTiming(1, { duration: 200 }),
-    });
+    };
+  });
   
   return (
     <Animated.View style={[styles.workoutCardContainer, animatedStyle, placeholderStyle]} onLayout={onCardLayout}>
