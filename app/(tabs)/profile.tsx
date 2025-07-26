@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, Trophy, Target, TrendingUp, CreditCard as Edit } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { User as UserIcon } from 'lucide-react-native'; // Renamed to avoid conflict with useAuth user
 import Colors from '@/constants/Colors';
 import { AuthProvider, useAuth } from '@/data/AuthContext';
 
@@ -38,10 +39,16 @@ export default function ProfileScreen() {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.profileImageContainer}>
-            <Image 
-              source={{ uri: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg' }}
-              style={styles.profileImage}
-            />
+            {user?.user_metadata?.avatar_url ? (
+              <Image 
+                source={{ uri: user.user_metadata.avatar_url }}
+                style={styles.profileImage}
+              />
+            ) : (
+              <View style={styles.genericProfileIcon}>
+                <UserIcon size={40} color={Colors.light.textTertiary} />
+              </View>
+            )}
           </View>
           <Text style={styles.profileName}>{user?.user_metadata?.full_name || 'User'}</Text>
           <Text style={styles.profileUsername}>{user?.user_metadata?.username || 'Username'}</Text>
@@ -168,6 +175,16 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
+  },
+  genericProfileIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.light.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: Colors.light.border,
   },
   profileName: {
     fontSize: 24,
