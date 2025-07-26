@@ -71,10 +71,10 @@ export default function ProgramDetailScreen() {
             <X size={24} color={Colors.light.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{currentProgram.name}</Text>
-          <View style={styles.dragHint}>
+          {/* <View style={styles.dragHint}>
             <Move size={16} color={Colors.light.textTertiary} />
             <Text style={styles.dragHintText}>Hold to drag</Text>
-          </View>
+          </View> */}
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -206,9 +206,9 @@ function DraggableWorkoutCard({
               )}
             </View>
             
-            <View style={styles.startButton}>
+            {/* <View style={styles.startButton}>
               <Play size={20} color={Colors.light.primary} />
-            </View>
+            </View> */}
           </TouchableOpacity>
         </Animated.View>
       </PanGestureHandler>
