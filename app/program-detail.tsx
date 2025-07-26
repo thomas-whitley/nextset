@@ -3,11 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Play, ArrowUp, ArrowDown, GripVertical, Move } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { GestureHandlerRootView, PanGestureHandler, State } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
-  useAnimatedGestureHandler, 
   runOnJS,
   withSpring,
   withTiming
@@ -163,17 +162,17 @@ function DraggableWorkoutCard({
   const opacity = useSharedValue(1);
   const zIndex = useSharedValue(1);
 
-  const gestureHandler = useAnimatedGestureHandler({
-    onStart: () => {
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
       runOnJS(onDragStart)(workout.id, index);
       scale.value = withSpring(1.05);
       opacity.value = withSpring(0.9);
       zIndex.value = 1000;
-    },
-    onActive: (event) => {
+    })
+    .onUpdate((event) => {
       translateY.value = event.translationY;
-    },
-    onEnd: (event) => {
+    })
+    .onEnd((event) => {
       const moveThreshold = 80; // Minimum distance to trigger reorder
       const direction = event.translationY > 0 ? 1 : -1;
       const shouldMove = Math.abs(event.translationY) > moveThreshold;
@@ -193,8 +192,7 @@ function DraggableWorkoutCard({
       opacity.value = withSpring(1);
       zIndex.value = withTiming(1, { duration: 300 });
       runOnJS(onDragEnd)();
-    },
-  });
+    });
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -222,41 +220,39 @@ function DraggableWorkoutCard({
   
   return (
     <Animated.View style={[styles.workoutCardContainer, animatedStyle]}>
-      <PanGestureHandler onGestureEvent={gestureHandler}>
-        <Animated.View>
-          <TouchableOpacity 
-            style={[
-              styles.workoutCard,
-              isDragging && styles.workoutCardDragging
-            ]}
-            onPress={() => !isDragging && onStartWorkout(workout)}
-            activeOpacity={isDragging ? 1 : 0.7}
-          >
-            <View style={styles.dragHandle}>
-              <GripVertical size={20} color={Colors.light.textTertiary} />
-            </View>
-            
-            <View style={styles.workoutInfo}>
-              <Text style={styles.workoutName}>
-                Day {index + 1}: {workout.name}
-              </Text>
-              <Text style={styles.workoutDescription}>{workout.description}</Text>
-              <Text style={styles.exerciseCount}>
-                {workout.exercises.length} exercises
-              </Text>
-              {workout.estimatedDuration && (
-                <Text style={styles.estimatedDuration}>
-                  ~{workout.estimatedDuration} min
-                </Text>
-              )}
-            </View>
-            
-            {/* <View style={styles.startButton}>
-              <Play size={20} color={Colors.light.primary} />
-            </View> */}
-          </TouchableOpacity>
-        </Animated.View>
-      </PanGestureHandler>
+      <TouchableOpacity 
+        style={[
+          styles.workoutCard,
+          isDragging && styles.workoutCardDragging
+        ]}
+        onPress={() => !isDragging && onStartWorkout(workout)}
+        activeOpacity={isDragging ? 1 : 0.7}
+      >
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={styles.dragHandle}>
+            <GripVertical size={20} color={Colors.light.textTertiary} />
+          </Animated.View>
+        </GestureDetector>
+        
+        <View style={styles.workoutInfo}>
+          <Text style={styles.workoutName}>
+            Day {index + 1}: {workout.name}
+          </Text>
+          <Text style={styles.workoutDescription}>{workout.description}</Text>
+          <Text style={styles.exerciseCount}>
+            {workout.exercises.length} exercises
+          </Text>
+          {workout.estimatedDuration && (
+            <Text style={styles.estimatedDuration}>
+              ~{workout.estimatedDuration} min
+            </Text>
+          )}
+        </View>
+        
+        {/* <View style={styles.startButton}>
+          <Play size={20} color={Colors.light.primary} />
+        </View> */}
+      </TouchableOpacity>
     </Animated.View>
   );
 }
