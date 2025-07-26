@@ -7,7 +7,6 @@ import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
 import { supabase } from '@/data/supabase-client';
 import { useLocalDatabase } from '@/hooks/useLocalDatabase';
-import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -45,7 +44,36 @@ export default function SettingsScreen() {
   const [showUnitsModal, setShowUnitsModal] = useState(false);
   const [showRestTimeModal, setShowRestTimeModal] = useState(false);
   const { signOut, user } = useAuth();
-  const { syncToCloud } = useLocalDatabase();
+  const { syncToCloud, syncStatus } = useLocalDatabase();
+
+  // Background sync effect
+  useEffect(() => {
+    let syncInterval: NodeJS.Timeout;
+
+    const performBackgroundSync = async () => {
+      try {
+        // Only sync if online and there are pending items
+        if (syncStatus.isOnline && syncStatus.pendingSync > 0) {
+          await syncToCloud(false); // Don't force sync, respect Wi-Fi preference
+        }
+      } catch (error) {
+        console.log('Background sync failed:', error);
+        // Fail silently in background
+      }
+    };
+
+    // Initial sync attempt
+    performBackgroundSync();
+
+    // Set up periodic background sync every 5 minutes
+    syncInterval = setInterval(performBackgroundSync, 5 * 60 * 1000);
+
+    return () => {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+      }
+    };
+  }, [syncStatus.isOnline, syncStatus.pendingSync, syncToCloud]);
 
   const restTimeOptions = [
     { label: '15 seconds', value: 15 },
@@ -202,12 +230,6 @@ export default function SettingsScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={{ width: 24 }} />
-      </View>
-
-      {/* Sync Status Section */}
-      <View style={styles.syncSection}>
-        <Text style={styles.syncSectionTitle}>Data Sync</Text>
-        <SyncStatusIndicator onSyncPress={() => syncToCloud(true)} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -487,31 +509,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: 24,
-  },
-  syncSection: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
-  },
-  syncSectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 12,
-  },
-  syncSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
-  },
-  syncSectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 16,
