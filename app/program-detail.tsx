@@ -149,8 +149,6 @@ export default function ProgramDetailScreen() {
                 draggedWorkoutId={draggedWorkoutId}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
-                onDragCancel={resetTempOrder}
-                workoutCardHeight={workoutCardHeight.current}
               />
             ))}
           </View>
@@ -165,14 +163,13 @@ function DraggableWorkoutCard({
   workout, 
   index, 
   totalWorkouts,
+  onCardLayout,
   onStartWorkout, 
   onMove, 
   isDragging,
   draggedWorkoutId,
   onDragStart,
-  onDragEnd,
-  onDragCancel,
-  workoutCardHeight
+  onDragEnd 
 }: {
   workout: any;
   index: number;
@@ -184,16 +181,11 @@ function DraggableWorkoutCard({
   draggedWorkoutId: string | null;
   onDragStart: (workoutId: string, index: number) => void;
   onDragEnd: () => void;
-  onDragCancel: () => void;
-  workoutCardHeight: number;
 }) {
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const zIndex = useSharedValue(1);
-
-  const maxDragDistance = workoutCardHeight * (totalWorkouts - 1);
-  const minDragDistance = -workoutCardHeight * index;
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
@@ -203,40 +195,22 @@ function DraggableWorkoutCard({
       zIndex.value = 1000;
     })
     .onUpdate((event) => {
-      // Constrain dragging within bounds
-      const constrainedY = interpolate(
-        event.translationY,
-        [minDragDistance - 50, minDragDistance, maxDragDistance, maxDragDistance + 50],
-        [minDragDistance - 25, minDragDistance, maxDragDistance, maxDragDistance + 25],
-        Extrapolate.CLAMP
-      );
-      translateY.value = constrainedY;
-      
-      // Calculate target index and trigger dynamic reordering
-      if (workoutCardHeight > 0) {
-        const estimatedMovedItems = Math.round(constrainedY / workoutCardHeight);
-        const targetIndex = Math.max(0, Math.min(index + estimatedMovedItems, totalWorkouts - 1));
-        if (targetIndex !== index) {
-          runOnJS(onMove)(workout.id, targetIndex);
-        }
-      }
+      translateY.value = event.translationY;
     })
     .onEnd((event) => {
+      // Calculate which cell the workout was dropped into
+      const cellsMoved = Math.round(event.translationY / 100); // Use default height for calculation
+      const targetIndex = Math.max(0, Math.min(index + cellsMoved, totalWorkouts - 1));
+      
+      if (targetIndex !== index) {
+        runOnJS(onMove)(workout.id, targetIndex);
+      }
+      
       translateY.value = withTiming(0, { duration: 300 });
       scale.value = withSpring(1);
       opacity.value = withSpring(1);
       zIndex.value = withTiming(1, { duration: 300 });
       runOnJS(onDragEnd)();
-    })
-    .onFinalize((event, success) => {
-      if (!success) {
-        // Gesture was cancelled, reset to original order
-        runOnJS(onDragCancel)();
-        translateY.value = withTiming(0, { duration: 300 });
-        scale.value = withSpring(1);
-        opacity.value = withSpring(1);
-        zIndex.value = withTiming(1, { duration: 300 });
-      }
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -250,6 +224,9 @@ function DraggableWorkoutCard({
 
   // Create placeholder style for other cards when something is being dragged
   const placeholderStyle = useAnimatedStyle(() => {
+    if (draggedWorkoutId && draggedWorkoutId !== workout.id) {
+      // Calculate if this card should move up or down to make space
+      const draggedIndex = index; // This will be updated by parent
       // For now, just add a subtle visual indication
       return {
         opacity: withTiming(0.7, { duration: 200 }),
@@ -257,10 +234,11 @@ function DraggableWorkoutCard({
     }
     return {
       opacity: withTiming(1, { duration: 200 }),
-    });
+    };
+  });
   
   return (
-    <Animated.View style={[styles.workoutCardContainer, animatedStyle, placeholderStyle]} onLayout={onCardLayout}>
+    <Animated.View style={[styles.workoutCardContainer, animatedStyle]} onLayout={onCardLayout}>
       <TouchableOpacity 
         style={[
           styles.workoutCard,
