@@ -9,7 +9,8 @@ import Animated, {
   useAnimatedStyle, 
   useAnimatedGestureHandler, 
   runOnJS,
-  withSpring 
+  withSpring,
+  withTiming
 } from 'react-native-reanimated';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -19,6 +20,7 @@ export default function ProgramDetailScreen() {
   const { currentProgram, startWorkout, reorderWorkouts } = useWorkout();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [workoutOrder, setWorkoutOrder] = useState<string[]>([]);
+  const [draggedWorkoutId, setDraggedWorkoutId] = useState<string | null>(null);
 
   // Initialize workout order when program loads
   React.useEffect(() => {
@@ -46,14 +48,26 @@ export default function ProgramDetailScreen() {
     }
   };
 
-  const moveWorkout = (fromIndex: number, toIndex: number) => {
+  const moveWorkout = (draggedWorkoutId: string, targetIndex: number) => {
+    const fromIndex = workoutOrder.findIndex(id => id === draggedWorkoutId);
+    if (fromIndex === -1 || fromIndex === targetIndex) return;
+    
     const newOrder = [...workoutOrder];
     const [movedItem] = newOrder.splice(fromIndex, 1);
-    newOrder.splice(toIndex, 0, movedItem);
+    newOrder.splice(targetIndex, 0, movedItem);
     setWorkoutOrder(newOrder);
     handleReorderComplete(newOrder);
   };
 
+  const handleDragStart = (workoutId: string, index: number) => {
+    setDraggedIndex(index);
+    setDraggedWorkoutId(workoutId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDraggedWorkoutId(null);
+  };
   if (!currentProgram) {
     return null;
   }
@@ -102,11 +116,13 @@ export default function ProgramDetailScreen() {
                 key={workout.id}
                 workout={workout}
                 index={index}
+                totalWorkouts={orderedWorkouts.length}
                 onStartWorkout={handleStartWorkout}
                 onMove={moveWorkout}
                 isDragging={draggedIndex === index}
-                onDragStart={() => setDraggedIndex(index)}
-                onDragEnd={() => setDraggedIndex(null)}
+                draggedWorkoutId={draggedWorkoutId}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
               />
             ))}
           </View>
@@ -120,29 +136,35 @@ export default function ProgramDetailScreen() {
 function DraggableWorkoutCard({ 
   workout, 
   index, 
+  totalWorkouts,
   onStartWorkout, 
   onMove, 
   isDragging,
+  draggedWorkoutId,
   onDragStart,
   onDragEnd 
 }: {
   workout: any;
   index: number;
+  totalWorkouts: number;
   onStartWorkout: (workout: any) => void;
-  onMove: (fromIndex: number, toIndex: number) => void;
+  onMove: (draggedWorkoutId: string, targetIndex: number) => void;
   isDragging: boolean;
-  onDragStart: () => void;
+  draggedWorkoutId: string | null;
+  onDragStart: (workoutId: string, index: number) => void;
   onDragEnd: () => void;
 }) {
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const zIndex = useSharedValue(1);
 
   const gestureHandler = useAnimatedGestureHandler({
     onStart: () => {
-      runOnJS(onDragStart)();
+      runOnJS(onDragStart)(workout.id, index);
       scale.value = withSpring(1.05);
       opacity.value = withSpring(0.9);
+      zIndex.value = 1000;
     },
     onActive: (event) => {
       translateY.value = event.translationY;
@@ -152,16 +174,19 @@ function DraggableWorkoutCard({
       const direction = event.translationY > 0 ? 1 : -1;
       const shouldMove = Math.abs(event.translationY) > moveThreshold;
       
-      if (shouldMove) {
-        const newIndex = index + direction;
-        if (newIndex >= 0) {
-          runOnJS(onMove)(index, newIndex);
+        // Calculate which cell the workout was dropped into
+        const cellsMoved = Math.round(event.translationY / workoutCardHeight);
+        const targetIndex = Math.max(0, Math.min(index + cellsMoved, totalWorkouts - 1));
+        
+        if (targetIndex !== index) {
+          runOnJS(onMove)(workout.id, targetIndex);
         }
       }
       
-      translateY.value = withSpring(0);
+      translateY.value = withTiming(0, { duration: 300 });
       scale.value = withSpring(1);
       opacity.value = withSpring(1);
+      zIndex.value = withTiming(1, { duration: 300 });
       runOnJS(onDragEnd)();
     },
   });
@@ -172,9 +197,23 @@ function DraggableWorkoutCard({
       { scale: scale.value }
     ],
     opacity: opacity.value,
-    zIndex: isDragging ? 1000 : 1,
+    zIndex: zIndex.value,
   }));
 
+  // Create placeholder style for other cards when something is being dragged
+  const placeholderStyle = useAnimatedStyle(() => {
+    if (draggedWorkoutId && draggedWorkoutId !== workout.id) {
+      // Calculate if this card should move up or down to make space
+      const draggedIndex = index; // This will be updated by parent
+      // For now, just add a subtle visual indication
+      return {
+        opacity: withTiming(0.7, { duration: 200 }),
+      };
+    }
+    return {
+      opacity: withTiming(1, { duration: 200 }),
+    };
+  });
   return (
     <Animated.View style={[styles.workoutCardContainer, animatedStyle]}>
       <PanGestureHandler onGestureEvent={gestureHandler}>
@@ -217,7 +256,14 @@ function DraggableWorkoutCard({
 }
 
 const styles = StyleSheet.create({
-  container: {
+    <Animated.View 
+      style={[
+        styles.workoutCardContainer, 
+        animatedStyle,
+        !isDragging && placeholderStyle
+      ]} 
+      onLayout={onCardLayout}
+    >
     flex: 1,
     backgroundColor: Colors.light.background,
   },
