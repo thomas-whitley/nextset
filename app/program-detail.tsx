@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Play, ArrowUp, ArrowDown, GripVertical, Move } from 'lucide-react-native';
+import { X, GripVertical } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { 
@@ -14,7 +14,6 @@ import Animated, {
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 
-const workoutCardHeight = 100; // Define the height constant
 
 export default function ProgramDetailScreen() {
   const params = useLocalSearchParams();
@@ -22,6 +21,7 @@ export default function ProgramDetailScreen() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [workoutOrder, setWorkoutOrder] = useState<string[]>([]);
   const [draggedWorkoutId, setDraggedWorkoutId] = useState<string | null>(null);
+  const workoutCardHeight = React.useRef(100);
 
   // Initialize workout order when program loads
   React.useEffect(() => {
@@ -31,6 +31,12 @@ export default function ProgramDetailScreen() {
     }
   }, [currentProgram]);
   
+  const onCardLayout = React.useCallback((event: any) => {
+    if (workoutCardHeight.current === 100) { // Only set once from default
+      workoutCardHeight.current = event.nativeEvent.layout.height;
+    }
+  }, []);
+
   const handleStartWorkout = (workout: any) => {
     startWorkout(workout);
     router.dismiss();
@@ -123,6 +129,7 @@ export default function ProgramDetailScreen() {
                 onStartWorkout={handleStartWorkout}
                 onMove={moveWorkout}
                 isDragging={draggedIndex === index}
+                onCardLayout={onCardLayout}
                 draggedWorkoutId={draggedWorkoutId}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
@@ -150,6 +157,7 @@ function DraggableWorkoutCard({
   workout: any;
   index: number;
   totalWorkouts: number;
+  onCardLayout: (event: any) => void;
   onStartWorkout: (workout: any) => void;
   onMove: (draggedWorkoutId: string, targetIndex: number) => void;
   isDragging: boolean;
@@ -173,18 +181,12 @@ function DraggableWorkoutCard({
       translateY.value = event.translationY;
     })
     .onEnd((event) => {
-      const moveThreshold = 80; // Minimum distance to trigger reorder
-      const direction = event.translationY > 0 ? 1 : -1;
-      const shouldMove = Math.abs(event.translationY) > moveThreshold;
+      // Calculate which cell the workout was dropped into
+      const cellsMoved = Math.round(event.translationY / 100); // Use default height for calculation
+      const targetIndex = Math.max(0, Math.min(index + cellsMoved, totalWorkouts - 1));
       
-      if (shouldMove) {
-        // Calculate which cell the workout was dropped into
-        const cellsMoved = Math.round(event.translationY / workoutCardHeight);
-        const targetIndex = Math.max(0, Math.min(index + cellsMoved, totalWorkouts - 1));
-        
-        if (targetIndex !== index) {
-          runOnJS(onMove)(workout.id, targetIndex);
-        }
+      if (targetIndex !== index) {
+        runOnJS(onMove)(workout.id, targetIndex);
       }
       
       translateY.value = withTiming(0, { duration: 300 });
@@ -215,11 +217,10 @@ function DraggableWorkoutCard({
     }
     return {
       opacity: withTiming(1, { duration: 200 }),
-    };
-  });
+    });
   
   return (
-    <Animated.View style={[styles.workoutCardContainer, animatedStyle]}>
+    <Animated.View style={[styles.workoutCardContainer, animatedStyle]} onLayout={onCardLayout}>
       <TouchableOpacity 
         style={[
           styles.workoutCard,
@@ -248,10 +249,6 @@ function DraggableWorkoutCard({
             </Text>
           )}
         </View>
-        
-        {/* <View style={styles.startButton}>
-          <Play size={20} color={Colors.light.primary} />
-        </View> */}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -275,16 +272,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
-  },
-  dragHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dragHintText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginLeft: 4,
   },
   content: {
     flex: 1,
@@ -395,13 +382,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: Colors.light.success,
     marginTop: 2,
-  },
-  startButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
