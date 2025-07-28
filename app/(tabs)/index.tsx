@@ -197,7 +197,6 @@ export default function HomeScreen() {
           
           <View style={styles.quickActionRow}>
             {/* Empty space to maintain layout after removing Timer Presets */}
-            <View style={styles.timerPresetsContainer} />
           </View>
         </View>
       </ScrollView>
@@ -497,33 +496,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   quickTimerSubtext: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
-  },
-  timerPresetsContainer: {
-    flex: 1,
-  },
-  timerPresetsButton: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  timerPresetsTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  timerPresetsSubtext: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: Colors.light.textTertiary,
