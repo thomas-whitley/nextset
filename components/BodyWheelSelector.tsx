@@ -149,6 +149,7 @@ export default function BodyWheelSelector({
     </Modal>
   );
 }
+}
 
 const styles = StyleSheet.create({
   overlay: {
