@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, ChevronRight } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
@@ -60,19 +60,25 @@ const singleArmLegOptions = [
 
 export default function CreateCustomExerciseScreen() {
   const { user } = useAuth();
+  const params = useLocalSearchParams();
+  const isEditMode = params.editMode === 'true';
+  const exerciseId = params.exerciseId as string;
+  
   const [formData, setFormData] = useState<CustomExerciseData>({
-    customName: '',
-    category: '',
-    exerciseType: '',
-    isSingleArmOrLeg: false,
-    bodyweightPercentage: undefined
+    customName: (params.customName as string) || '',
+    category: (params.category as string) || '',
+    exerciseType: (params.exerciseType as string) || '',
+    isSingleArmOrLeg: params.isSingleArmOrLeg === 'true',
+    bodyweightPercentage: params.bodyweightPercentage ? parseInt(params.bodyweightPercentage as string) : undefined
   });
 
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showExerciseTypeModal, setShowExerciseTypeModal] = useState(false);
   const [showSingleArmLegModal, setShowSingleArmLegModal] = useState(false);
   const [showBodyweightModal, setShowBodyweightModal] = useState(false);
-  const [bodyweightPercentage, setBodyweightPercentage] = useState(100);
+  const [bodyweightPercentage, setBodyweightPercentage] = useState(
+    formData.bodyweightPercentage || 100
+  );
 
   const handleClose = () => {
     router.back();
@@ -146,19 +152,31 @@ export default function CreateCustomExerciseScreen() {
         }
       };
 
-      const { error } = await supabase
-        .from('exercises')
-        .insert(customExercise);
+      let error;
+      if (isEditMode && exerciseId) {
+        // Update existing exercise
+        const { error: updateError } = await supabase
+          .from('exercises')
+          .update(customExercise)
+          .eq('id', parseInt(exerciseId));
+        error = updateError;
+      } else {
+        // Insert new exercise
+        const { error: insertError } = await supabase
+          .from('exercises')
+          .insert(customExercise);
+        error = insertError;
+      }
 
       if (error) {
-        console.error('Error saving custom exercise:', error);
-        Alert.alert('Error', 'Failed to save custom exercise. Please try again.');
+        console.error(`Error ${isEditMode ? 'updating' : 'saving'} custom exercise:`, error);
+        Alert.alert('Error', `Failed to ${isEditMode ? 'update' : 'save'} custom exercise. Please try again.`);
         return;
       }
 
       Alert.alert(
         'Success',
-        'Custom exercise created successfully!',
+        `Custom exercise ${isEditMode ? 'updated' : 'created'} successfully!`,
         [
           {
             text: 'OK',
@@ -167,7 +185,7 @@ export default function CreateCustomExerciseScreen() {
         ]
       );
     } catch (error) {
-      console.error('Unexpected error saving custom exercise:', error);
+      console.error(`Unexpected error ${isEditMode ? 'updating' : 'saving'} custom exercise:`, error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     }
   };
@@ -189,7 +207,7 @@ export default function CreateCustomExerciseScreen() {
         <TouchableOpacity onPress={handleClose}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Exercise</Text>
+        <Text style={styles.headerTitle}>{isEditMode ? 'Edit Exercise' : 'Add Exercise'}</Text>
         <TouchableOpacity onPress={handleSave}>
           <Text style={styles.doneButton}>Done</Text>
         </TouchableOpacity>
