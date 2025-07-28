@@ -10,6 +10,7 @@ import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
 import BodyWheelSelector from '@/components/BodyWheelSelector';
+import { useLocalDatabase } from '@/hooks/useLocalDatabase';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -44,6 +45,7 @@ export default function WorkoutScreen() {
   } = useWorkout();
   const { startTimer, setMode, setInitialTime, time, isRunning, pauseTimer, resetTimer } = useTimer();
   const { user } = useAuth();
+  const { createWorkoutSession, updateWorkoutSessionData } = useLocalDatabase();
   
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [showMetadataModal, setShowMetadataModal] = useState(false);
@@ -61,6 +63,8 @@ export default function WorkoutScreen() {
   const [isWarmupCollapsed, setIsWarmupCollapsed] = useState(false);
   const [selectedWarmup, setSelectedWarmup] = useState<WarmupOption | null>(null);
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
+  const [workoutSessionId, setWorkoutSessionId] = useState<string | null>(null);
+  const [lastSavedState, setLastSavedState] = useState<any>(null);
   const [metadata, setMetadata] = useState<WorkoutMetadata>({
     startTime: null,
     endTime: null,
@@ -75,6 +79,9 @@ export default function WorkoutScreen() {
       setWorkoutStartTime(startTime);
       setMetadata(prev => ({ ...prev, startTime }));
       
+      // Create a workout session in local database
+      createWorkoutSessionIfNeeded(startTime);
+      
       // Start the workout duration timer
       const interval = setInterval(() => {
         setWorkoutDuration(prev => prev + 1);
@@ -88,6 +95,85 @@ export default function WorkoutScreen() {
       }
     };
   }, [isWorkoutActive]);
+
+  // Create workout session in local database
+  const createWorkoutSessionIfNeeded = async (startTime: Date) => {
+    if (!user || !currentWorkout || workoutSessionId) return;
+    
+    try {
+      const sessionId = await createWorkoutSession({
+        user_id: user.id,
+        name: currentWorkout.name,
+        started_at: startTime.toISOString(),
+        duration_seconds: 0,
+        total_volume: 0,
+      });
+      setWorkoutSessionId(sessionId);
+    } catch (error) {
+      console.error('Failed to create workout session:', error);
+    }
+  };
+
+  // Save current workout state
+  const saveCurrentWorkoutState = async () => {
+    if (!currentWorkout || !workoutSessionId) return;
+    
+    try {
+      const currentState = {
+        workout: currentWorkout,
+        completedSets,
+        exerciseNotes,
+        workoutDuration,
+        metadata,
+        selectedWarmup,
+      };
+      
+      setLastSavedState(currentState);
+      
+      // Save to local database
+      await updateWorkoutSessionData(workoutSessionId, {
+        duration_seconds: workoutDuration,
+        notes: JSON.stringify({
+          exerciseNotes,
+          metadata,
+          completedSets: Array.from(completedSets),
+          selectedWarmup,
+        }),
+      });
+      
+      console.log('Workout state saved successfully');
+    } catch (error) {
+      console.error('Failed to save workout state:', error);
+    }
+  };
+
+  // Restore workout state
+  const restoreWorkoutState = () => {
+    if (!lastSavedState) return;
+    
+    try {
+      setCompletedSets(new Set(lastSavedState.completedSets));
+      setExerciseNotes(lastSavedState.exerciseNotes);
+      setWorkoutDuration(lastSavedState.workoutDuration);
+      setMetadata(lastSavedState.metadata);
+      setSelectedWarmup(lastSavedState.selectedWarmup);
+      
+      console.log('Workout state restored successfully');
+    } catch (error) {
+      console.error('Failed to restore workout state:', error);
+    }
+  };
+
+  // Auto-save workout state periodically
+  useEffect(() => {
+    if (!isWorkoutActive || !workoutSessionId) return;
+    
+    const autoSaveInterval = setInterval(() => {
+      saveCurrentWorkoutState();
+    }, 30000); // Auto-save every 30 seconds
+    
+    return () => clearInterval(autoSaveInterval);
+  }, [isWorkoutActive, workoutSessionId, currentWorkout, completedSets, exerciseNotes, workoutDuration]);
 
   // Rest timer effect
   useEffect(() => {
@@ -146,8 +232,17 @@ export default function WorkoutScreen() {
   const handleAddExercise = async (exercise: any) => {
     if (!currentWorkout) return;
     
+    // Save current state before adding exercise
+    await saveCurrentWorkoutState();
+    
     try {
       await addExerciseToWorkout(currentWorkout.id, exercise);
+      
+      // Restore state after adding exercise
+      setTimeout(() => {
+        restoreWorkoutState();
+      }, 100);
+      
       closeAllModals();
     } catch (error) {
       Alert.alert('Error', 'Failed to add exercise. Please try again.');
@@ -175,18 +270,27 @@ export default function WorkoutScreen() {
   };
 
   const handleMuscleGroupSelect = (muscleGroup: string) => {
+    // Save state before navigating
+    saveCurrentWorkoutState();
+    
     setSelectedMuscleGroup(muscleGroup);
     setShowBodyWheelModal(false);
     setShowExerciseListModal(true);
   };
 
   const handleAddCustomExercise = () => {
+    // Save state before navigating
+    saveCurrentWorkoutState();
+    
     // TODO: Navigate to create custom exercise screen
     console.log('Navigate to create custom exercise');
     closeAllModals();
   };
 
   const closeAllModals = () => {
+    // Restore state when closing modals
+    restoreWorkoutState();
+    
     setShowExerciseModal(false);
     setShowBodyWheelModal(false);
     setShowExerciseListModal(false);
@@ -477,7 +581,10 @@ export default function WorkoutScreen() {
 
         <TouchableOpacity 
           style={styles.addExerciseButton}
-          onPress={() => setShowBodyWheelModal(true)}
+          onPress={async () => {
+            await saveCurrentWorkoutState();
+            setShowBodyWheelModal(true);
+          }}
           accessibilityRole="button"
           accessibilityLabel="Add exercise to workout"
           accessibilityHint="Browse and add new exercises to your current workout"
