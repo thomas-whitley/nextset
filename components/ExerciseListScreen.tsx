@@ -558,36 +558,40 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
-  emptyState: {
+  emptyStateContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
   },
-  emptyStateTitle: {
+  emptySection: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  emptySectionHeader: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: 'center',
   },
-  emptyStateSubtitle: {
+  emptySectionMessage: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: Colors.light.textTertiary,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 32,
   },
-  addCustomButton: {
+  emptyStateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.primaryLight,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 20,
+    marginTop: 16,
   },
-  addCustomButtonText: {
+  emptyStateButtonText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.primary,
