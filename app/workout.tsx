@@ -100,6 +100,15 @@ export default function WorkoutScreen() {
   const createWorkoutSessionIfNeeded = async (startTime: Date) => {
     if (!user || !currentWorkout || workoutSessionId) return;
     
+    // Skip database operations on web platform
+    if (Platform.OS === 'web') {
+      console.log('Workout session tracking not available on web platform');
+      // Generate a temporary session ID for web
+      const tempSessionId = `web_session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setWorkoutSessionId(tempSessionId);
+      return;
+    }
+    
     try {
       const sessionId = await createWorkoutSession({
         user_id: user.id,
@@ -111,12 +120,31 @@ export default function WorkoutScreen() {
       setWorkoutSessionId(sessionId);
     } catch (error) {
       console.error('Failed to create workout session:', error);
+      // Generate fallback session ID even on native platforms if database fails
+      const fallbackSessionId = `fallback_session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setWorkoutSessionId(fallbackSessionId);
     }
   };
 
   // Save current workout state
   const saveCurrentWorkoutState = async () => {
     if (!currentWorkout || !workoutSessionId) return;
+    
+    // Skip database operations on web platform
+    if (Platform.OS === 'web') {
+      console.log('Workout state saving not available on web platform');
+      // Still update local state for web users
+      const currentState = {
+        workout: currentWorkout,
+        completedSets,
+        exerciseNotes,
+        workoutDuration,
+        metadata,
+        selectedWarmup,
+      };
+      setLastSavedState(currentState);
+      return;
+    }
     
     try {
       const currentState = {
@@ -144,6 +172,16 @@ export default function WorkoutScreen() {
       console.log('Workout state saved successfully');
     } catch (error) {
       console.error('Failed to save workout state:', error);
+      // Still update local state as fallback
+      const currentState = {
+        workout: currentWorkout,
+        completedSets,
+        exerciseNotes,
+        workoutDuration,
+        metadata,
+        selectedWarmup,
+      };
+      setLastSavedState(currentState);
     }
   };
 
@@ -166,7 +204,7 @@ export default function WorkoutScreen() {
 
   // Auto-save workout state periodically
   useEffect(() => {
-    if (!isWorkoutActive || !workoutSessionId) return;
+    if (!isWorkoutActive || !workoutSessionId || Platform.OS === 'web') return;
     
     const autoSaveInterval = setInterval(() => {
       saveCurrentWorkoutState();
@@ -232,8 +270,21 @@ export default function WorkoutScreen() {
   const handleAddExercise = async (exercise: any) => {
     if (!currentWorkout) return;
     
-    // Save current state before adding exercise
-    await saveCurrentWorkoutState();
+    // Save current state before adding exercise (platform-aware)
+    if (Platform.OS !== 'web') {
+      await saveCurrentWorkoutState();
+    } else {
+      // For web, just save to local state
+      const currentState = {
+        workout: currentWorkout,
+        completedSets,
+        exerciseNotes,
+        workoutDuration,
+        metadata,
+        selectedWarmup,
+      };
+      setLastSavedState(currentState);
+    }
     
     try {
       await addExerciseToWorkout(currentWorkout.id, exercise);
@@ -270,8 +321,21 @@ export default function WorkoutScreen() {
   };
 
   const handleMuscleGroupSelect = (muscleGroup: string) => {
-    // Save state before navigating
-    saveCurrentWorkoutState();
+    // Save state before navigating (platform-aware)
+    if (Platform.OS !== 'web') {
+      saveCurrentWorkoutState();
+    } else {
+      // For web, just save to local state
+      const currentState = {
+        workout: currentWorkout,
+        completedSets,
+        exerciseNotes,
+        workoutDuration,
+        metadata,
+        selectedWarmup,
+      };
+      setLastSavedState(currentState);
+    }
     
     setSelectedMuscleGroup(muscleGroup);
     setShowBodyWheelModal(false);
@@ -279,8 +343,21 @@ export default function WorkoutScreen() {
   };
 
   const handleAddCustomExercise = () => {
-    // Save state before navigating
-    saveCurrentWorkoutState();
+    // Save state before navigating (platform-aware)
+    if (Platform.OS !== 'web') {
+      saveCurrentWorkoutState();
+    } else {
+      // For web, just save to local state
+      const currentState = {
+        workout: currentWorkout,
+        completedSets,
+        exerciseNotes,
+        workoutDuration,
+        metadata,
+        selectedWarmup,
+      };
+      setLastSavedState(currentState);
+    }
     
     // TODO: Navigate to create custom exercise screen
     console.log('Navigate to create custom exercise');
@@ -582,7 +659,21 @@ export default function WorkoutScreen() {
         <TouchableOpacity 
           style={styles.addExerciseButton}
           onPress={async () => {
-            await saveCurrentWorkoutState();
+            // Save state before opening exercise selection (platform-aware)
+            if (Platform.OS !== 'web') {
+              await saveCurrentWorkoutState();
+            } else {
+              // For web, just save to local state
+              const currentState = {
+                workout: currentWorkout,
+                completedSets,
+                exerciseNotes,
+                workoutDuration,
+                metadata,
+                selectedWarmup,
+              };
+              setLastSavedState(currentState);
+            }
             setShowBodyWheelModal(true);
           }}
           accessibilityRole="button"
