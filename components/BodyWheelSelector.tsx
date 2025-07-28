@@ -62,6 +62,11 @@ export default function BodyWheelSelector({
     opacity: opacity.value,
   }));
 
+  const handleAddCustomExercise = () => {
+    onAddCustomExercise();
+    router.push('/create-custom-exercise');
+  };
+
   const renderWedge = (muscleGroup: string, index: number) => {
     const angle = (360 / muscleGroups.length) * index;
     const angleInRadians = (angle - 90) * (Math.PI / 180); // -90 to start from top
@@ -93,7 +98,11 @@ export default function BodyWheelSelector({
         }}
         activeOpacity={0.7}
       >
-    router.push('/create-custom-exercise');
+        <View style={styles.wedgeContent}>
+          <Text style={styles.wedgeText}>{muscleGroup}</Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   if (!visible) return null;
