@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Plus, Info, MoreHorizontal } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { ArrowLeft, Plus, Info, MoveHorizontal as MoreHorizontal } from 'lucide-react-native'cide-react-native';
 import Colors from '@/constants/Colors';
 import { Exercise } from '@/services/exercise.types';
 import { supabase } from '@/data/supabase-client';
-import ExerciseDetailsModal from './ExerciseDetailsModal';
 
 interface ExerciseListScreenProps {
   selectedMuscleGroup: string;
@@ -33,8 +31,6 @@ export default function ExerciseListScreen({
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showExerciseDetails, setShowExerciseDetails] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
 
   useEffect(() => {
     loadExercises();
@@ -120,15 +116,6 @@ export default function ExerciseListScreen({
     }
   };
 
-  const handleAddCustomExercise = () => {
-    router.push('/create-custom-exercise');
-  };
-
-  const handleShowExerciseDetails = (exercise: Exercise) => {
-    setSelectedExercise(exercise);
-    setShowExerciseDetails(true);
-  };
-
   const renderPrepopulatedExercise = ({ item }: { item: Exercise }) => (
     <TouchableOpacity
       style={styles.exerciseItem}
@@ -148,7 +135,7 @@ export default function ExerciseListScreen({
       </View>
       <TouchableOpacity
         style={styles.infoButton}
-        onPress={() => handleShowExerciseDetails(item)}
+        onPress={() => onShowExerciseDetails(item)}
       >
         <Info size={20} color={Colors.light.textTertiary} />
       </TouchableOpacity>
@@ -248,16 +235,6 @@ export default function ExerciseListScreen({
           showsVerticalScrollIndicator={false}
         />
       )}
-
-      {/* Exercise Details Modal */}
-      <ExerciseDetailsModal
-        visible={showExerciseDetails}
-        exercise={selectedExercise}
-        onClose={() => {
-          setShowExerciseDetails(false);
-          setSelectedExercise(null);
-        }}
-      />
     </SafeAreaView>
   );
 }
