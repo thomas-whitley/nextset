@@ -244,6 +244,12 @@ export default function WorkoutScreen() {
   const renderSetRow = (set: any, setIndex: number, exerciseId: string) => {
     const isCompleted = set.isComplete;
     const isActiveRest = activeRestTimer === set.id;
+   
+   // Get previous set data for placeholder
+   const exercise = currentWorkout?.exercises.find(e => e.id === exerciseId);
+   const previousSet = exercise?.sets[setIndex - 1];
+   const weightPlaceholder = !isCompleted && previousSet ? previousSet.weight : '';
+   const repsPlaceholder = !isCompleted && previousSet ? previousSet.reps : '';
 
     return (
       <View key={set.id} style={styles.setRow}>
@@ -275,7 +281,7 @@ export default function WorkoutScreen() {
           value={set.weight}
           onChangeText={(value) => updateSet(exerciseId, set.id, 'weight', value)}
           keyboardType="numeric"
-          placeholder="kg"
+         placeholder={weightPlaceholder || "kg"}
           placeholderTextColor={Colors.light.textTertiary}
           editable={!isCompleted}
           accessibilityLabel={`Weight for set ${setIndex + 1}`}
@@ -287,7 +293,7 @@ export default function WorkoutScreen() {
           value={set.reps}
           onChangeText={(value) => updateSet(exerciseId, set.id, 'reps', value)}
           keyboardType="numeric"
-          placeholder="reps"
+         placeholder={repsPlaceholder || "reps"}
           placeholderTextColor={Colors.light.textTertiary}
           editable={!isCompleted}
           accessibilityLabel={`Repetitions for set ${setIndex + 1}`}
@@ -729,14 +735,14 @@ const styles = StyleSheet.create({
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
+   paddingVertical: 8,
     position: 'relative',
-    marginBottom: 2
+   marginBottom: 6
   },
   setIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+   width: 28,
+   height: 28,
+   borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.light.border,
     backgroundColor: Colors.light.card,
@@ -755,18 +761,19 @@ const styles = StyleSheet.create({
   setNumber: { fontSize: 10, fontFamily: 'Inter-Bold', color: Colors.light.primary },
   previousData: { fontSize: 10, fontFamily: 'Inter-Medium', color: Colors.light.textTertiary, width: 50, textAlign: 'center' },
   input: {
-    width: 50,
+   width: 55,
     backgroundColor: Colors.light.background,
     borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
+   paddingVertical: 8,
+   paddingHorizontal: 8,
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.text,
     textAlign: 'center',
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: Colors.light.border
+   borderColor: Colors.light.border,
+   minHeight: 36
   },
   inputComplete: {
     backgroundColor: Colors.light.primaryLight,
