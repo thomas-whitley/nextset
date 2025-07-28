@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search } from 'lucide-react-native';
 import { useWorkout } from '../contexts/WorkoutContext';
 import { Exercise as DetailedExercise } from '../services/exercise.types';
 import Colors from '@/constants/Colors';
 import { supabase } from '@/data/supabase-client';
+import BodyWheelSelector from './BodyWheelSelector';
+import ExerciseListScreen from './ExerciseListScreen';
 
 interface BrowseExercisesScreenProps {
   onExerciseSelect?: (exercise: DetailedExercise) => void;
   autoFocusSearch?: boolean;
+  showBodyWheel?: boolean;
 }
 
-export default function BrowseExercisesScreen({ onExerciseSelect, autoFocusSearch = true }: BrowseExercisesScreenProps) {
+export default function BrowseExercisesScreen({ 
+  onExerciseSelect, 
+  autoFocusSearch = true, 
+  showBodyWheel = false 
+}: BrowseExercisesScreenProps) {
   const {
     masterExercises: contextMasterExercises,
     userCustomExercises: contextUserCustomExercises,
@@ -28,6 +36,9 @@ export default function BrowseExercisesScreen({ onExerciseSelect, autoFocusSearc
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredMasterExercises, setFilteredMasterExercises] = useState<DetailedExercise[]>([]);
   const [filteredCustomExercises, setFilteredCustomExercises] = useState<DetailedExercise[]>([]);
+  const [showBodyWheelModal, setShowBodyWheelModal] = useState(showBodyWheel);
+  const [showExerciseList, setShowExerciseList] = useState(false);
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string>('');
 
   useEffect(() => {
     loadExercisesFromSupabase();
@@ -93,6 +104,42 @@ export default function BrowseExercisesScreen({ onExerciseSelect, autoFocusSearc
     }
   };
 
+  const handleMuscleGroupSelect = (muscleGroup: string) => {
+    setSelectedMuscleGroup(muscleGroup);
+    setShowBodyWheelModal(false);
+    setShowExerciseList(true);
+  };
+
+  const handleAddCustomExercise = () => {
+    // TODO: Navigate to create custom exercise screen
+    console.log('Navigate to create custom exercise');
+  };
+
+  const handleShowExerciseDetails = (exercise: DetailedExercise) => {
+    // TODO: Show exercise details modal
+    console.log('Show exercise details for:', exercise.name);
+  };
+
+  const handleBackFromExerciseList = () => {
+    setShowExerciseList(false);
+    if (showBodyWheel) {
+      setShowBodyWheelModal(true);
+    }
+  };
+
+  // If showing exercise list, render that instead
+  if (showExerciseList) {
+    return (
+      <ExerciseListScreen
+        selectedMuscleGroup={selectedMuscleGroup}
+        onBack={handleBackFromExerciseList}
+        onExerciseSelect={handleExerciseSelect}
+        onAddCustomExercise={handleAddCustomExercise}
+        onShowExerciseDetails={handleShowExerciseDetails}
+      />
+    );
+  }
+
   const renderExerciseItem = ({ item }: { item: DetailedExercise }) => (
     <TouchableOpacity 
       style={styles.exerciseItem} 
@@ -135,6 +182,24 @@ export default function BrowseExercisesScreen({ onExerciseSelect, autoFocusSearc
 
   return (
     <View style={styles.container}>
+      {/* Body Wheel Selector Modal */}
+      <BodyWheelSelector
+        visible={showBodyWheelModal}
+        onClose={() => setShowBodyWheelModal(false)}
+        onMuscleGroupSelect={handleMuscleGroupSelect}
+        onAddCustomExercise={handleAddCustomExercise}
+      />
+
+      {/* Show body wheel button if enabled */}
+      {showBodyWheel && !showBodyWheelModal && (
+        <TouchableOpacity 
+          style={styles.bodyWheelButton}
+          onPress={() => setShowBodyWheelModal(true)}
+        >
+          <Text style={styles.bodyWheelButtonText}>Select by Body Part</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Search size={20} color={Colors.light.textTertiary} />
@@ -212,6 +277,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
+  },
+  bodyWheelButton: {
+    backgroundColor: Colors.light.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    margin: 16,
+    alignItems: 'center',
+  },
+  bodyWheelButtonText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
   },
   searchContainer: {
     flexDirection: 'row',

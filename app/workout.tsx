@@ -9,6 +9,7 @@ import { useTimer, TimerContextType } from '@/contexts/TimerContext';
 import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
+import BodyWheelSelector from '@/components/BodyWheelSelector';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -47,6 +48,9 @@ export default function WorkoutScreen() {
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [showMetadataModal, setShowMetadataModal] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
+  const [showBodyWheelModal, setShowBodyWheelModal] = useState(false);
+  const [showExerciseListModal, setShowExerciseListModal] = useState(false);
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string>('');
   const [completedSets, setCompletedSets] = useState<Set<string>>(new Set());
   const [activeRestTimer, setActiveRestTimer] = useState<string | null>(null);
   const [restTime, setRestTime] = useState(0);
@@ -144,7 +148,7 @@ export default function WorkoutScreen() {
     
     try {
       await addExerciseToWorkout(currentWorkout.id, exercise);
-      setShowExerciseModal(false);
+      closeAllModals();
     } catch (error) {
       Alert.alert('Error', 'Failed to add exercise. Please try again.');
     }
@@ -168,6 +172,24 @@ export default function WorkoutScreen() {
   const handleWarmupSelect = (warmup: WarmupOption) => {
     setSelectedWarmup(warmup);
     setShowWarmupModal(false);
+  };
+
+  const handleMuscleGroupSelect = (muscleGroup: string) => {
+    setSelectedMuscleGroup(muscleGroup);
+    setShowBodyWheelModal(false);
+    setShowExerciseListModal(true);
+  };
+
+  const handleAddCustomExercise = () => {
+    // TODO: Navigate to create custom exercise screen
+    console.log('Navigate to create custom exercise');
+    closeAllModals();
+  };
+
+  const closeAllModals = () => {
+    setShowExerciseModal(false);
+    setShowBodyWheelModal(false);
+    setShowExerciseListModal(false);
   };
 
   const handleFinishWorkout = async () => {
@@ -449,7 +471,7 @@ export default function WorkoutScreen() {
 
         <TouchableOpacity 
           style={styles.addExerciseButton}
-          onPress={() => setShowExerciseModal(true)}
+          onPress={() => setShowBodyWheelModal(true)}
           accessibilityRole="button"
           accessibilityLabel="Add exercise to workout"
           accessibilityHint="Browse and add new exercises to your current workout"
@@ -491,22 +513,31 @@ export default function WorkoutScreen() {
         </SafeAreaView>
       </Modal>
 
+      {/* Body Wheel Selector Modal */}
+      <BodyWheelSelector
+        visible={showBodyWheelModal}
+        onClose={() => setShowBodyWheelModal(false)}
+        onMuscleGroupSelect={handleMuscleGroupSelect}
+        onAddCustomExercise={handleAddCustomExercise}
+      />
+
       {/* Exercise Selection Modal */}
       <Modal
-        visible={showExerciseModal}
+        visible={showExerciseListModal}
         animationType="slide"
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.modalContainer} edges={['top']}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add Exercise</Text>
-            <TouchableOpacity onPress={() => setShowExerciseModal(false)}>
+            <TouchableOpacity onPress={() => setShowExerciseListModal(false)}>
               <X size={24} color={Colors.light.text} />
             </TouchableOpacity>
           </View>
           <BrowseExercisesScreen 
             onExerciseSelect={handleAddExercise} 
             autoFocusSearch={false}
+            showBodyWheel={false}
           />
         </SafeAreaView>
       </Modal>
