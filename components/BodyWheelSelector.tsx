@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Modal, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Plus } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -27,6 +27,17 @@ interface BodyWheelSelectorProps {
   onAddCustomExercise: () => void;
 }
 
+interface WedgeProps {
+  muscleGroup: string;
+  index: number;
+  totalWedges: number;
+  isPressed: boolean;
+  wheelSize: number;
+  outerRadius: number;
+  innerRadius: number;
+  textRadius: number;
+}
+
 const muscleGroups = [
   'Abs',
   'Back', 
@@ -44,6 +55,92 @@ const muscleGroups = [
 // Create animated components
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedSvgText = Animated.createAnimatedComponent(SvgText);
+
+// Separate Wedge component to avoid hooks in loops
+function BodyWheelWedge({ 
+  muscleGroup, 
+  index, 
+  totalWedges, 
+  isPressed, 
+  wheelSize, 
+  outerRadius, 
+  innerRadius, 
+  textRadius 
+}: WedgeProps) {
+  // Helper function to create SVG path for a wedge
+  const getWedgePath = (startAngle: number, endAngle: number) => {
+    const startAngleRad = (startAngle - 90) * (Math.PI / 180);
+    const endAngleRad = (endAngle - 90) * (Math.PI / 180);
+    
+    const centerX = wheelSize / 2;
+    const centerY = wheelSize / 2;
+    
+    const x1 = centerX + innerRadius * Math.cos(startAngleRad);
+    const y1 = centerY + innerRadius * Math.sin(startAngleRad);
+    const x2 = centerX + outerRadius * Math.cos(startAngleRad);
+    const y2 = centerY + outerRadius * Math.sin(startAngleRad);
+    
+    const x3 = centerX + outerRadius * Math.cos(endAngleRad);
+    const y3 = centerY + outerRadius * Math.sin(endAngleRad);
+    const x4 = centerX + innerRadius * Math.cos(endAngleRad);
+    const y4 = centerY + innerRadius * Math.sin(endAngleRad);
+    
+    const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+    
+    return `M ${x1} ${y1} L ${x2} ${y2} A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${x3} ${y3} L ${x4} ${y4} A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${x1} ${y1} Z`;
+  };
+
+  // Helper function to get text position
+  const getTextPosition = (angle: number) => {
+    const angleInRadians = (angle - 90) * (Math.PI / 180);
+    const centerX = wheelSize / 2;
+    const centerY = wheelSize / 2;
+    
+    const x = centerX + textRadius * Math.cos(angleInRadians);
+    const y = centerY + textRadius * Math.sin(angleInRadians);
+    
+    return { x, y };
+  };
+
+  const anglePerWedge = 360 / totalWedges;
+  const startAngle = anglePerWedge * index;
+  const endAngle = anglePerWedge * (index + 1);
+  const midAngle = startAngle + anglePerWedge / 2;
+  
+  const textPosition = getTextPosition(midAngle);
+  
+  // Animated props for the wedge path - hooks called unconditionally at top level
+  const animatedPathProps = useAnimatedProps(() => ({
+    fill: withTiming(isPressed ? Colors.light.primary : 'rgba(75, 85, 99, 0.9)', { duration: 150 }),
+    stroke: withTiming(isPressed ? Colors.light.primary : 'rgba(156, 163, 175, 0.4)', { duration: 150 }),
+    strokeWidth: withTiming(isPressed ? 3 : 1, { duration: 150 }),
+  }));
+
+  // Animated props for the text - hooks called unconditionally at top level
+  const animatedTextProps = useAnimatedProps(() => ({
+    fill: withTiming(isPressed ? '#FFFFFF' : '#F9FAFB', { duration: 150 }),
+  }));
+
+  return (
+    <G>
+      <AnimatedPath
+        d={getWedgePath(startAngle, endAngle)}
+        animatedProps={animatedPathProps}
+      />
+      <AnimatedSvgText
+        x={textPosition.x}
+        y={textPosition.y}
+        fontSize="13"
+        fontFamily="Inter-SemiBold"
+        textAnchor="middle"
+        alignmentBaseline="middle"
+        animatedProps={animatedTextProps}
+      >
+        {muscleGroup}
+      </AnimatedSvgText>
+    </G>
+  );
+}
 
 export default function BodyWheelSelector({ 
   visible, 
@@ -74,83 +171,6 @@ export default function BodyWheelSelector({
   const handleAddCustomExercise = () => {
     onAddCustomExercise();
     router.push('/create-custom-exercise');
-  };
-
-  // Helper function to create SVG path for a wedge
-  const getWedgePath = (startAngle: number, endAngle: number) => {
-    const startAngleRad = (startAngle - 90) * (Math.PI / 180);
-    const endAngleRad = (endAngle - 90) * (Math.PI / 180);
-    
-    const centerX = WHEEL_SIZE / 2;
-    const centerY = WHEEL_SIZE / 2;
-    
-    const x1 = centerX + INNER_RADIUS * Math.cos(startAngleRad);
-    const y1 = centerY + INNER_RADIUS * Math.sin(startAngleRad);
-    const x2 = centerX + OUTER_RADIUS * Math.cos(startAngleRad);
-    const y2 = centerY + OUTER_RADIUS * Math.sin(startAngleRad);
-    
-    const x3 = centerX + OUTER_RADIUS * Math.cos(endAngleRad);
-    const y3 = centerY + OUTER_RADIUS * Math.sin(endAngleRad);
-    const x4 = centerX + INNER_RADIUS * Math.cos(endAngleRad);
-    const y4 = centerY + INNER_RADIUS * Math.sin(endAngleRad);
-    
-    const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
-    
-    return `M ${x1} ${y1} L ${x2} ${y2} A ${OUTER_RADIUS} ${OUTER_RADIUS} 0 ${largeArcFlag} 1 ${x3} ${y3} L ${x4} ${y4} A ${INNER_RADIUS} ${INNER_RADIUS} 0 ${largeArcFlag} 0 ${x1} ${y1} Z`;
-  };
-
-  // Helper function to get text position
-  const getTextPosition = (angle: number) => {
-    const angleInRadians = (angle - 90) * (Math.PI / 180);
-    const centerX = WHEEL_SIZE / 2;
-    const centerY = WHEEL_SIZE / 2;
-    
-    const x = centerX + TEXT_RADIUS * Math.cos(angleInRadians);
-    const y = centerY + TEXT_RADIUS * Math.sin(angleInRadians);
-    
-    return { x, y };
-  };
-
-  const renderWedge = (muscleGroup: string, index: number) => {
-    const anglePerWedge = 360 / muscleGroups.length;
-    const startAngle = anglePerWedge * index;
-    const endAngle = anglePerWedge * (index + 1);
-    const midAngle = startAngle + anglePerWedge / 2;
-    
-    const isPressed = pressedWedge === muscleGroup;
-    const textPosition = getTextPosition(midAngle);
-    
-    // Animated props for the wedge path
-    const animatedPathProps = useAnimatedProps(() => ({
-      fill: withTiming(isPressed ? Colors.light.primary : 'rgba(75, 85, 99, 0.9)', { duration: 150 }),
-      stroke: withTiming(isPressed ? Colors.light.primary : 'rgba(156, 163, 175, 0.4)', { duration: 150 }),
-      strokeWidth: withTiming(isPressed ? 3 : 1, { duration: 150 }),
-    }));
-
-    // Animated props for the text
-    const animatedTextProps = useAnimatedProps(() => ({
-      fill: withTiming(isPressed ? '#FFFFFF' : '#F9FAFB', { duration: 150 }),
-    }));
-
-    return (
-      <G key={muscleGroup}>
-        <AnimatedPath
-          d={getWedgePath(startAngle, endAngle)}
-          animatedProps={animatedPathProps}
-        />
-        <AnimatedSvgText
-          x={textPosition.x}
-          y={textPosition.y}
-          fontSize="13"
-          fontFamily="Inter-SemiBold"
-          textAnchor="middle"
-          alignmentBaseline="middle"
-          animatedProps={animatedTextProps}
-        >
-          {muscleGroup}
-        </AnimatedSvgText>
-      </G>
-    );
   };
 
   const renderRadialLines = () => {
@@ -246,9 +266,8 @@ export default function BodyWheelSelector({
       animationType="none"
       onRequestClose={onClose}
     >
-      <TouchableOpacity 
+      <Pressable 
         style={styles.overlay}
-        activeOpacity={1}
         onPress={onClose}
       >
         <BlurView intensity={20} style={styles.blurContainer}>
@@ -262,30 +281,39 @@ export default function BodyWheelSelector({
               onTouchCancel={handleSvgTouchEnd}
               onResponderGrant={handleSvgTouch}
             >
-              {/* Render wedges */}
-              {muscleGroups.map((muscleGroup, index) => 
-                renderWedge(muscleGroup, index)
-              )}
+              {/* Render wedges using separate component */}
+              {muscleGroups.map((muscleGroup, index) => (
+                <BodyWheelWedge
+                  key={muscleGroup}
+                  muscleGroup={muscleGroup}
+                  index={index}
+                  totalWedges={muscleGroups.length}
+                  isPressed={pressedWedge === muscleGroup}
+                  wheelSize={WHEEL_SIZE}
+                  outerRadius={OUTER_RADIUS}
+                  innerRadius={INNER_RADIUS}
+                  textRadius={TEXT_RADIUS}
+                />
+              ))}
               
               {/* Render radial separator lines */}
               {renderRadialLines()}
             </Svg>
 
             {/* Center button */}
-            <TouchableOpacity
+            <Pressable
               style={styles.centerButton}
               onPress={() => {
                 handleAddCustomExercise();
                 onClose();
               }}
-              activeOpacity={0.8}
             >
               <Plus size={24} color={Colors.light.primary} />
               <Text style={styles.centerButtonText}>Add{'\n'}Custom</Text>
-            </TouchableOpacity>
+            </Pressable>
           </Animated.View>
         </BlurView>
-      </TouchableOpacity>
+      </Pressable>
     </Modal>
   );
 }
