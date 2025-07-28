@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Plus, Info, MoreHorizontal, Search } from 'lucide-react-native';
+import { ArrowLeft, Plus, Info, MoveHorizontal as MoreHorizontal, Search } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 import { Exercise } from '@/services/exercise.types';
 import { supabase } from '@/data/supabase-client';
@@ -29,41 +29,12 @@ export default function ExerciseListScreen({
 }: ExerciseListScreenProps) {
   const [prepopulatedExercises, setPrepopulatedExercises] = useState<Exercise[]>([]);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
-  const [filteredPrepopulatedExercises, setFilteredPrepopulatedExercises] = useState<Exercise[]>([]);
-  const [filteredCustomExercises, setFilteredCustomExercises] = useState<CustomExercise[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadExercises();
   }, [selectedMuscleGroup]);
-
-  // Filter exercises based on search query
-  useEffect(() => {
-    const filterExercises = () => {
-      if (!searchQuery.trim()) {
-        setFilteredPrepopulatedExercises(prepopulatedExercises);
-        setFilteredCustomExercises(customExercises);
-        return;
-      }
-
-      const query = searchQuery.toLowerCase();
-      
-      const filteredPrep = prepopulatedExercises.filter(exercise =>
-        exercise.name.toLowerCase().includes(query)
-      );
-      
-      const filteredCustom = customExercises.filter(exercise =>
-        exercise.customName.toLowerCase().includes(query)
-      );
-      
-      setFilteredPrepopulatedExercises(filteredPrep);
-      setFilteredCustomExercises(filteredCustom);
-    };
-
-    filterExercises();
-  }, [searchQuery, prepopulatedExercises, customExercises]);
 
   const loadExercises = async () => {
     setLoading(true);
@@ -145,50 +116,6 @@ export default function ExerciseListScreen({
     }
   };
 
-  const renderEmptyState = () => {
-    const hasSearchQuery = searchQuery.trim().length > 0;
-    const hasFilteredPrep = filteredPrepopulatedExercises.length > 0;
-    const hasFilteredCustom = filteredCustomExercises.length > 0;
-    
-    if (hasFilteredPrep || hasFilteredCustom) {
-      return null; // Don't show empty state if there are results
-    }
-
-    return (
-      <View style={styles.emptyStateContainer}>
-        {/* Exercise Library Section */}
-        <View style={styles.emptySection}>
-          <Text style={styles.emptySectionHeader}>Exercise Library</Text>
-          <Text style={styles.emptySectionMessage}>
-            {hasSearchQuery 
-              ? `No exercises found matching "${searchQuery}"`
-              : "No exercises available in the library."
-            }
-          </Text>
-        </View>
-
-        {/* My Custom Exercises Section */}
-        <View style={styles.emptySection}>
-          <Text style={styles.emptySectionHeader}>My Custom Exercises</Text>
-          <Text style={styles.emptySectionMessage}>
-            {hasSearchQuery 
-              ? `No custom exercises found matching "${searchQuery}"`
-              : "No custom exercises created yet."
-            }
-          </Text>
-        </View>
-
-        {/* Add Custom Exercise Button */}
-        {!hasSearchQuery && (
-          <TouchableOpacity style={styles.emptyStateButton} onPress={onAddCustomExercise}>
-            <Plus size={20} color={Colors.light.primary} />
-            <Text style={styles.emptyStateButtonText}>Add Custom Exercise</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-
   const renderPrepopulatedExercise = ({ item }: { item: Exercise }) => (
     <TouchableOpacity
       style={styles.exerciseItem}
@@ -245,7 +172,23 @@ export default function ExerciseListScreen({
     </TouchableOpacity>
   );
 
-  const hasAnyResults = filteredPrepopulatedExercises.length > 0 || filteredCustomExercises.length > 0;
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyStateTitle}>No exercises found</Text>
+      <Text style={styles.emptyStateSubtitle}>
+        No exercises available for {selectedMuscleGroup}. Try adding a custom exercise.
+      </Text>
+      <TouchableOpacity style={styles.addCustomButton} onPress={onAddCustomExercise}>
+        <Plus size={20} color={Colors.light.primary} />
+        <Text style={styles.addCustomButtonText}>Add Custom Exercise</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const allExercises = [
+    ...prepopulatedExercises.map(ex => ({ ...ex, type: 'prepopulated' })),
+    ...customExercises.map(ex => ({ ...ex, type: 'custom' }))
+  ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -257,20 +200,6 @@ export default function ExerciseListScreen({
         <TouchableOpacity style={styles.addButton} onPress={onAddCustomExercise}>
           <Plus size={24} color={Colors.light.primary} />
         </TouchableOpacity>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Search size={20} color={Colors.light.textTertiary} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search exercises..."
-          placeholderTextColor={Colors.light.textTertiary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCorrect={false}
-          autoCapitalize="none"
-        />
       </View>
 
       {loading ? (
@@ -285,40 +214,26 @@ export default function ExerciseListScreen({
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : !hasAnyResults ? (
+      ) : allExercises.length === 0 ? (
         renderEmptyState()
       ) : (
-        <View style={styles.exerciseList}>
-          {/* Prepopulated Exercises Section */}
-          {filteredPrepopulatedExercises.length > 0 && (
-            <View style={styles.exerciseSection}>
-              <Text style={styles.sectionHeader}>Exercise Library</Text>
-              <FlatList
-                data={filteredPrepopulatedExercises}
-                keyExtractor={(item) => `prep-${item.id}`}
-                renderItem={renderPrepopulatedExercise}
-                ItemSeparatorComponent={() => <View style={styles.separator} />}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            </View>
-          )}
-
-          {/* Custom Exercises Section */}
-          {filteredCustomExercises.length > 0 && (
-            <View style={styles.exerciseSection}>
-              <Text style={styles.sectionHeader}>My Custom Exercises</Text>
-              <FlatList
-                data={filteredCustomExercises}
-                keyExtractor={(item) => `custom-${item.customId}`}
-                renderItem={renderCustomExercise}
-                ItemSeparatorComponent={() => <View style={styles.separator} />}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            </View>
-          )}
-        </View>
+        <FlatList
+          style={styles.exerciseList}
+          data={allExercises}
+          keyExtractor={(item) => 
+            item.type === 'prepopulated' 
+              ? `prep-${item.id}` 
+              : `custom-${item.customId}`
+          }
+          renderItem={({ item }) =>
+            item.type === 'prepopulated'
+              ? renderPrepopulatedExercise({ item: item as Exercise })
+              : renderCustomExercise({ item: item as CustomExercise })
+          }
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
       )}
     </SafeAreaView>
   );
@@ -558,40 +473,36 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
-  emptyStateContainer: {
+  emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
   },
-  emptySection: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  emptySectionHeader: {
+  emptyStateTitle: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
     color: Colors.light.text,
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
   },
-  emptySectionMessage: {
+  emptyStateSubtitle: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: Colors.light.textTertiary,
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 32,
   },
-  emptyStateButton: {
+  addCustomButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.primaryLight,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    marginTop: 16,
   },
-  emptyStateButtonText: {
+  addCustomButtonText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: Colors.light.primary,
