@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Plus, Info, MoreHorizontal } from 'lucide-react-native';
+import { ArrowLeft, Plus, Info, MoveHorizontal as MoreHorizontal } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 import { Exercise } from '@/services/exercise.types';
 import { supabase } from '@/data/supabase-client';
