@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Plus } from 'lucide-react-native';
+import { router } from 'expo-router';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -92,11 +93,7 @@ export default function BodyWheelSelector({
         }}
         activeOpacity={0.7}
       >
-        <View style={styles.wedgeContent}>
-          <Text style={styles.wedgeText}>{muscleGroup}</Text>
-        </View>
-      </TouchableOpacity>
-    );
+    router.push('/create-custom-exercise');
   };
 
   if (!visible) return null;
@@ -129,7 +126,7 @@ export default function BodyWheelSelector({
             <TouchableOpacity
               style={styles.centerButton}
               onPress={() => {
-                onAddCustomExercise();
+                handleAddCustomExercise();
                 onClose();
               }}
               activeOpacity={0.8}
