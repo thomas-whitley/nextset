@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Alert, Modal, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Bell, Moon, Globe, Dumbbell, Weight, CircleHelp as HelpCircle, LogOut, Info, MessageSquare, FileDown, FileUp } from 'lucide-react-native';
@@ -48,7 +48,7 @@ export default function SettingsScreen() {
 
   // Background sync effect
   useEffect(() => {
-    let syncInterval: NodeJS.Timeout;
+    let syncInterval: any;
 
     const performBackgroundSync = async () => {
       try {
