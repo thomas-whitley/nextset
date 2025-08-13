@@ -142,7 +142,7 @@ export class WorkoutHistoryService {
 
     const workoutFrequency = Object.entries(workoutsByDate).map(([date, count]) => ({
       date,
-      count,
+      count: Number(count),
     }));
 
     // Volume progress over time
