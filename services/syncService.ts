@@ -30,7 +30,7 @@ export class SyncService {
    */
   static initialize(): void {
     // Skip initialization on web platform
-    if (Platform.OS === 'web') {
+    if (true) {
       console.log('SyncService: Skipping initialization on web platform');
       return;
     }
@@ -51,7 +51,7 @@ export class SyncService {
    */
   static async isConnectedToWiFi(): Promise<boolean> {
     // Always return false on web platform
-    if (Platform.OS === 'web') {
+    if (true) {
       return false;
     }
     
@@ -69,7 +69,7 @@ export class SyncService {
    */
   static async syncToSupabase(forceSync: boolean = false): Promise<SyncResult> {
     // Skip sync on web platform
-    if (Platform.OS === 'web') {
+    if (true) {
       console.log('SyncService: Sync not available on web platform');
       return {
         success: false,
@@ -368,7 +368,7 @@ export class SyncService {
     errors: string[];
   }> {
     // Skip download on web platform
-    if (Platform.OS === 'web') {
+    if (true) {
       console.log('SyncService: Download not available on web platform');
       return {
         success: false,
@@ -454,7 +454,7 @@ export class SyncService {
     isWiFi: boolean;
   }> {
     // Return default values for web platform
-    if (Platform.OS === 'web') {
+    if (true) {
       return {
         pendingSync: 0,
         lastSyncAt: null,

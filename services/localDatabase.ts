@@ -250,10 +250,10 @@ export const updateWorkoutSession = async (id: string, updates: Partial<LocalWor
     const updateFields = Object.keys(updates).filter(key => key !== 'id').map(key => `${key} = ?`).join(', ');
     const values = Object.keys(updates).filter(key => key !== 'id').map(key => updates[key as keyof LocalWorkoutSession]);
     
-    await db.runAsync(
-      `UPDATE workout_sessions SET ${updateFields}, updated_at = ?, needs_sync = 1 WHERE id = ?`,
-      [...values, new Date().toISOString(), id]
-    );
+    // await db.runAsync(
+    //   `UPDATE workout_sessions SET ${updateFields}, updated_at = ?, needs_sync = 1 WHERE id = ?`,
+    //   [...values, new Date().toISOString(), id]
+    // );
     
     console.log('Workout session updated locally:', id);
   } catch (error) {
@@ -345,10 +345,10 @@ export const updateExerciseSet = async (id: string, updates: Partial<LocalExerci
     const updateFields = Object.keys(updates).filter(key => key !== 'id').map(key => `${key} = ?`).join(', ');
     const values = Object.keys(updates).filter(key => key !== 'id').map(key => updates[key as keyof LocalExerciseSet]);
     
-    await db.runAsync(
-      `UPDATE exercise_sets SET ${updateFields}, needs_sync = 1 WHERE id = ?`,
-      [...values, id]
-    );
+    // await db.runAsync(
+    //   `UPDATE exercise_sets SET ${updateFields}, needs_sync = 1 WHERE id = ?`,
+    //   [...values, id]
+    // );
   } catch (error) {
     console.error('Failed to update exercise set:', error);
     throw error;
