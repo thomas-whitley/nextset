@@ -5,7 +5,7 @@ import { Check, Timer, Plus, Minus, X, Clock, User, FileText, Play, Pause, Dumbb
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
-import { useTimer, TimerContextType } from '@/contexts/TimerContext';
+import { useTimer } from '@/contexts/TimerContext';
 import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
@@ -75,7 +75,7 @@ export default function WorkoutScreen() {
       const interval = setInterval(() => {
         setWorkoutDuration(prev => prev + 1);
       }, 1000);
-      setWorkoutTimerInterval(interval);
+      setWorkoutTimerInterval(interval as unknown as NodeJS.Timeout);
     }
 
     return () => {
@@ -97,7 +97,7 @@ export default function WorkoutScreen() {
           return prev - 1;
         });
       }, 1000);
-      setRestTimerInterval(interval);
+      setRestTimerInterval(interval as unknown as NodeJS.Timeout);
     } else if (restTimerInterval) {
       clearInterval(restTimerInterval);
       setRestTimerInterval(null);
@@ -824,8 +824,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-    alignItems: 'center'
+    borderBottomColor: Colors.light.border
   },
   modalTitle: { fontSize: 18, fontFamily: 'Inter-Bold', color: Colors.light.text },
   modalContent: {

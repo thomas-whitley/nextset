@@ -37,7 +37,7 @@ export function useIntervalTimer(config: TimerConfig) {
     progress: 1,
   });
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initialTimeRef = useRef<number>(config.exerciseTimeSeconds);
 
   // Start the timer

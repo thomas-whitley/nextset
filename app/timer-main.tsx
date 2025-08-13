@@ -310,7 +310,6 @@ export default function TimerScreen() {
         <TouchableOpacity
           style={[styles.modeButton, currentMode === 'stopwatch' && styles.modeButtonActive]}
           onPress={() => handleModeChange('stopwatch')}
-          collapsable={false}
         >
           <Clock size={32} color={currentMode === 'stopwatch' ? '#FFFFFF' : Colors.light.primary} />
           <Text style={[
@@ -330,7 +329,6 @@ export default function TimerScreen() {
         <TouchableOpacity
           style={[styles.modeButton, currentMode === 'master' && styles.modeButtonActive]}
           onPress={() => handleModeChange('master')}
-          collapsable={false}
         >
           <View style={styles.masterTimerIcon}>
             <Zap size={32} color={currentMode === 'master' ? '#FFFFFF' : Colors.light.accent} />
@@ -352,7 +350,6 @@ export default function TimerScreen() {
         <TouchableOpacity
           style={styles.presetButton}
           onPress={() => setShowPresets(true)}
-          collapsable={false}
         >
           <Text style={styles.presetButtonText}>Load Preset Workout</Text>
         </TouchableOpacity>

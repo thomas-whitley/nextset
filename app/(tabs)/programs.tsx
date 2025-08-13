@@ -4,15 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Calendar, Clock } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { useWorkout, Workout } from '@/contexts/WorkoutContext';
-import { WorkoutHistoryService } from '@/services/workoutHistoryService';
+import { useWorkout } from '@/contexts/WorkoutContext';
+import { WorkoutHistoryEntry, WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutHistoryItem from '@/components/WorkoutHistoryItem';
 
 export default function ProgramsScreen() {
   const { programs, currentProgram, setCurrentProgram } = useWorkout();
   const { user } = useAuth();
-  const [workoutHistory, setWorkoutHistory] = useState([]);
+  const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasActiveProgram, setHasActiveProgram] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);

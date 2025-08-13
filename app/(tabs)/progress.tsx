@@ -299,8 +299,7 @@ export default function ProgressScreen() {
             withInnerLines={false}
             withHorizontalLabels={true}
             fromZero={true}
-            showValuesOnTopOfBars={true}
-          />
+            showValuesOnTopOfBars={true} yAxisLabel={''} yAxisSuffix={''}          />
         </View>
 
         {/* Exercise Progress */}

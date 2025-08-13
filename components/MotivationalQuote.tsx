@@ -99,12 +99,12 @@ const MotivationalQuote = () => {
   // Change quote every 24 hours (or on app restart)
   useEffect(() => {
     const today = new Date().toDateString();
-    const savedDate = localStorage.getItem('lastQuoteDate');
+    const savedDate = new Date(today).toDateString();
     
     if (savedDate !== today) {
       // New day, change the quote
       changeQuote();
-      localStorage.setItem('lastQuoteDate', today);
+      //localStorage.setItem('lastQuoteDate', today);
     }
   }, []);
 
