@@ -8,8 +8,6 @@
     "scheme": "momentum",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "privacy": "public",
-    "privacyPolicyUrl": "https://room12loading.github.io/privacy-policy/",
     "ios": {
       "supportsTablet": true
     },
@@ -33,9 +31,6 @@
       "eas": {
         "projectId": "3f8fe1fb-ae22-4576-91c4-b77444330a79"
       }
-    },
-    "packagerOpts": {
-      "config": "metro.config.js"
     },
     "owner": "twhitley",
     "android": {
