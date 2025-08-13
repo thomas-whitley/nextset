@@ -27,8 +27,7 @@ const FocusableTextInput = forwardRef<TextInput, FocusableTextInputProps>(({
 
   const combinedStyle = [
     style,
-    isFocused && (focusStyle || styles.defaultFocus),
-    Platform.OS === 'web' && styles.webFocus,
+    isFocused && (focusStyle || styles.defaultFocus)
   ];
 
   return (
@@ -58,14 +57,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  webFocus: Platform.OS === 'web' ? {
-    outline: 'none',
-    ':focus': {
-      borderColor: Colors.light.focus,
-      boxShadow: `0 0 0 3px ${Colors.light.focusRing}`,
-    },
-  } : {},
 });
 
 export default FocusableTextInput;
-</FocusableTextInput>

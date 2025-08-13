@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { View, TextInput, Button, Alert } from 'react-native';
-import { ontologyService } from '../services/ontologyService';
+//import { ontologyService } from '../services/ontologyService';
 
 interface Props {
   onClose: () => void; // A function to close the modal
@@ -24,7 +24,7 @@ export default function CreateExerciseModal({ onClose }: Props) {
 
     try {
       // This is the specific line where you call the service
-      await ontologyService.createCustomExercise({ name, description });
+      //await ontologyService.createCustomExercise({ name, description });
 
       // If successful, show an alert and close the modal
       Alert.alert("Success", "Your new exercise has been saved!");

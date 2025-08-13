@@ -50,17 +50,17 @@ export default function BrowseExercisesScreen({ onExerciseSelect, autoFocusSearc
         const mappedExercises = data.map(ex => ({
           id: ex.id,
           name: ex.name,
-          isKeystone: ex.is_keystone,
-          movementPattern: ex.movement_pattern,
-          primaryMuscleGroup: ex.primary_muscle_group,
-          secondaryMuscleGroups: ex.secondary_muscle_groups || [],
+          is_keystone: ex.is_keystone,
+          movement_pattern: ex.movement_pattern,
+          primary_muscle_group: ex.primary_muscle_group,
+          secondary_muscle_groups: ex.secondary_muscle_groups || [],
           equipment: ex.equipment,
           difficulty: ex.difficulty,
           executionCues: ex.execution_cues,
-          commonMistakes: ex.common_mistakes || [],
+          common_mistakes: ex.common_mistakes || [],
           contraindications: ex.contraindications || [],
-          progressionId: ex.progression_id,
-          regressionId: ex.regression_id
+          progression_id: ex.progression_id,
+          regression_id: ex.regression_id
         }));
         setMasterExercises(mappedExercises);
       }
@@ -79,7 +79,7 @@ export default function BrowseExercisesScreen({ onExerciseSelect, autoFocusSearc
       
       return exercises.filter(exercise =>
         exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        exercise.primaryMuscleGroup.toLowerCase().includes(searchQuery.toLowerCase())
+        exercise.primary_muscle_group.toLowerCase().includes(searchQuery.toLowerCase())
       );
     };
 
@@ -101,16 +101,16 @@ export default function BrowseExercisesScreen({ onExerciseSelect, autoFocusSearc
       <View style={styles.exerciseInfo}>
         <Text style={styles.exerciseName}>{item.name}</Text>
         <Text style={styles.exerciseDetail}>
-          {item.primaryMuscleGroup}
-          {item.secondaryMuscleGroups && item.secondaryMuscleGroups.length > 0 && 
-            ` • ${item.secondaryMuscleGroups.join(', ')}`
+          {item.primary_muscle_group}
+          {item.secondary_muscle_groups && item.secondary_muscle_groups.length > 0 && 
+            ` • ${item.secondary_muscle_groups.join(', ')}`
           }
         </Text>
         <Text style={styles.exerciseEquipment}>Equipment: {item.equipment}</Text>
       </View>
       <View style={styles.exerciseBadge}>
         <Text style={styles.exerciseBadgeText}>
-          {item.difficulty || 'Beginner'}
+          {item.difficulty_level || 'Beginner'}
         </Text>
       </View>
     </TouchableOpacity>

@@ -42,7 +42,6 @@ export default function FocusableButton({
       // Web-specific props
       {...(Platform.OS === 'web' && {
         tabIndex: props.disabled ? -1 : 0,
-        role: props.accessibilityRole || 'button',
       })}
     >
       {children}
@@ -62,10 +61,5 @@ const styles = StyleSheet.create({
   },
   webFocus: Platform.OS === 'web' ? {
     outline: 'none',
-    ':focus': {
-      borderColor: Colors.light.focus,
-      boxShadow: `0 0 0 3px ${Colors.light.focusRing}`,
-    },
   } : {},
 });
-</FocusableButton>
