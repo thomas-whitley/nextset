@@ -74,6 +74,7 @@ export default function LoginScreen() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [debugLoading, setDebugLoading] = useState(false);
   const emailInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
 
@@ -277,6 +278,22 @@ export default function LoginScreen() {
       setError(`An unexpected error occurred with ${provider} login. Please try again.`);
     } finally {
       setSocialLoading(null);
+    }
+  };
+
+  const handleDebugLogin = async () => {
+    setDebugLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: 'debug@momentum.app',
+        password: 'Debug123!',
+      });
+      if (error) setError('Debug login failed: ' + error.message);
+    } catch {
+      setError('Debug login failed unexpectedly.');
+    } finally {
+      setDebugLoading(false);
     }
   };
 
@@ -535,16 +552,31 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <TouchableOpacity 
-              style={styles.SignInButton} 
+            <TouchableOpacity
+              style={styles.SignInButton}
               onPress={navigateToSignUp}
-              activeOpacity={0.6} 
+              activeOpacity={0.6}
             >
               <Text style={styles.SignInButtonText}>
                 Sign Up
               </Text>
             </TouchableOpacity>
-          </View>            
+          </View>
+
+          {__DEV__ && (
+            <View style={styles.debugSection}>
+              <View style={styles.debugDivider} />
+              <TouchableOpacity
+                style={[styles.debugButton, debugLoading && styles.loginButtonDisabled]}
+                onPress={handleDebugLogin}
+                disabled={debugLoading}
+              >
+                <Text style={styles.debugButtonText}>
+                  {debugLoading ? 'Logging in...' : 'Debug Login'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
           </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -813,5 +845,29 @@ const styles = StyleSheet.create({
   footerLink: {
     color: Colors.light.primary,
     fontFamily: 'Inter-SemiBold',
+  },
+  debugSection: {
+    marginTop: 8,
+    alignItems: 'center',
+    paddingBottom: 12,
+  },
+  debugDivider: {
+    height: 1,
+    backgroundColor: Colors.light.border,
+    width: '100%',
+    marginBottom: 12,
+  },
+  debugButton: {
+    borderWidth: 1,
+    borderColor: Colors.light.textTertiary,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  debugButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
   },
 });
