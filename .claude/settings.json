@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/thomas/Desktop/Excited/momentum-enhanced/.claude/scripts/env-protect.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/thomas/Desktop/Excited/momentum-enhanced/.claude/scripts/tsc-check.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
