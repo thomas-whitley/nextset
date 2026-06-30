@@ -7,11 +7,10 @@ interface TimerContextType {
   isRunning: boolean;
   mode: TimerMode;
   startTimer: () => void;
-  pauseTimer: () => void; 
+  pauseTimer: () => void;
   resetTimer: () => void;
   setMode: (mode: TimerMode) => void;
   setInitialTime: (time: number) => void;
-  onTimerComplete?: () => void;
   setOnTimerComplete: (callback: () => void) => void;
 }
 
@@ -22,7 +21,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const [isRunning, setIsRunning] = useState(false);
   const [mode, setMode] = useState<TimerMode>('stopwatch');
   const [initialTime, setInitialTime] = useState(0);
-  const [onTimerComplete, setOnTimerComplete] = useState<(() => void) | undefined>();
+  const onTimerCompleteRef = useRef<(() => void) | undefined>(undefined);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -32,10 +31,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
           if (mode === 'countdown') {
             if (prevTime <= 1) {
               setIsRunning(false);
-              // Call completion callback if set
-              if (onTimerComplete) {
-                onTimerComplete();
-              }
+              onTimerCompleteRef.current?.();
               return 0;
             }
             return prevTime - 1;
@@ -56,7 +52,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isRunning, mode, onTimerComplete]);
+  }, [isRunning, mode]);
 
   const startTimer = () => {
     setIsRunning(true);
@@ -85,7 +81,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleSetOnTimerComplete = (callback: () => void) => {
-    setOnTimerComplete(() => callback);
+    onTimerCompleteRef.current = callback;
   };
 
   return (
@@ -99,7 +95,6 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         resetTimer,
         setMode: handleSetMode,
         setInitialTime: handleSetInitialTime,
-        onTimerComplete,
         setOnTimerComplete: handleSetOnTimerComplete,
       }}
     >

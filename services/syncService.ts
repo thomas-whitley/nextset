@@ -1,7 +1,8 @@
 import { supabase } from '../data/supabase-client';
 import { Platform } from 'react-native';
-import { 
-  getRecordsNeedingSync, 
+import {
+  getDatabase,
+  getRecordsNeedingSync,
   markRecordsAsSynced,
   LocalWorkoutSession,
   LocalWorkoutExercise,
@@ -30,7 +31,7 @@ export class SyncService {
    */
   static initialize(): void {
     // Skip initialization on web platform
-    if (true) {
+    if (Platform.OS === 'web') {
       console.log('SyncService: Skipping initialization on web platform');
       return;
     }
@@ -51,7 +52,7 @@ export class SyncService {
    */
   static async isConnectedToWiFi(): Promise<boolean> {
     // Always return false on web platform
-    if (true) {
+    if (Platform.OS === 'web') {
       return false;
     }
     
@@ -69,7 +70,7 @@ export class SyncService {
    */
   static async syncToSupabase(forceSync: boolean = false): Promise<SyncResult> {
     // Skip sync on web platform
-    if (true) {
+    if (Platform.OS === 'web') {
       console.log('SyncService: Sync not available on web platform');
       return {
         success: false,
@@ -139,7 +140,7 @@ export class SyncService {
 
       // Sync exercise sets
       if (recordsToSync.exerciseSets.length > 0) {
-        const { synced, errors: setErrors } = await this.syncExerciseSets(recordsToSync.exerciseSets);
+        const { synced, errors: setErrors } = await this.syncExerciseSets(recordsToSync.exerciseSets, recordsToSync.workoutExercises);
         syncedCounts.exerciseSets = synced.length;
         errors.push(...setErrors);
         
@@ -301,30 +302,84 @@ export class SyncService {
   }
 
   /**
-   * Sync exercise sets (stored in workout_data JSONB field)
+   * Sync exercise sets by embedding them into workout_data.exercises[].sets in workout_log
    */
-  private static async syncExerciseSets(sets: LocalExerciseSet[]): Promise<{
+  private static async syncExerciseSets(
+    sets: LocalExerciseSet[],
+    exercises: LocalWorkoutExercise[]
+  ): Promise<{
     synced: LocalExerciseSet[];
     errors: string[];
   }> {
     const synced: LocalExerciseSet[] = [];
     const errors: string[] = [];
 
-    // Group sets by workout exercise
-    const setsByExercise = sets.reduce((acc, set) => {
-      if (!acc[set.workout_exercise_id]) {
-        acc[set.workout_exercise_id] = [];
-      }
+    // Build lookup: workout_exercise_id → workout_session_id
+    const exerciseSessionMap = exercises.reduce((acc, ex) => {
+      acc[ex.id] = ex.workout_session_id;
+      return acc;
+    }, {} as Record<string, string>);
+
+    // Group sets by session (via exercise → session lookup)
+    const setsBySession = sets.reduce((acc, set) => {
+      const sessionId = exerciseSessionMap[set.workout_exercise_id];
+      if (!sessionId) return acc;
+      if (!acc[sessionId]) acc[sessionId] = [];
+      acc[sessionId].push(set);
+      return acc;
+    }, {} as Record<string, LocalExerciseSet[]>);
+
+    // Group sets by exercise_id for quick lookup when building the update
+    const setsByExerciseId = sets.reduce((acc, set) => {
+      if (!acc[set.workout_exercise_id]) acc[set.workout_exercise_id] = [];
       acc[set.workout_exercise_id].push(set);
       return acc;
     }, {} as Record<string, LocalExerciseSet[]>);
 
-    // This is complex because sets are nested in the workout_data JSONB
-    // For now, we'll mark them as synced since they're included in the workout_data
-    // In a production app, you might want to implement more granular syncing
-    
-    for (const exerciseSets of Object.values(setsByExercise)) {
-      synced.push(...exerciseSets);
+    for (const [sessionId, sessionSets] of Object.entries(setsBySession)) {
+      try {
+        const { data: workoutLog, error: fetchError } = await supabase
+          .from('workout_log')
+          .select('workout_data')
+          .eq('id', sessionId)
+          .single();
+
+        if (fetchError) {
+          errors.push(`Failed to fetch workout for sets (session ${sessionId}): ${fetchError.message}`);
+          continue;
+        }
+
+        const currentExercises: Array<Record<string, unknown>> =
+          (workoutLog.workout_data as Record<string, unknown>)?.exercises as Array<Record<string, unknown>> ?? [];
+
+        const updatedWorkoutData = {
+          ...(workoutLog.workout_data as Record<string, unknown>),
+          exercises: currentExercises.map(ex => ({
+            ...ex,
+            sets: (setsByExerciseId[ex.id as string] ?? []).map(s => ({
+              set_number: s.set_number,
+              weight: s.weight,
+              reps: s.reps,
+              is_completed: s.is_completed,
+              rpe: s.rpe,
+              rest_time_seconds: s.rest_time_seconds,
+            })),
+          })),
+        };
+
+        const { error: updateError } = await supabase
+          .from('workout_log')
+          .update({ workout_data: updatedWorkoutData })
+          .eq('id', sessionId);
+
+        if (updateError) {
+          errors.push(`Failed to sync sets for workout ${sessionId}: ${updateError.message}`);
+        } else {
+          synced.push(...sessionSets);
+        }
+      } catch (error) {
+        errors.push(`Error syncing sets for workout ${sessionId}: ${error}`);
+      }
     }
 
     return { synced, errors };
@@ -368,7 +423,7 @@ export class SyncService {
     errors: string[];
   }> {
     // Skip download on web platform
-    if (true) {
+    if (Platform.OS === 'web') {
       console.log('SyncService: Download not available on web platform');
       return {
         success: false,
@@ -397,13 +452,13 @@ export class SyncService {
         for (const log of workoutLogs) {
           try {
             // Check if already exists locally
-            const existing = await db.getFirstAsync(
+            const existing = await getDatabase().getFirstAsync(
               'SELECT id FROM workout_sessions WHERE id = ?',
               [log.id]
             );
 
             if (!existing) {
-              await db.runAsync(
+              await getDatabase().runAsync(
                 `INSERT INTO workout_sessions (
                   id, user_id, name, program_id, started_at, completed_at,
                   duration_seconds, total_volume, notes, avg_heart_rate,
@@ -454,7 +509,7 @@ export class SyncService {
     isWiFi: boolean;
   }> {
     // Return default values for web platform
-    if (true) {
+    if (Platform.OS === 'web') {
       return {
         pendingSync: 0,
         lastSyncAt: null,
@@ -473,7 +528,7 @@ export class SyncService {
       const isWiFi = await this.isConnectedToWiFi();
 
       // Get last sync time from sync_status table
-      const lastSyncResult = await db.getFirstAsync(
+      const lastSyncResult = await getDatabase().getFirstAsync(
         'SELECT MAX(last_sync_at) as last_sync FROM sync_status'
       ) as { last_sync: string | null };
 

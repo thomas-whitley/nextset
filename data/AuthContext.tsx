@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isMounted = false;
       subscription?.unsubscribe();
     };
-  }, [loading]);
+  }, []);
 
 
   const signOut = async () => {

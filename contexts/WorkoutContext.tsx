@@ -209,7 +209,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateSet = async (exerciseId: string, setId: string, field: 'weight' | 'reps', value: string) => {
-    if (!currentWorkout || !currentActiveProgram) return;
+    if (!currentWorkout) return;
 
     const updatedWorkout = {
       ...currentWorkout,
@@ -227,11 +227,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     setCurrentWorkout(updatedWorkout);
 
+    if (!currentActiveProgram) return;
+
     // Update the active program in the database
     try {
       const updatedProgram = currentProgram ? {
         ...currentProgram,
-        workouts: currentProgram.workouts.map(w => 
+        workouts: currentProgram.workouts.map(w =>
           w.id === updatedWorkout.id ? updatedWorkout : w
         )
       } : null;
@@ -246,7 +248,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   const completeSet = async (exerciseId: string, setId: string) => {
-    if (!currentWorkout || !currentActiveProgram) return;
+    if (!currentWorkout) return;
 
     const updatedWorkout = {
       ...currentWorkout,
@@ -264,11 +266,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     setCurrentWorkout(updatedWorkout);
 
+    if (!currentActiveProgram) return;
+
     // Update the active program in the database
     try {
       const updatedProgram = currentProgram ? {
         ...currentProgram,
-        workouts: currentProgram.workouts.map(w => 
+        workouts: currentProgram.workouts.map(w =>
           w.id === updatedWorkout.id ? updatedWorkout : w
         )
       } : null;

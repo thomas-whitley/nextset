@@ -208,9 +208,9 @@ export const saveWorkoutSession = async (workout: Omit<LocalWorkoutSession, 'id'
         id, workout.user_id, workout.name, workout.program_id || null,
         workout.started_at, workout.completed_at || null,
         workout.duration_seconds, workout.total_volume,
-        workout.notes || null, workout.bodyweight || null,
-        workout.avg_heart_rate || null, workout.max_heart_rate || null,
-        workout.calories_burned || null, now, now
+        workout.notes || null, workout.bodyweight ?? null,
+        workout.avg_heart_rate ?? null, workout.max_heart_rate ?? null,
+        workout.calories_burned ?? null, now, now
       ]
     );
     
@@ -248,12 +248,12 @@ export const getWorkoutSessions = async (userId: string, limit?: number): Promis
 export const updateWorkoutSession = async (id: string, updates: Partial<LocalWorkoutSession>): Promise<void> => {
   try {
     const updateFields = Object.keys(updates).filter(key => key !== 'id').map(key => `${key} = ?`).join(', ');
-    const values = Object.keys(updates).filter(key => key !== 'id').map(key => updates[key as keyof LocalWorkoutSession]);
-    
-    // await db.runAsync(
-    //   `UPDATE workout_sessions SET ${updateFields}, updated_at = ?, needs_sync = 1 WHERE id = ?`,
-    //   [...values, new Date().toISOString(), id]
-    // );
+    const values = Object.keys(updates).filter(key => key !== 'id').map(key => updates[key as keyof LocalWorkoutSession] ?? null);
+
+    await db.runAsync(
+      `UPDATE workout_sessions SET ${updateFields}, updated_at = ?, needs_sync = 1 WHERE id = ?`,
+      [...values, new Date().toISOString(), id]
+    );
     
     console.log('Workout session updated locally:', id);
   } catch (error) {
@@ -314,9 +314,9 @@ export const saveExerciseSet = async (set: Omit<LocalExerciseSet, 'id' | 'create
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         id, set.workout_exercise_id, set.set_number,
-        set.weight || null, set.reps || null, set.distance || null,
-        set.duration_seconds || null, set.rpe || null,
-        set.rest_time_seconds || null, set.is_completed, now
+        set.weight ?? null, set.reps ?? null, set.distance ?? null,
+        set.duration_seconds ?? null, set.rpe ?? null,
+        set.rest_time_seconds ?? null, set.is_completed, now
       ]
     );
     
@@ -343,12 +343,12 @@ export const getExerciseSets = async (workoutExerciseId: string): Promise<LocalE
 export const updateExerciseSet = async (id: string, updates: Partial<LocalExerciseSet>): Promise<void> => {
   try {
     const updateFields = Object.keys(updates).filter(key => key !== 'id').map(key => `${key} = ?`).join(', ');
-    const values = Object.keys(updates).filter(key => key !== 'id').map(key => updates[key as keyof LocalExerciseSet]);
-    
-    // await db.runAsync(
-    //   `UPDATE exercise_sets SET ${updateFields}, needs_sync = 1 WHERE id = ?`,
-    //   [...values, id]
-    // );
+    const values = Object.keys(updates).filter(key => key !== 'id').map(key => updates[key as keyof LocalExerciseSet] ?? null);
+
+    await db.runAsync(
+      `UPDATE exercise_sets SET ${updateFields}, needs_sync = 1 WHERE id = ?`,
+      [...values, id]
+    );
   } catch (error) {
     console.error('Failed to update exercise set:', error);
     throw error;

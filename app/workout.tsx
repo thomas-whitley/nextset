@@ -171,11 +171,22 @@ export default function WorkoutScreen() {
   };
 
   const handleFinishWorkout = async () => {
-    if (!currentWorkout || !workoutStartTime || !user) {
-      // Clear timers
+    if (!currentWorkout || !workoutStartTime) {
       if (workoutTimerInterval) clearInterval(workoutTimerInterval);
       if (restTimerInterval) clearInterval(restTimerInterval);
-      
+      finishWorkout();
+      router.push('/');
+      return;
+    }
+
+    if (!user) {
+      Alert.alert(
+        'Session Expired',
+        'Your session expired during the workout. Please log in again — your workout data could not be saved.',
+        [{ text: 'OK' }]
+      );
+      if (workoutTimerInterval) clearInterval(workoutTimerInterval);
+      if (restTimerInterval) clearInterval(restTimerInterval);
       finishWorkout();
       router.push('/');
       return;
