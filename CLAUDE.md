@@ -83,5 +83,5 @@ Supabase client is initialized in `data/supabase-client.ts` and throws if either
 ## Gotchas
 
 - **Dark mode is not implemented.** `Colors.ts` has a `dark` palette but every screen hardcodes `Colors.light.*`. `app.json` sets `userInterfaceStyle: "automatic"`, so don't assume dark mode is live — it isn't.
-- **`updateWorkoutSession` is a no-op.** The UPDATE SQL in `services/localDatabase.ts` (~line 253) is commented out. In-place session edits are silently lost.
+- **`updateWorkoutSession`** (`services/localDatabase.ts:254`) only writes fields listed in `WORKOUT_SESSION_UPDATABLE_FIELDS`; anything else passed in `updates` is silently dropped rather than erroring.
 - **Use `hooks/useLocalDatabase.ts` in components**, not the service functions directly. The hook manages initialization state, auth binding, and sync triggers.
