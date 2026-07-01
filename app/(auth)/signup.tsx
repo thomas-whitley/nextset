@@ -173,7 +173,7 @@ export default function SignUpScreen() {
           //   username: formData.username.trim(),
           //   phone: formData.phone.trim(),
           // },
-          emailRedirectTo: 'momentum://auth/confirm',
+          emailRedirectTo: 'momentum://confirm',
         },
       });
 
@@ -263,7 +263,7 @@ export default function SignUpScreen() {
         type: 'signup',
         email: formData.email.trim(),
         options: {
-          emailRedirectTo: 'momentum://auth/confirm',
+          emailRedirectTo: 'momentum://confirm',
         },
       });
 

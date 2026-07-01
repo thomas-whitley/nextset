@@ -31,12 +31,19 @@ export default function AuthLayout() {
           animation: 'slide_from_right' 
         }} 
       />
-      <Stack.Screen 
-        name="updatepassword" 
-        options={{ 
+      <Stack.Screen
+        name="updatepassword"
+        options={{
           title: 'Update Password',
-          animation: 'slide_from_right' 
-        }} 
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="confirm"
+        options={{
+          title: 'Confirm Email',
+          animation: 'fade'
+        }}
       />
     </Stack>
   );
