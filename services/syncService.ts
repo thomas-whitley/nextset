@@ -184,7 +184,12 @@ export class SyncService {
   }
 
   /**
-   * Sync workout sessions to Supabase workout_log table
+   * Sync workout sessions to Supabase workout_log table.
+   *
+   * NOTE: `workout_log` does not exist in the Supabase schema (see
+   * supabase/migrations/0001_initial_schema.sql), so this currently fails
+   * on every call — native sync is non-functional pending a decision on
+   * the correct target table.
    */
   private static async syncWorkoutSessions(sessions: LocalWorkoutSession[]): Promise<{
     synced: LocalWorkoutSession[];
@@ -240,6 +245,12 @@ export class SyncService {
 
   /**
    * Sync workout exercises (stored in workout_data JSONB field)
+   *
+   * NOTE: `workout_log` does not exist in the Supabase schema (see
+   * supabase/migrations/0001_initial_schema.sql) — every call here fails and
+   * this subsystem is currently non-functional. Left as-is pending a
+   * decision on the correct target table; the `user_id` filters below are
+   * defense-in-depth for whenever that's resolved, not a functional fix.
    */
   private static async syncWorkoutExercises(exercises: LocalWorkoutExercise[]): Promise<{
     synced: LocalWorkoutExercise[];
@@ -247,6 +258,9 @@ export class SyncService {
   }> {
     const synced: LocalWorkoutExercise[] = [];
     const errors: string[] = [];
+
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const currentUserId = authSession?.user.id;
 
     // Group exercises by workout session
     const exercisesBySession = exercises.reduce((acc, exercise) => {
@@ -259,11 +273,17 @@ export class SyncService {
 
     for (const [sessionId, sessionExercises] of Object.entries(exercisesBySession)) {
       try {
+        if (!currentUserId) {
+          errors.push(`No authenticated user; skipping exercises for workout ${sessionId}`);
+          continue;
+        }
+
         // Get the current workout_log record
         const { data: workoutLog, error: fetchError } = await supabase
           .from('workout_log')
           .select('workout_data')
           .eq('id', sessionId)
+          .eq('user_id', currentUserId)
           .single();
 
         if (fetchError) {
@@ -286,7 +306,8 @@ export class SyncService {
         const { error: updateError } = await supabase
           .from('workout_log')
           .update({ workout_data: updatedWorkoutData })
-          .eq('id', sessionId);
+          .eq('id', sessionId)
+          .eq('user_id', currentUserId);
 
         if (updateError) {
           errors.push(`Failed to sync exercises for workout ${sessionId}: ${updateError.message}`);
@@ -314,6 +335,9 @@ export class SyncService {
     const synced: LocalExerciseSet[] = [];
     const errors: string[] = [];
 
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const currentUserId = authSession?.user.id;
+
     // Build lookup: workout_exercise_id → workout_session_id
     const exerciseSessionMap = exercises.reduce((acc, ex) => {
       acc[ex.id] = ex.workout_session_id;
@@ -338,10 +362,16 @@ export class SyncService {
 
     for (const [sessionId, sessionSets] of Object.entries(setsBySession)) {
       try {
+        if (!currentUserId) {
+          errors.push(`No authenticated user; skipping sets for workout ${sessionId}`);
+          continue;
+        }
+
         const { data: workoutLog, error: fetchError } = await supabase
           .from('workout_log')
           .select('workout_data')
           .eq('id', sessionId)
+          .eq('user_id', currentUserId)
           .single();
 
         if (fetchError) {
@@ -370,7 +400,8 @@ export class SyncService {
         const { error: updateError } = await supabase
           .from('workout_log')
           .update({ workout_data: updatedWorkoutData })
-          .eq('id', sessionId);
+          .eq('id', sessionId)
+          .eq('user_id', currentUserId);
 
         if (updateError) {
           errors.push(`Failed to sync sets for workout ${sessionId}: ${updateError.message}`);

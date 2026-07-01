@@ -245,16 +245,28 @@ export const getWorkoutSessions = async (userId: string, limit?: number): Promis
   }
 };
 
+const WORKOUT_SESSION_UPDATABLE_FIELDS: (keyof LocalWorkoutSession)[] = [
+  'name', 'program_id', 'started_at', 'completed_at', 'duration_seconds',
+  'total_volume', 'notes', 'bodyweight', 'avg_heart_rate', 'max_heart_rate',
+  'calories_burned',
+];
+
 export const updateWorkoutSession = async (id: string, updates: Partial<LocalWorkoutSession>): Promise<void> => {
   try {
-    const updateFields = Object.keys(updates).filter(key => key !== 'id').map(key => `${key} = ?`).join(', ');
-    const values = Object.keys(updates).filter(key => key !== 'id').map(key => updates[key as keyof LocalWorkoutSession] ?? null);
+    const fields = Object.keys(updates).filter(
+      (key): key is keyof LocalWorkoutSession => WORKOUT_SESSION_UPDATABLE_FIELDS.includes(key as keyof LocalWorkoutSession)
+    );
+
+    if (fields.length === 0) return;
+
+    const updateFields = fields.map(key => `${key} = ?`).join(', ');
+    const values = fields.map(key => updates[key] ?? null);
 
     await db.runAsync(
       `UPDATE workout_sessions SET ${updateFields}, updated_at = ?, needs_sync = 1 WHERE id = ?`,
       [...values, new Date().toISOString(), id]
     );
-    
+
     console.log('Workout session updated locally:', id);
   } catch (error) {
     console.error('Failed to update workout session:', error);
@@ -340,10 +352,21 @@ export const getExerciseSets = async (workoutExerciseId: string): Promise<LocalE
   }
 };
 
+const EXERCISE_SET_UPDATABLE_FIELDS: (keyof LocalExerciseSet)[] = [
+  'set_number', 'weight', 'reps', 'distance', 'duration_seconds', 'rpe',
+  'rest_time_seconds', 'is_completed',
+];
+
 export const updateExerciseSet = async (id: string, updates: Partial<LocalExerciseSet>): Promise<void> => {
   try {
-    const updateFields = Object.keys(updates).filter(key => key !== 'id').map(key => `${key} = ?`).join(', ');
-    const values = Object.keys(updates).filter(key => key !== 'id').map(key => updates[key as keyof LocalExerciseSet] ?? null);
+    const fields = Object.keys(updates).filter(
+      (key): key is keyof LocalExerciseSet => EXERCISE_SET_UPDATABLE_FIELDS.includes(key as keyof LocalExerciseSet)
+    );
+
+    if (fields.length === 0) return;
+
+    const updateFields = fields.map(key => `${key} = ?`).join(', ');
+    const values = fields.map(key => updates[key] ?? null);
 
     await db.runAsync(
       `UPDATE exercise_sets SET ${updateFields}, needs_sync = 1 WHERE id = ?`,

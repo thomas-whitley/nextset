@@ -177,8 +177,6 @@ export default function SignUpScreen() {
         },
       });
 
-      console.log('Signup response:', { data, error: signUpError });
-
       if (signUpError) {
         console.error('Sign up error:', signUpError);
         
@@ -205,28 +203,19 @@ export default function SignUpScreen() {
         return;
       }
 
-      console.log('Signup successful, checking session...');
-      console.log('User:', data.user);
-      console.log('Session:', data.session);
-
       if (data.user) {
         if (data.session) {
           // User is immediately logged in (email confirmation disabled)
-          console.log('User logged in immediately, showing success screen...');
           setSuccess(true);
-          
+
           // Trigger success animation
           successScale.value = withSpring(1, { damping: 15, stiffness: 200 });
           successOpacity.value = withTiming(1, { duration: 300 });
-          
-          console.log('Waiting for auth state to update...');
         } else {
           // User needs to verify email
-          console.log('Email verification required');
           setEmailSent(true);
         }
       } else {
-        console.error('No user returned from signup');
         setError('Failed to create account. Please try again.');
       }
     } catch (error: any) {

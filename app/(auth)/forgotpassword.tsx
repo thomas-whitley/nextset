@@ -33,7 +33,7 @@ export default function ForgotPasswordScreen() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: 'momentum://update-password',
+        redirectTo: 'momentum://updatepassword',
       });
 
       if (error) {

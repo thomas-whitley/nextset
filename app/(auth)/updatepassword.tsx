@@ -13,19 +13,58 @@ export default function UpdatePasswordScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
   const params = useLocalSearchParams();
 
   useEffect(() => {
-    // Check if we have the necessary tokens from the deep link
-    const { access_token, refresh_token } = params;
-    
-    if (access_token && refresh_token) {
-      // Set the session with the tokens from the URL
-      supabase.auth.setSession({
-        access_token: access_token as string,
-        refresh_token: refresh_token as string,
+    // A valid recovery session can arrive either via the deep-link tokens
+    // (native) or via Supabase auto-detecting the session in the URL (web).
+    let settled = false;
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+        settled = true;
+        setSessionReady(true);
+        setSessionError(false);
+      }
+    });
+
+    const establishSession = async () => {
+      const { access_token, refresh_token } = params;
+
+      if (typeof access_token !== 'string' || typeof refresh_token !== 'string') {
+        // No tokens in the URL — give the web auto-detect listener a brief
+        // window to fire before surfacing an "invalid link" error.
+        setTimeout(() => {
+          if (!settled) {
+            setSessionError(true);
+          }
+        }, 1500);
+        return;
+      }
+
+      const { error: establishError } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
       });
-    }
+
+      if (establishError) {
+        console.error('Failed to establish recovery session:', establishError);
+        settled = true;
+        setSessionError(true);
+        return;
+      }
+
+      settled = true;
+      setSessionReady(true);
+    };
+
+    establishSession();
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [params]);
 
   const validateForm = () => {
@@ -45,6 +84,10 @@ export default function UpdatePasswordScreen() {
   };
 
   const handleUpdatePassword = async () => {
+    if (!sessionReady) {
+      setError('This reset link is invalid or has expired. Please request a new one.');
+      return;
+    }
     if (!validateForm()) return;
 
     setLoading(true);
@@ -94,9 +137,11 @@ export default function UpdatePasswordScreen() {
           </Text>
         </View>
 
-        {error && (
+        {(error || sessionError) && (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>
+              {error || 'This reset link is invalid or has expired. Please request a new one.'}
+            </Text>
           </View>
         )}
 
@@ -162,10 +207,10 @@ export default function UpdatePasswordScreen() {
             </View>
           </View>
 
-          <TouchableOpacity 
-            style={[styles.updateButton, loading && styles.updateButtonDisabled]} 
+          <TouchableOpacity
+            style={[styles.updateButton, (loading || !sessionReady) && styles.updateButtonDisabled]}
             onPress={handleUpdatePassword}
-            disabled={loading}
+            disabled={loading || !sessionReady}
           >
             <Text style={styles.updateButtonText}>
               {loading ? 'Updating...' : 'Update Password'}

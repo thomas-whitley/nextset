@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { ExerciseService } from '../services/exerciseService';
 import { UserActiveProgramService } from '../services/userActiveProgramService';
 import { Exercise as DetailedExercise, Program, Workout, WorkoutExercise, ExerciseSet, UserActiveProgram } from '../services/exercise.types';
@@ -150,6 +150,23 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [userCustomExercises, setUserCustomExercises] = useState<DetailedExercise[]>([]);
   const [isLoadingMasterExercises, setIsLoadingMasterExercises] = useState(false);
   const [isLoadingUserCustomExercises, setIsLoadingUserCustomExercises] = useState(false);
+
+  // Clear in-memory workout state on sign-out or account switch so a
+  // previous user's program/workout data isn't visible to the next
+  // signed-in user on a shared device.
+  const previousUserId = useRef<string | null>(null);
+  useEffect(() => {
+    const currentUserId = user?.id ?? null;
+    if (previousUserId.current !== null && previousUserId.current !== currentUserId) {
+      setCurrentProgramState(null);
+      setCurrentActiveProgram(null);
+      setCurrentWorkout(null);
+      setIsWorkoutActive(false);
+      setMasterExercises([]);
+      setUserCustomExercises([]);
+    }
+    previousUserId.current = currentUserId;
+  }, [user]);
 
   const setCurrentProgram = async (program: Program) => {
     if (!user) {
