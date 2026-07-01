@@ -6,8 +6,6 @@ import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
 import { supabase } from '@/data/supabase-client';
-import SyncStatusIndicator from '@/components/SyncStatusIndicator';
-import { useLocalDatabase } from '@/hooks/useLocalDatabase';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -45,7 +43,6 @@ export default function SettingsScreen() {
   const [showUnitsModal, setShowUnitsModal] = useState(false);
   const [showRestTimeModal, setShowRestTimeModal] = useState(false);
   const { signOut, user } = useAuth();
-  const { syncToCloud } = useLocalDatabase();
 
   const restTimeOptions = [
     { label: '15 seconds', value: 15 },
@@ -481,18 +478,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: 24,
-  },
-  syncSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
-  },
-  syncSectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 16,

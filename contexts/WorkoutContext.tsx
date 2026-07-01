@@ -1,8 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExerciseService } from '../services/exerciseService';
 import { UserActiveProgramService } from '../services/userActiveProgramService';
 import { Exercise as DetailedExercise, Program, Workout, WorkoutExercise, ExerciseSet, UserActiveProgram } from '../services/exercise.types';
 import { useAuth } from '../data/AuthContext';
+
+const workoutCheckpointKey = (userId: string) => `momentum:in_progress_workout:${userId}`;
 
 interface WorkoutContextType {
   programs: Program[];
@@ -168,6 +171,36 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     previousUserId.current = currentUserId;
   }, [user]);
 
+  // Restore an in-progress workout that was checkpointed before the app was
+  // backgrounded or killed, so logged sets aren't silently lost.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(workoutCheckpointKey(user.id));
+        if (stored) {
+          setCurrentWorkout(JSON.parse(stored) as Workout);
+          setIsWorkoutActive(true);
+        }
+      } catch (error) {
+        console.error('Failed to restore in-progress workout:', error);
+      }
+    })();
+  }, [user]);
+
+  const persistWorkoutCheckpoint = async (workout: Workout | null) => {
+    if (!user) return;
+    try {
+      if (workout) {
+        await AsyncStorage.setItem(workoutCheckpointKey(user.id), JSON.stringify(workout));
+      } else {
+        await AsyncStorage.removeItem(workoutCheckpointKey(user.id));
+      }
+    } catch (error) {
+      console.error('Failed to checkpoint in-progress workout:', error);
+    }
+  };
+
   const setCurrentProgram = async (program: Program) => {
     if (!user) {
       console.error('No user logged in');
@@ -195,6 +228,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const startWorkout = (workout: Workout) => {
     setCurrentWorkout(workout);
     setIsWorkoutActive(true);
+    persistWorkoutCheckpoint(workout);
   };
 
   const loadMasterExercises = async () => {
@@ -282,6 +316,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
 
     setCurrentWorkout(updatedWorkout);
+    persistWorkoutCheckpoint(updatedWorkout);
 
     if (!currentActiveProgram) return;
 
@@ -379,6 +414,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const finishWorkout = () => {
     setCurrentWorkout(null);
     setIsWorkoutActive(false);
+    persistWorkoutCheckpoint(null);
   };
 
   return (

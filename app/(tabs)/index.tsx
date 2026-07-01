@@ -8,16 +8,13 @@ import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutCalendarView from '@/components/WorkoutCalendarView';
 import MotivationalQuote from '@/components/MotivationalQuote';
-import SyncStatusIndicator from '@/components/SyncStatusIndicator';
-import { useLocalDatabase } from '@/hooks/useLocalDatabase';
 
 export default function HomeScreen() {
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const { currentProgram, startWorkout } = useWorkout();
   const { user, loading } = useAuth();
-  const { workoutSessions, getLocalStats, syncToCloud } = useLocalDatabase();
-  
+
   const currentDate = new Date();
   const formatDate = (date: Date) => {
     const options: Intl.DateTimeFormatOptions = { 
@@ -29,13 +26,7 @@ export default function HomeScreen() {
   };
 
   const weeklyStreak = 3;
-  const recentWorkouts = [
-    ...workoutSessions.slice(0, 4).map(session => ({
-      name: session.name,
-      date: new Date(session.completed_at || session.started_at).toLocaleDateString(),
-      volume: `${Math.round(session.total_volume)}kg`
-    }))
-  ];
+  const recentWorkouts: { name: string; date: string; volume: string }[] = [];
 
   const activeGoals = [
     { exercise: 'Squat', current: '100kg', target: '120kg', progress: 0.83 },
@@ -74,9 +65,6 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>Hello, {user?.user_metadata?.full_name || user?.email || 'Alex'}</Text>
           <Text style={styles.date}>{formatDate(currentDate)}</Text>
         </View>
-
-        {/* Sync Status Indicator */}
-        <SyncStatusIndicator onSyncPress={() => syncToCloud(true)} />
 
         {/* Motivational Quote */}
         <MotivationalQuote />
