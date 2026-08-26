@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /home/thomas/Desktop/Excited/momentum-enhanced/.claude/scripts/env-protect.sh"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/scripts/env-protect.sh"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /home/thomas/Desktop/Excited/momentum-enhanced/.claude/scripts/tsc-check.sh"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/scripts/tsc-check.sh"
           }
         ]
       }
