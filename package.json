@@ -7,9 +7,13 @@
     "start": "expo start",
     "dev": "EXPO_NO_TELEMETRY=1 expo start",
     "build:web": "expo export --platform web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "brand": "node scripts/brand/render.mjs",
+    "test:brand": "node --test scripts/brand/*.test.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/archivo": "^0.4.2",
+    "@expo-google-fonts/archivo-narrow": "^0.4.2",
     "@expo-google-fonts/inter": "^0.2.3",
     "@expo/vector-icons": "^14.1.0",
     "@react-native-async-storage/async-storage": "2.1.2",
@@ -53,11 +57,13 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/aes-js": "^3.1.4",
     "@types/react": "~19.0.10",
-    "ts-node": "^10.9.2",
-    "typescript": "~5.8.3",
     "eslint": "^9.0.0",
-    "eslint-config-expo": "~9.2.0"
+    "eslint-config-expo": "~9.2.0",
+    "sharp": "^0.34.5",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.8.3"
   }
 }
