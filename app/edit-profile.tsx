@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, User, Mail, Phone, AtSign, Camera, Save, CircleAlert as AlertCircle } from 'lucide-react-native';
+import { X, User, Mail, Phone, AtSign, Save, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
@@ -244,14 +244,6 @@ export default function EditProfileScreen() {
     }
   };
 
-  const handleProfilePicture = () => {
-    Alert.alert(
-      'Profile Picture',
-      'Profile picture upload will be available in a future update.',
-      [{ text: 'OK' }]
-    );
-  };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -296,12 +288,6 @@ export default function EditProfileScreen() {
               <View style={styles.profilePicture}>
                 <User size={40} color={Colors.light.textTertiary} />
               </View>
-              <TouchableOpacity 
-                style={styles.cameraButton}
-                onPress={handleProfilePicture}
-              >
-                <Camera size={16} color="#FFFFFF" />
-              </TouchableOpacity>
             </View>
             <Text style={styles.profilePictureText}>Profile Picture</Text>
             <Text style={styles.profilePictureSubtext}>Coming soon</Text>

@@ -37,13 +37,11 @@ function AppNavigator() {
                 <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
                 <Stack.Screen name="timer-main" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
                 <Stack.Screen name="program-detail" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="create-program" options={{ presentation: 'modal' }} />
                 <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
                 <Stack.Screen name="workout" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="browse-exercises" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="create-super-admin" options={{ presentation: 'modal' }} />
                 <Stack.Screen name="aboutus" options={{ presentation: 'modal' }} />
                 <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
+                <Stack.Screen name="help-faq" options={{ presentation: 'modal' }} />
               </>
             ) : (
               // User is not authenticated - show auth flow

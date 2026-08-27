@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react-native';
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 
@@ -15,56 +15,52 @@ export default function HelpFAQScreen() {
 
   const faqItems: FAQItem[] = [
     {
-      question: "How do I create a custom workout?",
-      answer: "Navigate to the Programs tab and tap 'Create Your Own Program'. You can add exercises, set rep ranges, and customize your workout schedule."
+      question: "How do I start a workout?",
+      answer: "Pick a program in the Programs tab. Home then shows the next workout in that program with a Start button. You can also open the program and start any day directly."
     },
     {
-      question: "How is my weekly streak calculated?",
-      answer: "Your weekly streak counts consecutive weeks where you complete at least 2 workouts. The streak resets if you have a week with fewer than 2 workouts."
+      question: "How do I log a set?",
+      answer: "Type the weight in kg and the reps, then tap the set number to tick it off. The rest timer starts automatically; change its length in Settings."
+    },
+    {
+      question: "What does the 'Previous' column show?",
+      answer: "The weight and reps you logged for that exercise the last time you did it. It shows a dash until you have logged the exercise once."
+    },
+    {
+      question: "Can I change the exercises in a program?",
+      answer: "Yes. During a workout, tap Add exercise to pick from the library, use the bin icon to remove one, and + / − to change the number of sets. Changes are saved to your copy of the program."
+    },
+    {
+      question: "How is my streak counted?",
+      answer: "Consecutive calendar days with at least one finished workout, ending today or yesterday. Miss a full day and it starts again from zero."
+    },
+    {
+      question: "Where can I see past workouts?",
+      answer: "The Programs tab lists your history, and the calendar (tap the calendar icon on Home) marks every day you trained. Progress shows totals and charts."
+    },
+    {
+      question: "Can I export my data?",
+      answer: "Settings → Export to CSV writes one row per set (date, workout, exercise, weight, reps) and opens the share sheet so you can save or send it."
+    },
+    {
+      question: "Does it work without signal?",
+      answer: "You need a connection to log in and to save a finished workout. If saving fails, the app keeps the workout and lets you retry once you are back online."
+    },
+    {
+      question: "Can I use pounds?",
+      answer: "Not yet — NextSet is kilograms only."
     },
     {
       question: "How do I reset my password?",
-      answer: "On the login screen, tap 'Forgot Password?' and enter your email. You'll receive a reset link to create a new password."
+      answer: "On the login screen tap Forgot password and enter your email. You will get a link to set a new one."
     },
     {
-      question: "Can I sync my workouts with other fitness apps?",
-      answer: "Currently, you can export your workout schedule as an .ics file from the calendar view. Full integration with other fitness apps is planned for future updates."
+      question: "How do I delete my account?",
+      answer: "Settings → Delete account opens a page with the steps. Deletion removes your account and every workout within 30 days."
     },
     {
-      question: "How do I track my progress over time?",
-      answer: "Visit the Progress tab to see detailed analytics including volume trends, personal records, and workout frequency charts."
-    },
-    {
-      question: "What's the difference between the rest timer and Master Timer?",
-      answer: "The rest timer is a simple countdown between sets. The Master Timer is an advanced tool for interval training, circuits, and complex workout timing."
-    },
-    {
-      question: "How do I change my active workout program?",
-      answer: "In the Programs tab, tap 'Change Program' if you have an active program, or select a new program from the available options."
-    },
-    {
-      question: "Can I add custom exercises to my workouts?",
-      answer: "Yes! When adding exercises to a workout, you can browse our exercise library or create custom exercises with your own instructions."
-    },
-    {
-      question: "How do I view my workout history?",
-      answer: "Your workout history is available in the Programs tab. You can also view a calendar view by tapping the calendar icon on your weekly streak."
-    },
-    {
-      question: "What happens to my data if I delete the app?",
-      answer: "Your workout data is safely stored in the cloud. When you reinstall and log back in, all your data will be restored."
-    },
-    {
-      question: "How do I share my workout achievements?",
-      answer: "You can export your workout schedule and share progress screenshots from the Progress tab. Social sharing features are coming soon."
-    },
-    {
-      question: "Can I use the app offline?",
-      answer: "Basic workout logging works offline, but syncing, exercise browsing, and progress analytics require an internet connection."
-    },
-    {
-      question: "How do I contact support?",
-      answer: "Use the 'Provide Feedback' option in settings, or contact us through the Live Chat feature (coming soon) for immediate assistance."
+      question: "How do I get help?",
+      answer: "Email support.nextset@gmail.com or use Send feedback in Settings."
     }
   ];
 
@@ -84,9 +80,9 @@ export default function HelpFAQScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.introSection}>
-          <Text style={styles.introTitle}>Frequently Asked Questions</Text>
+          <Text style={styles.introTitle}>Help</Text>
           <Text style={styles.introSubtitle}>
-            Find answers to common questions about using Momentum. If you can't find what you're looking for, contact our support team.
+            Common questions about NextSet. If yours isn't here, email support.nextset@gmail.com.
           </Text>
         </View>
 
@@ -118,22 +114,6 @@ export default function HelpFAQScreen() {
           ))}
         </View>
 
-        {/* Live Chat Section */}
-        <View style={styles.liveChatSection}>
-          <View style={styles.liveChatCard}>
-            <View style={styles.liveChatHeader}>
-              <MessageCircle size={24} color={Colors.light.primary} />
-              <Text style={styles.liveChatTitle}>Need More Help?</Text>
-            </View>
-            <Text style={styles.liveChatDescription}>
-              Can't find the answer you're looking for? Our live chat support will be available soon to provide instant assistance.
-            </Text>
-            <TouchableOpacity style={styles.liveChatButton} disabled>
-              <MessageCircle size={20} color={Colors.light.textTertiary} />
-              <Text style={styles.liveChatButtonText}>Live Chat (Coming Soon)</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
