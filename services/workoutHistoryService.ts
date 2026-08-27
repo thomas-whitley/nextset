@@ -26,6 +26,30 @@ export interface WorkoutHistoryEntry {
   created_at: string;
 }
 
+export interface PersonalRecord {
+  exercise: string;
+  weight: number;
+  reps: number;
+  date: string;
+}
+
+export interface LifetimeStats {
+  totalWorkouts: number;
+  totalVolume: number;
+  totalMinutes: number;
+  personalRecords: PersonalRecord[];
+  firstWorkoutAt: string | null;
+  lastWorkout: WorkoutHistoryEntry | null;
+}
+
+/** Local-calendar YYYY-MM-DD key (history is grouped by the user's day, not UTC). */
+export const toDateKey = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export interface ProgressStats {
   totalWorkouts: number;
   totalVolume: number;
@@ -228,23 +252,22 @@ export class WorkoutHistoryService {
 
     // Group workouts by date
     const workoutDates = new Set(
-      workouts.map(w => new Date(w.completed_at).toISOString().split('T')[0])
+      workouts.map(w => toDateKey(new Date(w.completed_at)))
     );
 
     const sortedDates = Array.from(workoutDates).sort().reverse();
 
-    // Calculate current streak
+    // Current streak: consecutive days ending today or yesterday.
+    // (A workout five days ago with nothing since is not a streak of 1.)
     let currentStreak = 0;
-    const today = new Date().toISOString().split('T')[0];
-    let checkDate = new Date(today);
-
-    for (let i = 0; i < 365; i++) { // Check up to a year back
-      const dateStr = checkDate.toISOString().split('T')[0];
-      if (sortedDates.includes(dateStr)) {
-        currentStreak++;
-      } else if (currentStreak > 0) {
-        break; // Streak is broken
-      }
+    const dateSet = new Set(sortedDates);
+    const checkDate = new Date();
+    checkDate.setHours(0, 0, 0, 0);
+    if (!dateSet.has(toDateKey(checkDate))) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    for (let i = 0; i < 365 && dateSet.has(toDateKey(checkDate)); i++) {
+      currentStreak++;
       checkDate.setDate(checkDate.getDate() - 1);
     }
 
@@ -324,5 +347,93 @@ export class WorkoutHistoryService {
         notes: workout.workout_data.metadata.notes,
         workoutName: workout.workout_data.name,
       }));
+  }
+  /**
+   * Every history row for a user, oldest first — used by CSV export and lifetime stats.
+   */
+  static async getAllWorkoutHistory(userId: string): Promise<WorkoutHistoryEntry[]> {
+    const { data, error } = await supabase
+      .from('workout_history')
+      .select('*')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to get workout history: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
+  /**
+   * Lifetime totals for the Profile tab: workouts, kg lifted, and the heaviest set
+   * ever logged per exercise (the PR list).
+   */
+  static async getLifetimeStats(userId: string): Promise<LifetimeStats> {
+    const rows = await this.getAllWorkoutHistory(userId);
+    const records: Record<string, PersonalRecord> = {};
+
+    rows.forEach((row) => {
+      const workoutData = row.workout_data as Workout;
+      (workoutData?.exercises ?? []).forEach((exercise) => {
+        exercise.sets.forEach((set) => {
+          const weight = parseFloat(set.weight) || 0;
+          const reps = parseInt(set.reps, 10) || 0;
+          if (weight <= 0) return;
+          const current = records[exercise.name];
+          if (!current || weight > current.weight || (weight === current.weight && reps > current.reps)) {
+            records[exercise.name] = { exercise: exercise.name, weight, reps, date: row.completed_at };
+          }
+        });
+      });
+    });
+
+    return {
+      totalWorkouts: rows.length,
+      totalVolume: rows.reduce((sum, r) => sum + (r.total_volume || 0), 0),
+      totalMinutes: rows.reduce((sum, r) => sum + (r.duration_minutes || 0), 0),
+      personalRecords: Object.values(records).sort((a, b) => b.weight - a.weight),
+      firstWorkoutAt: rows[0]?.completed_at ?? null,
+      lastWorkout: rows.length ? rows[rows.length - 1] : null,
+    };
+  }
+
+  /**
+   * The most recent logged sets for each of the given exercise names — the
+   * "last time" hint shown next to every set while a workout is running.
+   */
+  static async getLastPerformance(
+    userId: string,
+    exerciseNames: string[]
+  ): Promise<Record<string, { weight: string; reps: string }[]>> {
+    if (exerciseNames.length === 0) return {};
+
+    const { data, error } = await supabase
+      .from('workout_history')
+      .select('completed_at, workout_data')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false })
+      .limit(40);
+
+    if (error) {
+      throw new Error(`Failed to get last performance: ${error.message}`);
+    }
+
+    const wanted = new Set(exerciseNames);
+    const result: Record<string, { weight: string; reps: string }[]> = {};
+
+    for (const row of data || []) {
+      const workoutData = row.workout_data as Workout;
+      for (const exercise of workoutData?.exercises ?? []) {
+        if (!wanted.has(exercise.name) || result[exercise.name]) continue;
+        const done = exercise.sets.filter((s) => s.isComplete && (parseFloat(s.weight) || parseFloat(s.reps)));
+        if (done.length) {
+          result[exercise.name] = done.map((s) => ({ weight: s.weight, reps: s.reps }));
+        }
+      }
+      if (Object.keys(result).length === wanted.size) break;
+    }
+
+    return result;
   }
 }

@@ -250,4 +250,65 @@ export class UserActiveProgramService {
 
     return this.updateActiveProgram(activeProgramId, updatedProgramData);
   }
+  /**
+   * Removes an exercise from a workout inside an active program.
+   */
+  static async removeExerciseFromWorkout(
+    activeProgramId: string,
+    workoutId: string,
+    exerciseId: string
+  ): Promise<UserActiveProgram> {
+    const { data: currentProgram, error: fetchError } = await supabase
+      .from('user_active_programs')
+      .select('program_data')
+      .eq('id', activeProgramId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch program: ${fetchError.message}`);
+    }
+
+    const programData = currentProgram.program_data as Program;
+    const updatedWorkouts = programData.workouts.map((workout) => {
+      if (workout.id !== workoutId) return workout;
+      const remaining = workout.exercises
+        .filter((exercise) => exercise.id !== exerciseId)
+        .map((exercise, index) => ({ ...exercise, order: index }));
+      return { ...workout, exercises: remaining };
+    });
+
+    return this.updateActiveProgram(activeProgramId, { ...programData, workouts: updatedWorkouts });
+  }
+
+  /**
+   * Marks an active program as the most recently used one (restored on next launch).
+   */
+  static async touchActiveProgram(activeProgramId: string): Promise<void> {
+    const { error } = await supabase
+      .from('user_active_programs')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', activeProgramId);
+
+    if (error) {
+      throw new Error(`Failed to touch active program: ${error.message}`);
+    }
+  }
+
+  /**
+   * The program the user worked with most recently, or null.
+   */
+  static async getMostRecentActiveProgram(userId: string): Promise<UserActiveProgram | null> {
+    const { data, error } = await supabase
+      .from('user_active_programs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      throw new Error(`Failed to get most recent active program: ${error.message}`);
+    }
+
+    return data?.[0] ?? null;
+  }
 }
