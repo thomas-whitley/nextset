@@ -3,6 +3,5 @@
   <circle cx="250" cy="250" r="168" fill="#1C4FA1"/>
   <circle cx="250" cy="250" r="124" fill="none" stroke="#163E80" stroke-width="6"/>
   <circle cx="250" cy="250" r="56" fill="#EEF0ED"/>
-  <text x="470" y="262" font-family="Archivo Narrow" font-weight="700" font-size="128" fill="#FFFFFF" letter-spacing="-2">NextSet</text>
-  <text x="472" y="330" font-family="Archivo Narrow" font-weight="500" font-size="40" fill="#D7DAD5">A kg-only gym log.</text>
+  <text x="470" y="295" font-family="Archivo Narrow" font-weight="700" font-size="128" fill="#FFFFFF" letter-spacing="-2">NextSet</text>
 </svg>
