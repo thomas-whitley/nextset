@@ -75,25 +75,29 @@ export interface ExecutionCues {
   keyMentalCues: string;
 }
 
+// One row of the bundled library (services/exerciseLibrary.data.json, built by
+// scripts/exercises/build-library.mjs). Vocabulary fields are plain strings: the
+// enums above list the common values but the merged dataset has more.
 export interface Exercise {
-  id: number; // Changed to number to match JSON
+  id: number;
   name: string;
-  isKeystone?: boolean; // Added from JSON
-  primary_muscle_group: MuscleGroup;
-  secondary_muscle_groups?: MuscleGroup[];
-  equipment: Equipment; // Changed from equipment_required: Equipment[] to match JSON
-  difficulty_level?: DifficultyLevel;
-  movement_pattern?: MovementPattern;
-  executionCues: ExecutionCues; // Added from JSON, replacing execution_notes
-  common_mistakes?: string[]; // Matches JSON
-  contraindications?: string[]; // Added from JSON
-  progressionId?: number | null; // Added from JSON
-  regressionId?: number | null; // Added from JSON
-
-  // Fields from original interface not directly in exercise.database.json, made optional
-  description?: string; // Not in JSON
-  exercise_type?: ExerciseType; // Not in JSON
-  rep_ranges?: RepRanges; // Not in JSON
+  isKeystone?: boolean;
+  primary_muscle_group: string;
+  secondary_muscle_groups?: string[];
+  equipment: string;
+  difficulty_level?: string;
+  movement_pattern?: string | null;
+  executionCues: ExecutionCues;
+  common_mistakes?: string[];
+  contraindications?: string[];
+  progressionId?: number | null;
+  regressionId?: number | null;
+  description?: string;
+  exercise_type?: string;
+  rep_ranges?: RepRanges;
+  /** 'nextset' (curated, with cues) or 'free-exercise-db' (Unlicense) */
+  source?: string;
+  slug?: string;
 }
 
 // Updated types for dynamic workout customization
@@ -130,7 +134,9 @@ export interface Program {
   name: string;
   creator: string;
   description: string;
-  imageUrl: string;
+  imageUrl?: string;
+  /** Short label for the card header, e.g. "3 days a week" */
+  schedule?: string;
   workouts: Workout[];
   isTemplate?: boolean; // Distinguishes between templates and user instances
   templateId?: string; // References the original template if this is a user instance
