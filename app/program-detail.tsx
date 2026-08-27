@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Play, ArrowUp, ArrowDown, GripVertical } from 'lucide-react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { X, Play, ArrowUp, ArrowDown, GripVertical, Dumbbell } from 'lucide-react-native';
+import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 
 export default function ProgramDetailScreen() {
-  const params = useLocalSearchParams();
   const { currentProgram, startWorkout, reorderWorkouts } = useWorkout();
   const [isReordering, setIsReordering] = useState(false);
 
@@ -42,7 +41,7 @@ export default function ProgramDetailScreen() {
     try {
       await reorderWorkouts(newWorkoutOrder);
     } catch (error) {
-      Alert.alert('Error', 'Failed to reorder workouts. Please try again.');
+      Alert.alert('Could not reorder', 'Check your connection and try again.');
     }
   };
 
@@ -67,23 +66,27 @@ export default function ProgramDetailScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Image source={{ uri: currentProgram.imageUrl }} style={styles.programImage} />
-        
+        <View style={styles.programBanner}>
+          <Dumbbell size={40} color="#FFFFFF" />
+        </View>
+
         <View style={styles.programInfo}>
           <Text style={styles.programName}>{currentProgram.name}</Text>
-          <Text style={styles.programCreator}>by {currentProgram.creator}</Text>
+          <Text style={styles.programCreator}>
+            {currentProgram.schedule ? `${currentProgram.schedule} · ` : ''}by {currentProgram.creator}
+          </Text>
           <Text style={styles.programDescription}>{currentProgram.description}</Text>
-          
+
           {currentProgram.isTemplate === false && (
             <View style={styles.customizationBadge}>
-              <Text style={styles.customizationBadgeText}>Customized Program</Text>
+              <Text style={styles.customizationBadgeText}>Your copy — edits are saved</Text>
             </View>
           )}
         </View>
 
         <View style={styles.workoutsList}>
           <Text style={styles.workoutsTitle}>
-            Workouts ({sortedWorkouts.length})
+            {sortedWorkouts.length} {sortedWorkouts.length === 1 ? 'workout' : 'workouts'}
           </Text>
           
           {sortedWorkouts.map((workout: any, index: number) => (
@@ -108,7 +111,8 @@ export default function ProgramDetailScreen() {
                   </Text>
                   <Text style={styles.workoutDescription}>{workout.description}</Text>
                   <Text style={styles.exerciseCount}>
-                    {workout.exercises.length} exercises
+                    {workout.exercises.length} {workout.exercises.length === 1 ? 'exercise' : 'exercises'}
+                    {workout.exercises.length > 0 ? ` · ${workout.exercises.map((e: any) => e.name).join(', ')}` : ''}
                   </Text>
                   {workout.estimatedDuration && (
                     <Text style={styles.estimatedDuration}>
@@ -192,10 +196,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  programImage: {
+  programBanner: {
     width: '100%',
-    height: 200,
-    resizeMode: 'cover',
+    height: 120,
+    backgroundColor: '#141517',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   programInfo: {
     padding: 20,

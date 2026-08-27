@@ -1,57 +1,98 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Zap, Target, Timer, Trophy, TrendingUp, X, Clock, Calendar } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { Timer, X, Calendar, Play, ChevronRight, Flame } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutCalendarView from '@/components/WorkoutCalendarView';
-import MotivationalQuote from '@/components/MotivationalQuote';
+import { WorkoutHistoryService, WorkoutHistoryEntry, toDateKey } from '@/services/workoutHistoryService';
+import { Workout } from '@/services/exercise.types';
+import { formatKg, formatShortDate, formatMinutes } from '@/utils/format';
+
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+/** Monday-first dates of the current week, as local YYYY-MM-DD keys. */
+const thisWeekKeys = (): string[] => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - mondayOffset);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return toDateKey(d);
+  });
+};
 
 export default function HomeScreen() {
-  const [streakModalVisible, setStreakModalVisible] = useState(false);
+  const [recentModalVisible, setRecentModalVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
-  const { currentProgram, startWorkout } = useWorkout();
+  const [recent, setRecent] = useState<WorkoutHistoryEntry[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const { currentProgram, isLoadingProgram, startWorkout } = useWorkout();
   const { user, loading } = useAuth();
 
-  const currentDate = new Date();
-  const formatDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'long', 
-      month: 'long', 
-      day: 'numeric' 
-    };
-    return date.toLocaleDateString('en-US', options);
-  };
-
-  const weeklyStreak = 3;
-  const recentWorkouts: { name: string; date: string; volume: string }[] = [];
-
-  const activeGoals = [
-    { exercise: 'Squat', current: '100kg', target: '120kg', progress: 0.83 },
-    { exercise: 'Bench Press', current: '80kg', target: '90kg', progress: 0.89 },
-    { exercise: '5K Run', current: '26:30', target: '25:00', progress: 0.94 },
-  ];
-
-  const handleStartWorkout = () => {
-    if (currentProgram) {
-      startWorkout(currentProgram.workouts[0]);
-      router.push('/workout');
+  const loadHistory = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [rows, streakInfo] = await Promise.all([
+        WorkoutHistoryService.getWorkoutHistory(user.id, 30),
+        WorkoutHistoryService.getWorkoutStreak(user.id),
+      ]);
+      setRecent(rows);
+      setStreak(streakInfo.currentStreak);
+    } catch (error) {
+      console.error('Failed to load home data:', error);
+    } finally {
+      setLoadingHistory(false);
     }
+  }, [user]);
+
+  // Reload whenever the tab regains focus (e.g. after finishing a workout).
+  useFocusEffect(
+    useCallback(() => {
+      loadHistory();
+    }, [loadHistory])
+  );
+
+  const weekKeys = thisWeekKeys();
+  const doneKeys = new Set(recent.map((r) => toDateKey(new Date(r.completed_at))));
+  const workoutsThisWeek = weekKeys.filter((k) => doneKeys.has(k)).length;
+  const todayKey = toDateKey(new Date());
+  const lastWorkout = recent[0] ?? null;
+
+  // Up next: the workout after the most recently completed one in this program,
+  // wrapping round; the first workout if nothing has been logged yet.
+  const nextWorkout: Workout | null = (() => {
+    if (!currentProgram || currentProgram.workouts.length === 0) return null;
+    const ordered = [...currentProgram.workouts].sort((a, b) => a.order - b.order);
+    const lastFromProgram = recent.find((r) => ordered.some((w) => w.id === r.workout_data?.id));
+    if (!lastFromProgram) return ordered[0];
+    const idx = ordered.findIndex((w) => w.id === lastFromProgram.workout_data.id);
+    return ordered[(idx + 1) % ordered.length];
+  })();
+
+  const handleStart = () => {
+    if (!nextWorkout) {
+      router.push('/(tabs)/programs');
+      return;
+    }
+    startWorkout(nextWorkout);
+    router.push('/workout');
   };
 
-  const handleQuickTimer = () => {
-    // Navigate to the comprehensive timer screen instead of a simple timer
-    router.push('/timer');
-  };
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
+  const dateLabel = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  // Show loading state while auth is loading
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <ActivityIndicator color={Colors.light.primary} />
         </View>
       </SafeAreaView>
     );
@@ -60,211 +101,170 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>Hello, {user?.user_metadata?.full_name || user?.email || 'Alex'}</Text>
-          <Text style={styles.date}>{formatDate(currentDate)}</Text>
+          <Text style={styles.greeting}>Hello, {displayName}</Text>
+          <Text style={styles.date}>{dateLabel}</Text>
         </View>
 
-        {/* Motivational Quote */}
-        <MotivationalQuote />
+        {/* Up next */}
+        {isLoadingProgram ? (
+          <View style={[styles.mainCard, styles.mainCardLoading]}>
+            <ActivityIndicator color={Colors.light.primary} />
+          </View>
+        ) : nextWorkout && currentProgram ? (
+          <View style={styles.mainCard}>
+            <Text style={styles.workoutLabel}>Up next · {currentProgram.name}</Text>
+            <Text style={styles.workoutName}>{nextWorkout.name}</Text>
+            <Text style={styles.workoutExercises} numberOfLines={2}>
+              {nextWorkout.exercises.length === 0
+                ? 'No exercises yet — add some when you start.'
+                : nextWorkout.exercises.map((e) => e.name).join(' · ')}
+            </Text>
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={handleStart}
+              accessibilityRole="button"
+              accessibilityLabel={`Start ${nextWorkout.name}`}
+            >
+              <Play size={18} color="#FFFFFF" />
+              <Text style={styles.startButtonText}>Start</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.mainCard}>
+            <Text style={styles.workoutLabel}>No program yet</Text>
+            <Text style={styles.workoutName}>Pick a program</Text>
+            <Text style={styles.workoutExercises}>
+              Choose a template in Programs, then start your first workout from here.
+            </Text>
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={() => router.push('/(tabs)/programs')}
+              accessibilityRole="button"
+              accessibilityLabel="Choose a program"
+            >
+              <Text style={styles.startButtonText}>Choose a program</Text>
+              <ChevronRight size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        )}
 
-        {/* Main Workout Card */}
-        <TouchableOpacity 
-          style={styles.mainCard}
-          onPress={handleStartWorkout}
-          accessibilityRole="button"
-          accessibilityLabel={`Start ${currentProgram ? currentProgram.workouts[0].name : 'Push Day'} workout`}
-          accessibilityHint="Begin your scheduled workout session"
-        >
-          <View style={styles.mainCardHeader}>
-            <View style={styles.workoutInfo}>
-              <Text style={styles.workoutLabel}>Today's Workout</Text>
-              <Text style={styles.workoutName}>
-                {currentProgram ? currentProgram.workouts[0].name : 'Push Day'}
+        {/* This week */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.cardTitle}>This week</Text>
+              <Text style={styles.cardSubtitle}>
+                {loadingHistory ? 'Loading…' : workoutsThisWeek === 0 ? 'No workouts yet this week' : `${workoutsThisWeek} ${workoutsThisWeek === 1 ? 'workout' : 'workouts'}`}
               </Text>
             </View>
-            <View style={styles.workoutIcon}>
-              <Zap size={24} color={Colors.light.primary} />
-            </View>
-          </View>
-          
-          <View style={styles.workoutStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>8,500kg</Text>
-              <Text style={styles.statLabel}>Last Volume</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>3 PRs</Text>
-              <Text style={styles.statLabel}>To Beat</Text>
-            </View>
-          </View>
-
-          <View style={styles.startButton}>
-            <Text style={styles.startButtonText}>Start Workout</Text>
-            <Zap size={20} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
-
-        {/* Streak Tile */}
-        <Pressable 
-          style={styles.streakCard}
-          onLongPress={() => setStreakModalVisible(true)}
-        >
-          <View style={styles.streakHeader}>
-            <View>
-              <Text style={styles.streakTitle}>Weekly Streak</Text>
-              <Text style={styles.streakSubtitle}>{weeklyStreak} weeks with 2+ workouts</Text>
-            </View>
-            <TouchableOpacity 
-              style={styles.streakBadge}
+            <TouchableOpacity
+              style={styles.calendarButton}
               onPress={() => setCalendarModalVisible(true)}
               accessibilityRole="button"
-              accessibilityLabel="View workout calendar"
-              accessibilityHint="Open calendar view to see workout schedule"
+              accessibilityLabel="Open workout calendar"
             >
-              <Calendar size={16} color="#FFFFFF" />
-              <Text style={styles.streakNumber}>{weeklyStreak}</Text>
+              <Calendar size={18} color={Colors.light.primary} />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.weekView}>
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
-              <View key={index} style={styles.dayContainer}>
-                <Text style={styles.dayLabel}>{day}</Text>
-                <View style={[
-                  styles.dayDot,
-                  [true, false, true, false, true, false, false][index] && styles.dayDotActive
-                ]} />
+            {weekKeys.map((key, index) => (
+              <View key={key} style={styles.dayContainer}>
+                <Text style={[styles.dayLabel, key === todayKey && styles.dayLabelToday]}>{DAY_LABELS[index]}</Text>
+                <View style={[styles.dayDot, doneKeys.has(key) && styles.dayDotActive]} />
               </View>
             ))}
           </View>
-        </Pressable>
-
-        {/* Active Goals */}
-        <View style={styles.goalsCard}>
-          <Text style={styles.goalsTitle}>Active Goals</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.goalsList}>
-            {activeGoals.map((goal, index) => (
-              <View key={index} style={styles.goalItem}>
-                <Text style={styles.goalExercise}>{goal.exercise}</Text>
-                <Text style={styles.goalProgress}>{goal.current} → {goal.target}</Text>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${goal.progress * 100}%` }]} />
-                </View>
-              </View>
-            ))}
-          </ScrollView>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <View style={styles.quickActionRow}>
-            <TouchableOpacity 
-              style={styles.quickTimer}
-              onPress={handleQuickTimer}
-             accessibilityRole="button"
-             accessibilityLabel="Quick Timer"
-             accessibilityHint="Open timer for rest periods between sets"
-            >
-              <Timer size={32} color={Colors.light.primary} />
-              <Text style={styles.quickTimerText}>Quick Timer</Text>
-              <Text style={styles.quickTimerSubtext}>Rest between sets</Text>
-            </TouchableOpacity>
-            
-            <View style={styles.quickStats}>
-              <View style={styles.quickStatItem}>
-                <TrendingUp size={20} color={Colors.light.success} />
-                <Text style={styles.quickStatValue}>+12%</Text>
-                <Text style={styles.quickStatLabel}>This Month</Text>
-              </View>
-              <View style={styles.quickStatItem}>
-                <Trophy size={20} color={Colors.light.accent} />
-                <Text style={styles.quickStatValue}>47</Text>
-                <Text style={styles.quickStatLabel}>Total PRs</Text>
-              </View>
-            </View>
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Flame size={20} color={streak > 0 ? Colors.light.accent : Colors.light.textTertiary} />
+            <Text style={styles.statValue}>{loadingHistory ? '—' : streak}</Text>
+            <Text style={styles.statLabel}>{streak === 1 ? 'Day streak' : 'Day streak'}</Text>
           </View>
-          
-          <View style={styles.quickActionRow}>
-            {/* Empty space to maintain layout after removing Timer Presets */}
-            <View style={styles.timerPresetsContainer} />
-          </View>
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => setRecentModalVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Last workout"
+          >
+            <Text style={styles.statValue} numberOfLines={1}>
+              {loadingHistory ? '—' : lastWorkout ? formatKg(lastWorkout.total_volume) : '—'}
+            </Text>
+            <Text style={styles.statLabel} numberOfLines={1}>
+              {lastWorkout ? `${lastWorkout.workout_data?.name ?? 'Last workout'} · ${formatShortDate(lastWorkout.completed_at)}` : 'Last workout'}
+            </Text>
+          </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.quickTimer}
+          onPress={() => router.push('/timer')}
+          accessibilityRole="button"
+          accessibilityLabel="Timer"
+          accessibilityHint="Interval and rest timers"
+        >
+          <Timer size={24} color={Colors.light.primary} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.quickTimerText}>Timer</Text>
+            <Text style={styles.quickTimerSubtext}>Intervals and rest between sets</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.light.textTertiary} />
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* Streak Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={streakModalVisible}
-        onRequestClose={() => setStreakModalVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setStreakModalVisible(false)}>
+      {/* Recent workouts */}
+      <Modal animationType="fade" transparent visible={recentModalVisible} onRequestClose={() => setRecentModalVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setRecentModalVisible(false)}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Recent Workouts</Text>
-              <TouchableOpacity onPress={() => setStreakModalVisible(false)}>
+              <Text style={styles.modalTitle}>Recent workouts</Text>
+              <TouchableOpacity onPress={() => setRecentModalVisible(false)} accessibilityRole="button" accessibilityLabel="Close">
                 <X size={24} color={Colors.light.textTertiary} />
               </TouchableOpacity>
             </View>
-            {recentWorkouts.map((workout, index) => (
-              <View key={index} style={styles.workoutItem}>
-                <View>
-                  <Text style={styles.workoutItemName}>{workout.name}</Text>
-                  <Text style={styles.workoutItemDate}>{workout.date}</Text>
+            {recent.length === 0 ? (
+              <Text style={styles.modalEmpty}>Nothing logged yet. Finish a workout and it shows here.</Text>
+            ) : (
+              recent.slice(0, 6).map((row) => (
+                <View key={row.id} style={styles.workoutItem}>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <Text style={styles.workoutItemName}>{row.workout_data?.name ?? 'Workout'}</Text>
+                    <Text style={styles.workoutItemDate}>
+                      {formatShortDate(row.completed_at)} · {formatMinutes(row.duration_minutes)}
+                    </Text>
+                  </View>
+                  <Text style={styles.workoutItemVolume}>{formatKg(row.total_volume)}</Text>
                 </View>
-                <Text style={styles.workoutItemVolume}>{workout.volume}</Text>
-              </View>
-            ))}
+              ))
+            )}
           </View>
         </Pressable>
       </Modal>
 
-      {/* Workout Calendar Modal */}
-      <WorkoutCalendarView 
-        visible={calendarModalVisible}
-        onClose={() => setCalendarModalVisible(false)}
-      />
+      <WorkoutCalendarView visible={calendarModalVisible} onClose={() => setCalendarModalVisible(false)} />
     </SafeAreaView>
   );
 }
 
+const shadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 8,
+  elevation: 4,
+} as const;
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-  },
-  header: {
-    paddingTop: 20,
-    paddingBottom: 24,
-  },
-  greeting: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginBottom: 4,
-  },
-  date: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.background },
+  content: { flex: 1, paddingHorizontal: 20 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { paddingTop: 20, paddingBottom: 24 },
+  greeting: { fontSize: 28, fontFamily: 'Inter-Bold', color: Colors.light.text, marginBottom: 4 },
+  date: { fontSize: 16, fontFamily: 'Inter-Regular', color: Colors.light.textTertiary },
   mainCard: {
     backgroundColor: Colors.light.card,
     borderRadius: 20,
@@ -276,60 +276,10 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  mainCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  workoutInfo: {
-    flex: 1,
-  },
-  workoutLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginBottom: 4,
-  },
-  workoutName: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-  },
-  workoutIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  workoutStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.primary,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-  },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: Colors.light.border,
-    marginHorizontal: 20,
-  },
+  mainCardLoading: { minHeight: 180, justifyContent: 'center', alignItems: 'center' },
+  workoutLabel: { fontSize: 14, fontFamily: 'Inter-Medium', color: Colors.light.textTertiary, marginBottom: 4 },
+  workoutName: { fontSize: 26, fontFamily: 'Inter-Bold', color: Colors.light.text, marginBottom: 8 },
+  workoutExercises: { fontSize: 14, fontFamily: 'Inter-Regular', color: Colors.light.textSecondary, lineHeight: 20, marginBottom: 20 },
   startButton: {
     backgroundColor: Colors.light.primary,
     borderRadius: 16,
@@ -338,267 +288,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
   },
-  startButtonText: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
-  streakCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  streakHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  streakTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-  },
-  streakSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginTop: 2,
-  },
-  streakBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.light.primary,
+  startButtonText: { fontSize: 18, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  card: { backgroundColor: Colors.light.card, borderRadius: 16, padding: 20, marginBottom: 16, ...shadow },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  cardTitle: { fontSize: 18, fontFamily: 'Inter-Bold', color: Colors.light.text },
+  cardSubtitle: { fontSize: 14, fontFamily: 'Inter-Regular', color: Colors.light.textTertiary, marginTop: 2 },
+  calendarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'row',
   },
-  streakNumber: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    color: '#FFFFFF',
-    marginLeft: 4,
-  },
-  weekView: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dayContainer: {
-    alignItems: 'center',
-  },
-  dayLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginBottom: 8,
-  },
-  dayDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: Colors.light.border,
-  },
-  dayDotActive: {
-    backgroundColor: Colors.light.primary,
-  },
-  goalsCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  goalsTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginBottom: 16,
-  },
-  goalsList: {
-    flexDirection: 'row',
-  },
-  goalItem: {
-    backgroundColor: Colors.light.background,
-    borderRadius: 12,
-    padding: 16,
-    marginRight: 12,
-    minWidth: 140,
-  },
-  goalExercise: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 4,
-  },
-  goalProgress: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: Colors.light.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.light.primary,
-    borderRadius: 2,
-  },
-  quickActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  quickActions: {
-    marginBottom: 40,
-  },
+  weekView: { flexDirection: 'row', justifyContent: 'space-between' },
+  dayContainer: { alignItems: 'center' },
+  dayLabel: { fontSize: 12, fontFamily: 'Inter-Medium', color: Colors.light.textTertiary, marginBottom: 8 },
+  dayLabelToday: { color: Colors.light.primary, fontFamily: 'Inter-Bold' },
+  dayDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.light.border },
+  dayDotActive: { backgroundColor: Colors.light.primary },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  statCard: { flex: 1, backgroundColor: Colors.light.card, borderRadius: 16, padding: 16, alignItems: 'center', ...shadow },
+  statValue: { fontSize: 20, fontFamily: 'Inter-Bold', color: Colors.light.text, marginTop: 8, marginBottom: 4 },
+  statLabel: { fontSize: 12, fontFamily: 'Inter-Medium', color: Colors.light.textTertiary, textAlign: 'center' },
   quickTimer: {
-    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.light.primaryLight,
     borderRadius: 16,
     padding: 20,
-    alignItems: 'center',
-    marginRight: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 40,
   },
-  quickTimerText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  quickTimerSubtext: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
-  },
-  timerPresetsContainer: {
-    flex: 1,
-  },
-  timerPresetsButton: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  timerPresetsTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  timerPresetsSubtext: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
-  },
-  quickStats: {
-    flex: 1,
-    flexDirection: 'row',
-    marginLeft: 8,
-  },
-  quickStatItem: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  quickStatValue: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  quickStatLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  modalContent: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-  },
-  workoutItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-  },
-  workoutItemName: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-  },
-  workoutItemDate: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginTop: 2,
-  },
-  workoutItemVolume: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.primary,
-  },
+  quickTimerText: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: Colors.light.text },
+  quickTimerSubtext: { fontSize: 12, fontFamily: 'Inter-Regular', color: Colors.light.textTertiary, marginTop: 2 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
+  modalContent: { backgroundColor: Colors.light.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  modalTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: Colors.light.text },
+  modalEmpty: { fontSize: 14, fontFamily: 'Inter-Regular', color: Colors.light.textTertiary, paddingVertical: 12 },
+  workoutItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
+  workoutItemName: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: Colors.light.text },
+  workoutItemDate: { fontSize: 13, fontFamily: 'Inter-Regular', color: Colors.light.textTertiary, marginTop: 2 },
+  workoutItemVolume: { fontSize: 16, fontFamily: 'Inter-Bold', color: Colors.light.primary },
 });

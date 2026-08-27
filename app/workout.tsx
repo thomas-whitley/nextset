@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, Timer, Plus, Minus, X, Clock, User, FileText, Play, Pause, Dumbbell, ChevronDown, ChevronUp, Watch } from 'lucide-react-native';
+import { Check, Timer, Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Watch, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
-import { useTimer } from '@/contexts/TimerContext';
 import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
+import { getDefaultRestSeconds, DEFAULT_REST_SECONDS } from '@/services/preferences';
+import { formatKg, formatMinutes, formatSet } from '@/utils/format';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -38,10 +39,10 @@ export default function WorkoutScreen() {
     completeSet, 
     isWorkoutActive, 
     addExerciseToWorkout,
+    removeExerciseFromWorkout,
     updateExerciseSets,
     finishWorkout 
   } = useWorkout();
-  const { startTimer, setMode, setInitialTime, time, isRunning, pauseTimer, resetTimer } = useTimer();
   const { user } = useAuth();
   
   const [showExerciseModal, setShowExerciseModal] = useState(false);
@@ -50,6 +51,8 @@ export default function WorkoutScreen() {
   const [completedSets, setCompletedSets] = useState<Set<string>>(new Set());
   const [activeRestTimer, setActiveRestTimer] = useState<string | null>(null);
   const [restTime, setRestTime] = useState(0);
+  const [defaultRestSeconds, setDefaultRestSecondsState] = useState(DEFAULT_REST_SECONDS);
+  const [saving, setSaving] = useState(false);
   const [restTimerInterval, setRestTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [workoutDuration, setWorkoutDuration] = useState(0);
@@ -63,6 +66,10 @@ export default function WorkoutScreen() {
     bodyweight: '',
     notes: ''
   });
+
+  useEffect(() => {
+    getDefaultRestSeconds().then(setDefaultRestSecondsState);
+  }, []);
 
   // Start workout timer when workout becomes active
   useEffect(() => {
@@ -124,9 +131,9 @@ export default function WorkoutScreen() {
       newCompletedSets.add(setId);
       setCompletedSets(newCompletedSets);
       
-      // Start rest timer (90 seconds default)
+      // Start the rest timer using the length chosen in Settings
       setActiveRestTimer(setId);
-      setRestTime(90);
+      setRestTime(defaultRestSeconds);
     } else {
       newCompletedSets.delete(setId);
       setCompletedSets(newCompletedSets);
@@ -145,9 +152,27 @@ export default function WorkoutScreen() {
     try {
       await addExerciseToWorkout(currentWorkout.id, exercise);
       setShowExerciseModal(false);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to add exercise. Please try again.');
+    } catch {
+      Alert.alert('Could not add exercise', 'Check your connection and try again.');
     }
+  };
+
+  const handleRemoveExercise = (exerciseId: string, name: string) => {
+    if (!currentWorkout) return;
+    Alert.alert('Remove exercise', `Remove ${name} from this workout? It stays in the exercise library.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removeExerciseFromWorkout(currentWorkout.id, exerciseId);
+          } catch {
+            Alert.alert('Could not remove exercise', 'Check your connection and try again.');
+          }
+        },
+      },
+    ]);
   };
 
   const handleUpdateSets = async (exerciseId: string, change: number) => {
@@ -160,8 +185,8 @@ export default function WorkoutScreen() {
     
     try {
       await updateExerciseSets(currentWorkout.id, exerciseId, newSetCount);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update sets. Please try again.');
+    } catch {
+      Alert.alert('Could not change sets', 'Check your connection and try again.');
     }
   };
 
@@ -170,63 +195,72 @@ export default function WorkoutScreen() {
     setShowWarmupModal(false);
   };
 
-  const handleFinishWorkout = async () => {
-    if (!currentWorkout || !workoutStartTime) {
-      if (workoutTimerInterval) clearInterval(workoutTimerInterval);
-      if (restTimerInterval) clearInterval(restTimerInterval);
-      finishWorkout();
-      router.push('/');
+  const stopTimers = () => {
+    if (workoutTimerInterval) clearInterval(workoutTimerInterval);
+    if (restTimerInterval) clearInterval(restTimerInterval);
+  };
+
+  const completedSetCount = currentWorkout
+    ? currentWorkout.exercises.reduce((n, e) => n + e.sets.filter((st) => st.isComplete).length, 0)
+    : 0;
+  const sessionVolume = currentWorkout
+    ? currentWorkout.exercises.reduce(
+        (total, e) => total + e.sets.filter((st) => st.isComplete).reduce((t, st) => t + (parseFloat(st.weight) || 0) * (parseFloat(st.reps) || 0), 0),
+        0
+      )
+    : 0;
+
+  const handleFinishWorkout = () => {
+    if (!currentWorkout) return;
+    if (completedSetCount === 0) {
+      Alert.alert('Nothing logged yet', 'Tick off at least one set, or close the workout without saving.', [
+        { text: 'Keep going', style: 'cancel' },
+        { text: 'Discard workout', style: 'destructive', onPress: () => { stopTimers(); finishWorkout(); router.back(); } },
+      ]);
       return;
     }
+    setShowMetadataModal(true);
+  };
+
+  const saveWorkout = async () => {
+    if (!currentWorkout || saving) return;
 
     if (!user) {
-      Alert.alert(
-        'Session Expired',
-        'Your session expired during the workout. Please log in again — your workout data could not be saved.',
-        [{ text: 'OK' }]
-      );
-      if (workoutTimerInterval) clearInterval(workoutTimerInterval);
-      if (restTimerInterval) clearInterval(restTimerInterval);
-      finishWorkout();
-      router.push('/');
+      Alert.alert('Logged out', 'Your session expired. Log in again — the workout is kept on this device until it saves.');
       return;
     }
 
+    setSaving(true);
     const endTime = new Date();
-    const durationMinutes = Math.round((endTime.getTime() - workoutStartTime.getTime()) / (1000 * 60));
+    const durationMinutes = Math.max(1, Math.round(workoutDuration / 60));
 
     try {
-      // Clear timers
-      if (workoutTimerInterval) clearInterval(workoutTimerInterval);
-      if (restTimerInterval) clearInterval(restTimerInterval);
-
-      // Save workout to history with metadata
       await WorkoutHistoryService.saveWorkoutHistory(
         user.id,
         {
           ...currentWorkout,
-          metadata: {
-            ...metadata,
-            endTime,
-            duration: workoutDuration,
-            exerciseNotes
-          }
+          metadata: { ...metadata, endTime, duration: workoutDuration, exerciseNotes },
         },
-        workoutDuration
+        durationMinutes
       );
 
+      stopTimers();
+      setShowMetadataModal(false);
       finishWorkout();
-      router.push('/');
-      
-      Alert.alert(
-        'Workout Complete!',
-        `Great job! Your workout lasted ${formatTime(workoutDuration)}.`,
-        [{ text: 'OK' }]
-      );
+      router.back();
+      Alert.alert('Workout saved', `${formatMinutes(durationMinutes)} · ${completedSetCount} ${completedSetCount === 1 ? 'set' : 'sets'} · ${formatKg(sessionVolume)}`);
     } catch (error) {
       console.error('Failed to save workout:', error);
-      finishWorkout();
-      router.push('/');
+      Alert.alert(
+        'Could not save',
+        'The workout is still here. Check your connection and try again.',
+        [
+          { text: 'Try again', onPress: () => { setSaving(false); saveWorkout(); } },
+          { text: 'Keep editing', style: 'cancel' },
+        ]
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -255,9 +289,7 @@ export default function WorkoutScreen() {
           )}
         </TouchableOpacity>
         
-        <Text style={styles.previousData}>
-          {set.previousWeight || '0'}kg × {set.previousReps || '0'}
-        </Text>
+        <Text style={styles.previousData}>{formatSet(set.previousWeight, set.previousReps)}</Text>
         
         <TextInput
           style={[styles.input, isCompleted && styles.inputComplete]}
@@ -300,15 +332,16 @@ export default function WorkoutScreen() {
           <View style={styles.emptyIcon}>
             <Timer size={48} color={Colors.light.primary} />
           </View>
-          <Text style={styles.emptyTitle}>Ready to Train?</Text>
+          <Text style={styles.emptyTitle}>No workout running</Text>
           <Text style={styles.emptySubtitle}>
-            Choose a workout program to start logging your sets and tracking your progress.
+            Start one from Home, or pick a program first.
           </Text>
           <TouchableOpacity 
             style={styles.startWorkoutButton} 
-            onPress={() => router.push('/programs')}
+            onPress={() => router.replace('/(tabs)/programs')}
+            accessibilityRole="button"
           >
-            <Text style={styles.startWorkoutButtonText}>Browse Programs</Text>
+            <Text style={styles.startWorkoutButtonText}>Go to Programs</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -411,6 +444,14 @@ export default function WorkoutScreen() {
           <View key={exercise.id} style={styles.exerciseCard}>
             <View style={styles.exerciseHeader}>
               <Text style={styles.exerciseName}>{exercise.name}</Text>
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => handleRemoveExercise(exercise.id, exercise.name)}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${exercise.name}`}
+              >
+                <Trash2 size={16} color={Colors.light.textTertiary} />
+              </TouchableOpacity>
               <View style={styles.setControls}>
                 <TouchableOpacity
                   style={styles.setControlButton}
@@ -445,7 +486,7 @@ export default function WorkoutScreen() {
             
             <View style={styles.setHeader}>
               <Text style={styles.setHeaderText}>Set</Text>
-              <Text style={styles.setHeaderText}>Previous</Text>
+              <Text style={styles.setHeaderText}>Last time</Text>
               <Text style={styles.setHeaderText}>Weight</Text>
               <Text style={styles.setHeaderText}>Reps</Text>
             </View>
@@ -500,6 +541,55 @@ export default function WorkoutScreen() {
             ))}
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+
+      {/* Finish sheet */}
+      <Modal visible={showMetadataModal} transparent animationType="slide" onRequestClose={() => setShowMetadataModal(false)}>
+        <KeyboardAvoidingView style={styles.sheetOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Finish workout</Text>
+              <TouchableOpacity onPress={() => setShowMetadataModal(false)} accessibilityRole="button" accessibilityLabel="Back to workout">
+                <X size={22} color={Colors.light.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.sheetSummary}>
+              {formatMinutes(Math.max(1, Math.round(workoutDuration / 60)))} · {completedSetCount} {completedSetCount === 1 ? 'set' : 'sets'} · {formatKg(sessionVolume)}
+            </Text>
+
+            <Text style={styles.sheetLabel}>Bodyweight (kg, optional)</Text>
+            <TextInput
+              style={styles.sheetInput}
+              value={metadata.bodyweight}
+              onChangeText={(v) => setMetadata((prev) => ({ ...prev, bodyweight: v }))}
+              keyboardType="decimal-pad"
+              placeholder="e.g. 82.5"
+              placeholderTextColor={Colors.light.textTertiary}
+              accessibilityLabel="Bodyweight in kilograms"
+            />
+
+            <Text style={styles.sheetLabel}>Notes (optional)</Text>
+            <TextInput
+              style={[styles.sheetInput, styles.sheetNotes]}
+              value={metadata.notes}
+              onChangeText={(v) => setMetadata((prev) => ({ ...prev, notes: v }))}
+              placeholder="How did it go?"
+              placeholderTextColor={Colors.light.textTertiary}
+              multiline
+              accessibilityLabel="Workout notes"
+            />
+
+            <TouchableOpacity
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              onPress={saveWorkout}
+              disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel="Save workout"
+            >
+              <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Save workout'}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Exercise Selection Modal */}
@@ -657,6 +747,29 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   exerciseName: { fontSize: 16, fontFamily: 'Inter-Bold', color: Colors.light.text, flex: 1 },
+  removeButton: { padding: 6, marginRight: 4 },
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: Colors.light.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  sheetTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: Colors.light.text },
+  sheetSummary: { fontSize: 15, fontFamily: 'Inter-Medium', color: Colors.light.textSecondary, marginBottom: 20 },
+  sheetLabel: { fontSize: 13, fontFamily: 'Inter-Medium', color: Colors.light.textTertiary, marginBottom: 6 },
+  sheetInput: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: Colors.light.text,
+    marginBottom: 16,
+  },
+  sheetNotes: { minHeight: 72, textAlignVertical: 'top' },
+  saveButton: { backgroundColor: Colors.light.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
+  saveButtonDisabled: { opacity: 0.6 },
+  saveButtonText: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   setControls: {
     flexDirection: 'row',
     alignItems: 'center',

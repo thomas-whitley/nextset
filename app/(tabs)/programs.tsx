@@ -1,261 +1,182 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Calendar, Clock } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { Dumbbell, ChevronRight } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { WorkoutHistoryEntry, WorkoutHistoryService } from '@/services/workoutHistoryService';
+import { Program } from '@/services/exercise.types';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutHistoryItem from '@/components/WorkoutHistoryItem';
 
+function ProgramCard({ program, onPress, busy }: { program: Program; onPress: () => void; busy?: boolean }) {
+  const dayNames = program.workouts.slice(0, 4).map((w) => w.name);
+  const extra = program.workouts.length - dayNames.length;
+  return (
+    <TouchableOpacity
+      style={styles.programCard}
+      onPress={onPress}
+      activeOpacity={0.8}
+      disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={`${program.name}, ${program.workouts.length} workouts`}
+    >
+      <View style={styles.programBanner}>
+        <Dumbbell size={22} color="#FFFFFF" />
+        <Text style={styles.programBannerText}>{program.schedule ?? `${program.workouts.length} workouts`}</Text>
+      </View>
+      <View style={styles.programContent}>
+        <Text style={styles.programName}>{program.name}</Text>
+        <Text style={styles.programDescription} numberOfLines={2}>{program.description}</Text>
+        <View style={styles.programDays}>
+          {dayNames.map((name, i) => (
+            <View key={`${name}-${i}`} style={styles.dayTag}>
+              <Text style={styles.dayTagText}>{name}</Text>
+            </View>
+          ))}
+          {extra > 0 && (
+            <View style={styles.dayTag}>
+              <Text style={styles.dayTagText}>+{extra}</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.programFooter}>
+          <Text style={styles.statText}>
+            {program.workouts.length} {program.workouts.length === 1 ? 'workout' : 'workouts'}
+          </Text>
+          {busy ? <ActivityIndicator size="small" color={Colors.light.primary} /> : <ChevronRight size={18} color={Colors.light.textTertiary} />}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 export default function ProgramsScreen() {
-  const { programs, currentProgram, setCurrentProgram } = useWorkout();
+  const { programs, currentProgram, isLoadingProgram, setCurrentProgram, clearCurrentProgram } = useWorkout();
   const { user } = useAuth();
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasActiveProgram, setHasActiveProgram] = useState(false);
+  const [isChoosing, setIsChoosing] = useState(false);
+  const [selecting, setSelecting] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  const handleProgramPress = (program: any) => {
-    setCurrentProgram(program);
-    router.push({
-      pathname: '/program-detail',
-      params: { programId: program.id }
-    });
-  };
-
-  const handleCreateProgram = () => {
-    router.push('/create-program');
-  };
-
-  React.useEffect(() => {
-    if (user) {
-      loadWorkoutHistory();
-      checkActiveProgram();
-    }
-  }, [user]);
-
-  const checkActiveProgram = () => {
-    // Check if user has an active program set
-    setHasActiveProgram(!!currentProgram);
-  };
-
-  const loadWorkoutHistory = async () => {
+  const loadWorkoutHistory = useCallback(async () => {
     if (!user) return;
-    
     setIsLoading(true);
     try {
-      const history = await WorkoutHistoryService.getWorkoutHistory(user.id, 10);
-      setWorkoutHistory(history);
+      setWorkoutHistory(await WorkoutHistoryService.getWorkoutHistory(user.id, 10));
     } catch (error) {
       console.error('Failed to load workout history:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
-  const handleSelectProgram = async (program: any) => {
+  useFocusEffect(
+    useCallback(() => {
+      loadWorkoutHistory();
+    }, [loadWorkoutHistory])
+  );
+
+  const handleSelectProgram = async (program: Program) => {
+    setSelecting(program.id);
     try {
       await setCurrentProgram(program);
-      setHasActiveProgram(true);
-      Alert.alert('Program Selected', `${program.name} is now your active program!`);
+      setIsChoosing(false);
     } catch (error) {
-      Alert.alert('Error', 'Failed to set active program. Please try again.');
+      Alert.alert('Could not select program', 'Check your connection and try again.');
+    } finally {
+      setSelecting(null);
     }
-  };
-
-  const handleProgramChangeRequest = () => {
-    setShowConfirmModal(true);
   };
 
   const handleConfirmProgramChange = () => {
     setShowConfirmModal(false);
-    setHasActiveProgram(false);
-    // Here we would archive the current program instead of deleting it
-    // For now, we'll just set hasActiveProgram to false to show the program selection
+    clearCurrentProgram();
+    setIsChoosing(true);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const ProgramCard = ({ program }: { program: any }) => (
-    <TouchableOpacity 
-      style={styles.programCard} 
-      onPress={() => handleProgramPress(program)}
-      activeOpacity={0.8}
-      accessibilityRole="button"
-      accessibilityLabel={`${program.name} program by ${program.creator}`}
-      accessibilityHint={`${program.workouts.length} workouts available. Tap to view details.`}
-    >
-      <Image source={{ uri: program.imageUrl }} style={styles.programImage} />
-      <View style={styles.programContent}>
-        <View style={styles.programHeader}>
-          <Text style={styles.programName}>{program.name}</Text>
-          <Text style={styles.programCreator}>{program.creator}</Text>
-        </View>
-        
-        <View style={styles.programDays}>
-          {program.workouts.slice(0, 3).map((workout: any, index: number) => (
-            <View key={index} style={styles.dayTag}>
-              <Text style={styles.dayTagText}>{workout.name}</Text>
-            </View>
-          ))}
-          {program.workouts.length > 3 && (
-            <View style={styles.dayTag}>
-              <Text style={styles.dayTagText}>+{program.workouts.length - 3}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.programStats}>
-          <Text style={styles.statText}>{program.workouts.length} workouts</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  const showPicker = isChoosing || (!currentProgram && !isLoadingProgram);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Programs</Text>
       </View>
-      
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Conditional Rendering Based on Active Program Status */}
-        {hasActiveProgram ? (
-          /* Condition B: Show Active Program Details */
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {isLoadingProgram ? (
+          <ActivityIndicator color={Colors.light.primary} style={styles.loader} />
+        ) : showPicker ? (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Active Program</Text>
-              <TouchableOpacity 
-                style={styles.changeProgramButton}
-                onPress={handleProgramChangeRequest}
-                accessibilityRole="button"
-                accessibilityLabel="Change active program"
-                accessibilityHint="Switch to a different workout program"
-              >
-                <Text style={styles.changeProgramText}>Change Program</Text>
-              </TouchableOpacity>
+              <Text style={styles.sectionTitle}>Choose a program</Text>
             </View>
-            
-            <View style={styles.activeProgramContainer}>
-              {currentProgram && <ProgramCard program={currentProgram} />}
+            {isChoosing && <Text style={styles.sectionHint}>Your edits to previous programs are kept.</Text>}
+            <View style={styles.programList}>
+              {programs.map((program) => (
+                <ProgramCard
+                  key={program.id}
+                  program={program}
+                  busy={selecting === program.id}
+                  onPress={() => handleSelectProgram(program)}
+                />
+              ))}
             </View>
           </>
         ) : (
-          /* Condition A: Show Program Selection */
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Choose Your Program</Text>
-            </View>
-            
-            <View style={styles.programList}>
-              {programs.map((program) => (
-                <TouchableOpacity
-                  key={program.id}
-                  onPress={() => handleSelectProgram(program)}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Select ${program.name} as active program`}
-                  accessibilityHint="Make this your current workout program"
-                >
-                  <ProgramCard program={program} />
-                </TouchableOpacity>
-              ))}
-              
-              <TouchableOpacity 
-                style={styles.createButton} 
-                onPress={handleCreateProgram}
-                activeOpacity={0.8}
+              <Text style={styles.sectionTitle}>Active program</Text>
+              <TouchableOpacity
+                style={styles.changeProgramButton}
+                onPress={() => setShowConfirmModal(true)}
                 accessibilityRole="button"
-                accessibilityLabel="Create custom program"
-                accessibilityHint="Design your own workout program"
+                accessibilityLabel="Change program"
               >
-                <Plus size={24} color={Colors.light.primary} />
-                <Text style={styles.createButtonText}>Create Your Own Program</Text>
+                <Text style={styles.changeProgramText}>Change</Text>
               </TouchableOpacity>
+            </View>
+            <View style={styles.activeProgramContainer}>
+              {currentProgram && <ProgramCard program={currentProgram} onPress={() => router.push('/program-detail')} />}
+              <Text style={styles.sectionHint}>Tap the program to see its workouts, reorder days, or start one.</Text>
             </View>
           </>
         )}
 
-        {/* Visual Divider */}
         <View style={styles.divider} />
-        
-        {/* Workout History Section */}
+
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Workout History</Text>
+          <Text style={styles.sectionTitle}>History</Text>
         </View>
-        
         <View style={styles.historyContainer}>
           {isLoading ? (
             <ActivityIndicator size="small" color={Colors.light.primary} style={styles.loader} />
           ) : workoutHistory.length > 0 ? (
-            workoutHistory.map((log: any) => (
-              <WorkoutHistoryItem 
-                key={log.id}
-                workout={log}
-                onEdit={(workout) => {
-                  // Handle edit functionality
-                  Alert.alert(
-                    'Edit Workout',
-                    `You'll be able to edit "${workout.workout_name}" in a future update.`
-                  );
-                }}
-              />
-            ))
+            workoutHistory.map((row) => <WorkoutHistoryItem key={row.id} workout={row} />)
           ) : (
             <View style={styles.emptyHistoryContainer}>
-              <Text style={styles.emptyHistoryText}>No workout history yet</Text>
-              <Text style={styles.emptyHistorySubtext}>
-                Complete a workout to see it here
-              </Text>
+              <Text style={styles.emptyHistoryText}>No workouts logged yet</Text>
+              <Text style={styles.emptyHistorySubtext}>Finish a workout and it shows here.</Text>
             </View>
           )}
         </View>
       </ScrollView>
 
-      {/* Program Change Confirmation Modal */}
-      <Modal
-        visible={showConfirmModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowConfirmModal(false)}
-      >
+      <Modal visible={showConfirmModal} transparent animationType="fade" onRequestClose={() => setShowConfirmModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Confirm Program Change</Text>
+            <Text style={styles.modalTitle}>Change program?</Text>
             <Text style={styles.modalText}>
-              Are you sure? Your custom workouts and progress for the current program will be archived. You can restore it later.
+              Pick a different template. Exercises you added to this program are kept, and choosing it again restores them.
             </Text>
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.modalCancelButton]} 
-                onPress={() => setShowConfirmModal(false)}
-              >
+              <TouchableOpacity style={[styles.modalButton, styles.modalCancelButton]} onPress={() => setShowConfirmModal(false)} accessibilityRole="button">
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.modalConfirmButton]} 
-                onPress={handleConfirmProgramChange}
-              >
-                <Text style={styles.modalConfirmText}>Confirm</Text>
+              <TouchableOpacity style={[styles.modalButton, styles.modalConfirmButton]} onPress={handleConfirmProgramChange} accessibilityRole="button">
+                <Text style={styles.modalConfirmText}>Change</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -265,275 +186,59 @@ export default function ProgramsScreen() {
   );
 }
 
+const shadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 8,
+  elevation: 4,
+} as const;
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 10
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  sectionHeader: {
-    marginTop: 16,
-    marginBottom: 12
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-  },
-  changeProgramButton: {
-    backgroundColor: Colors.light.primaryLight,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  changeProgramText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.primary,
-  },
-  activeProgramContainer: {
-    marginBottom: 8
-  },
-  noProgramContainer: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 16
-  },
-  noProgramText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginBottom: 12
-  },
-  selectProgramButton: {
-    backgroundColor: Colors.light.primary,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16
-  },
-  selectProgramButtonText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF'
-  },
-  programList: {
-    paddingBottom: 40,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.light.border,
-    marginVertical: 24,
-    marginHorizontal: 16,
-  },
-  programCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    ...Platform.select({
-      web: {
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 4,
-      },
-    }),
-  },
-  programImage: {
-    width: '100%',
-    height: 120,
-    resizeMode: 'cover',
-  },
-  programContent: {
-    padding: 16,
-  },
-  programHeader: {
-    marginBottom: 12,
-  },
-  programName: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginBottom: 4,
-  },
-  programCreator: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-  },
-  programDays: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  dayTag: {
-    backgroundColor: Colors.light.primaryLight,
-    borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    marginRight: 8,
-    marginBottom: 4,
-  },
-  dayTagText: {
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.primary,
-  },
-  programStats: {
+  container: { flex: 1, backgroundColor: Colors.light.background },
+  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
+  title: { fontSize: 28, fontFamily: 'Inter-Bold', color: Colors.light.text },
+  content: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  loader: { marginVertical: 24 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 4 },
+  sectionTitle: { fontSize: 18, fontFamily: 'Inter-Bold', color: Colors.light.text },
+  sectionHint: { fontSize: 13, fontFamily: 'Inter-Regular', color: Colors.light.textTertiary, marginBottom: 12, lineHeight: 18 },
+  changeProgramButton: { backgroundColor: Colors.light.primaryLight, borderRadius: 10, paddingVertical: 6, paddingHorizontal: 14 },
+  changeProgramText: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: Colors.light.primary },
+  activeProgramContainer: { marginBottom: 8 },
+  programList: { gap: 12 },
+  programCard: { backgroundColor: Colors.light.card, borderRadius: 16, overflow: 'hidden', marginBottom: 4, ...shadow },
+  programBanner: {
+    backgroundColor: '#141517',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
   },
-  statText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-  },
-  createButton: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    paddingVertical: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    borderWidth: 2,
-    borderColor: Colors.light.border,
-    borderStyle: 'dashed',
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.primary,
-    marginLeft: 8,
-  },
-  historyContainer: {
-    marginBottom: 24
-  },
-  historyItem: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8
-  },
-  historyItemContent: {
-    flex: 1
-  },
-  historyItemTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 4
-  },
-  historyItemDetails: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  historyItemDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16
-  },
-  historyItemDetailText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginLeft: 4
-  },
-  emptyHistoryContainer: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center'
-  },
-  emptyHistoryText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 4
-  },
-  emptyHistorySubtext: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary
-  },
-  loader: {
-    padding: 20
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  modalContent: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter-Bold',
-    color: Colors.light.text,
-    marginBottom: 16,
-  },
-  modalText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textSecondary,
-    marginBottom: 24,
-    lineHeight: 24,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  modalCancelButton: {
-    backgroundColor: Colors.light.border,
-    marginRight: 8,
-  },
-  modalConfirmButton: {
-    backgroundColor: Colors.light.primary,
-    marginLeft: 8,
-  },
-  modalCancelText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.textSecondary,
-  },
-  modalConfirmText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
-  },
+  programBannerText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#EEF0ED' },
+  programContent: { padding: 16 },
+  programName: { fontSize: 18, fontFamily: 'Inter-Bold', color: Colors.light.text, marginBottom: 4 },
+  programDescription: { fontSize: 14, fontFamily: 'Inter-Regular', color: Colors.light.textSecondary, lineHeight: 20, marginBottom: 12 },
+  programDays: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  dayTag: { backgroundColor: Colors.light.primaryLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  dayTagText: { fontSize: 12, fontFamily: 'Inter-Medium', color: Colors.light.primary },
+  programFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  statText: { fontSize: 13, fontFamily: 'Inter-Medium', color: Colors.light.textTertiary },
+  divider: { height: 1, backgroundColor: Colors.light.border, marginVertical: 24 },
+  historyContainer: { marginBottom: 8 },
+  emptyHistoryContainer: { backgroundColor: Colors.light.card, borderRadius: 12, padding: 24, alignItems: 'center' },
+  emptyHistoryText: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: Colors.light.text, marginBottom: 4 },
+  emptyHistorySubtext: { fontSize: 14, fontFamily: 'Inter-Regular', color: Colors.light.textTertiary, textAlign: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
+  modalContent: { backgroundColor: Colors.light.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 },
+  modalTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: Colors.light.text, marginBottom: 12 },
+  modalText: { fontSize: 15, fontFamily: 'Inter-Regular', color: Colors.light.textSecondary, lineHeight: 22, marginBottom: 20 },
+  modalButtons: { flexDirection: 'row', gap: 12 },
+  modalButton: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  modalCancelButton: { backgroundColor: Colors.light.border },
+  modalConfirmButton: { backgroundColor: Colors.light.primary },
+  modalCancelText: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: Colors.light.textSecondary },
+  modalConfirmText: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
 });

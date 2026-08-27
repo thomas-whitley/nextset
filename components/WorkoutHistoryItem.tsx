@@ -1,63 +1,36 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Calendar, Clock, CreditCard as Edit } from 'lucide-react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Calendar, Clock } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
-import { WorkoutLogEntry } from '@/services/workoutLogService';
-import { router } from 'expo-router';
+import { WorkoutHistoryEntry } from '@/services/workoutHistoryService';
+import { formatKg, formatMinutes, formatShortDate } from '@/utils/format';
 
 interface WorkoutHistoryItemProps {
-  workout: WorkoutLogEntry;
-  onEdit: (workout: WorkoutLogEntry) => void;
+  workout: WorkoutHistoryEntry;
 }
 
-const WorkoutHistoryItem = ({ workout, onEdit }: WorkoutHistoryItemProps) => {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
+const WorkoutHistoryItem = ({ workout }: WorkoutHistoryItemProps) => {
+  const exerciseCount = workout.workout_data?.exercises?.length ?? 0;
   return (
-    <TouchableOpacity 
-      style={styles.container}
-      onPress={() => {
-        // View workout details (could navigate to a detail screen)
-      }}
-    >
+    <View style={styles.container} accessibilityRole="summary">
       <View style={styles.content}>
-        <Text style={styles.title}>{workout.workout_name}</Text>
+        <Text style={styles.title}>{workout.workout_data?.name ?? 'Workout'}</Text>
         <View style={styles.details}>
           <View style={styles.detail}>
             <Calendar size={14} color={Colors.light.textTertiary} />
-            <Text style={styles.detailText}>
-              {formatDate(workout.completed_at)}
-            </Text>
+            <Text style={styles.detailText}>{formatShortDate(workout.completed_at)}</Text>
           </View>
           <View style={styles.detail}>
             <Clock size={14} color={Colors.light.textTertiary} />
-            <Text style={styles.detailText}>
-              {formatDuration(workout.duration_seconds)}
-            </Text>
+            <Text style={styles.detailText}>{formatMinutes(workout.duration_minutes)}</Text>
           </View>
+          <Text style={styles.detailText}>
+            {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
+          </Text>
         </View>
       </View>
-      
-      <TouchableOpacity 
-        style={styles.editButton}
-        onPress={() => onEdit(workout)}
-      >
-        <Edit size={16} color={Colors.light.primary} />
-      </TouchableOpacity>
-    </TouchableOpacity>
+      <Text style={styles.volume}>{formatKg(workout.total_volume)}</Text>
+    </View>
   );
 };
 
@@ -65,44 +38,18 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
-  content: {
-    flex: 1
-  },
-  title: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 4
-  },
-  details: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  detail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16
-  },
-  detailText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: Colors.light.textTertiary,
-    marginLeft: 4
-  },
-  editButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center'
-  }
+  content: { flex: 1, marginRight: 12 },
+  title: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: Colors.light.text, marginBottom: 6 },
+  details: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
+  detail: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  detailText: { fontSize: 13, fontFamily: 'Inter-Regular', color: Colors.light.textTertiary },
+  volume: { fontSize: 16, fontFamily: 'Inter-Bold', color: Colors.light.primary },
 });
 
 export default WorkoutHistoryItem;
