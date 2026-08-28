@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   clockToggle: {
@@ -296,12 +296,12 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontSize: 48,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   statusText: {
     fontSize: 20,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     marginTop: 8,
   },
   statusBar: {
@@ -316,13 +316,13 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginBottom: 4,
   },
   statusValue: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   controls: {
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   },
   analogTimeText: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     marginTop: 16,
   },
 });

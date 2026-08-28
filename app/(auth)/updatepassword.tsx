@@ -277,14 +277,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     lineHeight: 24,
     textAlign: 'center',
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: '#DC2626',
   },
   formSection: {
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
     marginBottom: 8,
   },
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.text,
   },
   eyeButton: {
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   updateButtonText: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: '#FFFFFF',
   },
   footerSection: {
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.primary,
   },
 });

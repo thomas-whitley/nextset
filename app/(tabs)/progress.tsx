@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginTop: 16,
   },
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   timeRanges: {
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   },
   timeRangeText: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.textTertiary,
   },
   activeTimeRangeText: {
@@ -473,14 +473,14 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginTop: 8,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.textTertiary,
     textAlign: 'center',
   },
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   },
   healthTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginLeft: 12,
   },
@@ -515,13 +515,13 @@ const styles = StyleSheet.create({
   },
   healthStatValue: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.error,
     marginBottom: 4,
   },
   healthStatLabel: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
   },
   chartCard: {
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   },
   chartTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 16,
     marginLeft: 8,
@@ -553,14 +553,14 @@ const styles = StyleSheet.create({
   },
   chartSubtitle: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     textAlign: 'center',
     marginTop: 8,
   },
   chartEmpty: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     textAlign: 'center',
     paddingVertical: 48,
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   },
   exerciseTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 16,
   },
@@ -596,18 +596,18 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
   },
   exerciseDate: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginTop: 2,
   },
   exerciseWeight: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.primary,
   },
   notesCard: {
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
   },
   notesTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginLeft: 12,
   },
@@ -645,17 +645,17 @@ const styles = StyleSheet.create({
   },
   noteWorkoutName: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
   },
   noteDate: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
   },
   noteText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textSecondary,
     lineHeight: 20,
   },
@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
   },
   streakTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginLeft: 12,
   },
@@ -690,13 +690,13 @@ const styles = StyleSheet.create({
   },
   streakValue: {
     fontSize: 32,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.primary,
     marginBottom: 4,
   },
   streakLabel: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
   },
   emptyState: {
@@ -705,14 +705,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     textAlign: 'center',
     paddingHorizontal: 40,

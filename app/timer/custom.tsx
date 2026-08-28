@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   content: {
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.primary,
     marginBottom: 20,
   },
@@ -292,12 +292,12 @@ const styles = StyleSheet.create({
   },
   sliderLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
   },
   sliderValue: {
     fontSize: 16,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.primary,
   },
   slider: {
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   rangeText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
   },
   beginButton: {
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   },
   beginButtonText: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: '#FFFFFF',
     marginRight: 8,
   },

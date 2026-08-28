@@ -184,13 +184,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     lineHeight: 24,
   },
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: '#DC2626',
   },
   formSection: {
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
     marginBottom: 8,
   },
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.text,
     borderWidth: 1,
     borderColor: Colors.light.border,
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   },
   sendButtonText: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: '#FFFFFF',
   },
   footerSection: {
@@ -259,12 +259,12 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
   },
   footerLink: {
     color: Colors.light.primary,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
   },
   successContainer: {
     flex: 1,
@@ -283,14 +283,14 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 16,
     textAlign: 'center',
   },
   successMessage: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     textAlign: 'center',
     lineHeight: 24,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   backToLoginText: {
     fontSize: 16,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: '#FFFFFF',
   },
 });

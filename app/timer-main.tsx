@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   modeSelector: {
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
   },
   modeButtonText: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginTop: 16,
     marginBottom: 8,
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   },
   modeButtonSubtext: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     textAlign: 'center',
   },
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   },
   presetButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.primary,
   },
   timerContainer: {
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontSize: 72,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: '#FFFFFF',
     marginBottom: 40,
   },
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   },
   contextText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: '#FFFFFF',
   },
   masterTimerContent: {
@@ -721,20 +721,20 @@ const styles = StyleSheet.create({
   },
   currentExerciseTitle: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   phaseText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.primary,
     marginBottom: 16,
   },
   masterTimerText: {
     fontSize: 48,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   progressInfo: {
@@ -750,13 +750,13 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginBottom: 4,
   },
   progressValue: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   masterControls: {
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
   },
   masterControlText: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: '#FFFFFF',
     marginTop: 4,
   },
@@ -798,7 +798,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   modalHeaderButtons: {
@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
   },
   configSectionTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 16,
   },
@@ -837,7 +837,7 @@ const styles = StyleSheet.create({
   exerciseNameInput: {
     flex: 1,
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginBottom: 8,
     textAlign: 'center',
@@ -869,7 +869,7 @@ const styles = StyleSheet.create({
   },
   timeValue: {
     fontSize: 16,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginHorizontal: 16,
     minWidth: 40,
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
   },
   addExerciseText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.primary,
     marginLeft: 8,
   },
@@ -917,13 +917,13 @@ const styles = StyleSheet.create({
   },
   presetName: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 4,
   },
   presetDetails: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
   },
   presetIcon: {

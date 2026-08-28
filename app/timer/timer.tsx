@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   content: {
@@ -96,13 +96,13 @@ const styles = StyleSheet.create({
   },
   timerTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 8,
   },
   timerDescription: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     textAlign: 'center',
   },

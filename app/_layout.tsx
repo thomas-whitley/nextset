@@ -1,7 +1,16 @@
 import { useCallback, useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
+import {
+  ArchivoNarrow_600SemiBold,
+  ArchivoNarrow_700Bold,
+} from '@expo-google-fonts/archivo-narrow';
+import {
+  Archivo_400Regular,
+  Archivo_500Medium,
+  Archivo_600SemiBold,
+} from '@expo-google-fonts/archivo';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -61,10 +70,13 @@ export default function RootLayout() {
   useFrameworkReady();
 
   const [fontsLoaded, fontError] = useFonts({
-    'Inter-Regular': Inter_400Regular,
-    'Inter-Medium': Inter_500Medium,
-    'Inter-SemiBold': Inter_600SemiBold,
-    'Inter-Bold': Inter_700Bold,
+    // One superfamily, two widths (spec §12.2). Narrow carries numerals,
+    // timers and titles; the regular width carries prose.
+    'ArchivoNarrow-SemiBold': ArchivoNarrow_600SemiBold,
+    'ArchivoNarrow-Bold': ArchivoNarrow_700Bold,
+    'Archivo-Regular': Archivo_400Regular,
+    'Archivo-Medium': Archivo_500Medium,
+    'Archivo-SemiBold': Archivo_600SemiBold,
   });
 
   const onLayoutRootView = useCallback(async () => {

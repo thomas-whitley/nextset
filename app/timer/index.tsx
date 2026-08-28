@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   content: {
@@ -198,13 +198,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginBottom: 24,
   },
@@ -237,13 +237,13 @@ const styles = StyleSheet.create({
   },
   presetName: {
     fontSize: 16,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 4,
   },
   presetDescription: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginBottom: 12,
     height: 32,
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   },
   customButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.primary,
     marginLeft: 12,
   },

@@ -185,14 +185,14 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     flex: 1,
     textAlign: 'center',
   },
   reorderButton: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.primary,
   },
   content: {
@@ -212,19 +212,19 @@ const styles = StyleSheet.create({
   },
   programName: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 4,
   },
   programCreator: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginBottom: 12,
   },
   programDescription: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textSecondary,
     lineHeight: 24,
   },
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   customizationBadgeText: {
     fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.primary,
   },
   workoutsList: {
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   },
   workoutsTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 16,
   },
@@ -279,24 +279,24 @@ const styles = StyleSheet.create({
   },
   workoutName: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 4,
   },
   workoutDescription: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginBottom: 4,
   },
   exerciseCount: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
   },
   estimatedDuration: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.success,
     marginTop: 2,
   },

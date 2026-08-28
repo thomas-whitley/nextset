@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   content: {
@@ -155,13 +155,13 @@ const styles = StyleSheet.create({
   },
   introTitle: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 8,
   },
   introSubtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     lineHeight: 24,
   },
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   faqQuestion: {
     flex: 1,
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
     marginRight: 12,
     lineHeight: 22,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
   faqAnswerText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textSecondary,
     lineHeight: 20,
   },
@@ -229,13 +229,13 @@ const styles = StyleSheet.create({
   },
   liveChatTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginLeft: 12,
   },
   liveChatDescription: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textSecondary,
     lineHeight: 24,
     marginBottom: 20,
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   },
   liveChatButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.textTertiary,
     marginLeft: 8,
   },

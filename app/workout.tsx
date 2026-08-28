@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   },
   workoutTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
   },
   timerContainer: {
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
   },
   workoutTimer: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.success,
     marginLeft: 4,
   },
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
   },
   finishButtonText: {
     fontSize: 12,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: '#FFFFFF',
   },
   content: {
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
     marginLeft: 8
   },
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
   },
   chooseWarmupText: {
     fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.primary
   },
   selectedWarmup: {
@@ -751,18 +751,18 @@ const styles = StyleSheet.create({
   },
   selectedWarmupName: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text
   },
   selectedWarmupDescription: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Archivo-Regular',
     color: Colors.light.textTertiary,
     marginTop: 2
   },
   selectedWarmupDuration: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     marginTop: 4
   },
@@ -779,14 +779,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  exerciseName: { fontSize: 16, fontFamily: 'Inter-Bold', color: Colors.light.text, flex: 1 },
+  exerciseName: { fontSize: 16, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, flex: 1 },
   removeButton: { padding: 6, marginRight: 4 },
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: Colors.light.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  sheetTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: Colors.light.text },
-  sheetSummary: { fontSize: 15, fontFamily: 'Inter-Medium', color: Colors.light.textSecondary, marginBottom: 20 },
-  sheetLabel: { fontSize: 13, fontFamily: 'Inter-Medium', color: Colors.light.textTertiary, marginBottom: 6 },
+  sheetTitle: { fontSize: 20, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
+  sheetSummary: { fontSize: 15, fontFamily: 'Archivo-Medium', color: Colors.light.textSecondary, marginBottom: 20 },
+  sheetLabel: { fontSize: 13, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginBottom: 6 },
   sheetInput: {
     backgroundColor: Colors.light.background,
     borderRadius: 12,
@@ -795,14 +795,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Archivo-Regular',
     color: Colors.light.text,
     marginBottom: 16,
   },
   sheetNotes: { minHeight: 72, textAlignVertical: 'top' },
   saveButton: { backgroundColor: Colors.light.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
   saveButtonDisabled: { opacity: 0.6 },
-  saveButtonText: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  saveButtonText: { fontSize: 17, fontFamily: 'ArchivoNarrow-Bold', color: '#FFFFFF' },
   setControls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -818,14 +818,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  setCount: { fontSize: 12, fontFamily: 'Inter-Bold', color: Colors.light.text, marginHorizontal: 8, minWidth: 16, textAlign: 'center' },
+  setCount: { fontSize: 12, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, marginHorizontal: 8, minWidth: 16, textAlign: 'center' },
   notesInput: {
     backgroundColor: Colors.light.background,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 10,
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.text,
     borderWidth: 1,
     borderColor: Colors.light.border,
@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
   },
   setHeaderText: {
     fontSize: 10,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.textTertiary,
     width: 50,
     textAlign: 'center'
@@ -878,8 +878,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.accent,
     backgroundColor: Colors.light.accentLight
   },
-  setNumber: { fontSize: 10, fontFamily: 'Inter-Bold', color: Colors.light.primary },
-  previousData: { fontSize: 10, fontFamily: 'Inter-Medium', color: Colors.light.textTertiary, width: 50, textAlign: 'center' },
+  setNumber: { fontSize: 10, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.primary },
+  previousData: { fontSize: 10, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, width: 50, textAlign: 'center' },
   input: {
     width: 50,
     backgroundColor: Colors.light.background,
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 6,
     fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
     textAlign: 'center',
     marginHorizontal: 4,
@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center'
   },
-  restTimerText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#FFFFFF', marginLeft: 2 },
+  restTimerText: { fontSize: 10, fontFamily: 'ArchivoNarrow-Bold', color: '#FFFFFF', marginLeft: 2 },
   addExerciseButton: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
@@ -925,7 +925,7 @@ const styles = StyleSheet.create({
   },
   addExerciseButtonText: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.primary,
     marginLeft: 6
   },
@@ -946,14 +946,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.text,
     marginBottom: 12,
     textAlign: 'center'
   },
   emptySubtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     textAlign: 'center',
     lineHeight: 24,
@@ -967,7 +967,7 @@ const styles = StyleSheet.create({
   },
   startWorkoutButtonText: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: '#FFFFFF'
   },
   modalContainer: {
@@ -983,7 +983,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border
   },
-  modalTitle: { fontSize: 18, fontFamily: 'Inter-Bold', color: Colors.light.text },
+  modalTitle: { fontSize: 18, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
   modalContent: {
     flex: 1,
     paddingHorizontal: 20,
@@ -1005,19 +1005,19 @@ const styles = StyleSheet.create({
   },
   warmupOptionName: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     color: Colors.light.text,
     marginBottom: 4
   },
   warmupOptionDescription: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
     color: Colors.light.textTertiary,
     lineHeight: 16
   },
   warmupOptionDuration: {
     fontSize: 14,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.primary
   },
 });

@@ -50,11 +50,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   content: { flex: 1, marginRight: 12 },
-  title: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: Colors.light.text, marginBottom: 6 },
+  title: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text, marginBottom: 6 },
   details: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
   detail: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  detailText: { fontSize: 13, fontFamily: 'Inter-Regular', color: Colors.light.textTertiary },
-  volume: { fontSize: 16, fontFamily: 'Inter-Bold', color: Colors.light.primary },
+  detailText: { fontSize: 13, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary },
+  volume: { fontSize: 16, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.primary },
 });
 
 export default WorkoutHistoryItem;

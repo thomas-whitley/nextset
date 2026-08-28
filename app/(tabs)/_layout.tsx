@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     }),
   },
   tabBarLabel: {
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'ArchivoNarrow-SemiBold',
     fontSize: 11,
     fontWeight: '600',
   },

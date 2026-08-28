@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: Colors.light.text,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Archivo-Medium',
   },
 });
 
