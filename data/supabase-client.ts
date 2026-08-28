@@ -65,6 +65,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: Platform.OS === 'web' ? undefined : (new LargeSecureStore() as any),
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
+    // Browser-only mechanism: there is no URL bar on native, so leaving this
+    // on there just means the confirm screen waits for an event that can
+    // never fire. Native reads the deep-link fragment itself instead.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });

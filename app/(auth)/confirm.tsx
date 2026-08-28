@@ -2,18 +2,35 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useURL } from 'expo-linking';
 import { MailCheck } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
+import { parseAuthFragment } from '@/data/authLink';
 import Colors from '@/constants/Colors';
+
+const DEFAULT_ERROR =
+  'This confirmation link is invalid or has already been used. Please sign in, or request a new confirmation email.';
 
 export default function ConfirmEmailScreen() {
   const [sessionError, setSessionError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(DEFAULT_ERROR);
   const params = useLocalSearchParams();
+  const url = useURL();
+
+  const accessParam = typeof params.access_token === 'string' ? params.access_token : undefined;
+  const refreshParam = typeof params.refresh_token === 'string' ? params.refresh_token : undefined;
 
   useEffect(() => {
-    // A confirmed session can arrive either via the deep-link tokens
+    // A confirmed session can arrive either via the deep-link fragment
     // (native) or via Supabase auto-detecting the session in the URL (web).
     let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const fail = (message: string) => {
+      settled = true;
+      setErrorMessage(message);
+      setSessionError(true);
+    };
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
@@ -23,16 +40,27 @@ export default function ConfirmEmailScreen() {
     });
 
     const establishSession = async () => {
-      const { access_token, refresh_token } = params;
+      const fragment = parseAuthFragment(url);
+
+      // Only Supabase saying so makes "expired" the truth; anything else is
+      // us failing to read the link, which must not be reported as expiry.
+      if (fragment.error || fragment.error_code) {
+        fail(fragment.error_description || DEFAULT_ERROR);
+        return;
+      }
+
+      const access_token = fragment.access_token ?? accessParam;
+      const refresh_token = fragment.refresh_token ?? refreshParam;
 
       if (typeof access_token !== 'string' || typeof refresh_token !== 'string') {
-        // No tokens in the URL — give the web auto-detect listener a brief
-        // window to fire before surfacing an "invalid link" error.
-        setTimeout(() => {
+        // Nothing actionable yet: the deep-link URL can land a tick after
+        // mount, and on web the auto-detect listener fires instead.
+        timer = setTimeout(() => {
           if (!settled) {
+            setErrorMessage(DEFAULT_ERROR);
             setSessionError(true);
           }
-        }, 1500);
+        }, 2500);
         return;
       }
 
@@ -43,8 +71,7 @@ export default function ConfirmEmailScreen() {
 
       if (error) {
         console.error('Failed to establish confirmation session:', error);
-        settled = true;
-        setSessionError(true);
+        fail(DEFAULT_ERROR);
         return;
       }
 
@@ -54,9 +81,10 @@ export default function ConfirmEmailScreen() {
     establishSession();
 
     return () => {
+      if (timer) clearTimeout(timer);
       authListener.subscription.unsubscribe();
     };
-  }, [params]);
+  }, [accessParam, refreshParam, url]);
 
   if (sessionError) {
     return (
@@ -70,9 +98,7 @@ export default function ConfirmEmailScreen() {
 
           <View style={styles.titleSection}>
             <Text style={styles.title}>Link Invalid or Expired</Text>
-            <Text style={styles.subtitle}>
-              This confirmation link is invalid or has already been used. Please sign in, or request a new confirmation email.
-            </Text>
+            <Text style={styles.subtitle}>{errorMessage}</Text>
           </View>
 
           <TouchableOpacity style={styles.button} onPress={() => router.replace('/(auth)')}>

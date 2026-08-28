@@ -249,7 +249,9 @@ export default function LoginScreen() {
         type: 'signup',
         email: formData.email.trim(),
         options: {
-          emailRedirectTo: 'momentum://auth/confirm',
+          // `(auth)` is a route group, so the path is /confirm, not
+          // /auth/confirm — the latter matches no route at all.
+          emailRedirectTo: 'momentum://confirm',
         },
       });
 

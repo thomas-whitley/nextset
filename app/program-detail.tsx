@@ -114,7 +114,9 @@ export default function ProgramDetailScreen() {
                     {workout.exercises.length} {workout.exercises.length === 1 ? 'exercise' : 'exercises'}
                     {workout.exercises.length > 0 ? ` · ${workout.exercises.map((e: any) => e.name).join(', ')}` : ''}
                   </Text>
-                  {workout.estimatedDuration && (
+                  {/* Same numeric-&& trap: a 0-minute estimate would render
+                      a bare "0" rather than nothing. */}
+                  {(workout.estimatedDuration ?? 0) > 0 && (
                     <Text style={styles.estimatedDuration}>
                       ~{workout.estimatedDuration} min
                     </Text>

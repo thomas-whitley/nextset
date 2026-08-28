@@ -10,6 +10,7 @@ import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
 import { getDefaultRestSeconds, DEFAULT_REST_SECONDS } from '@/services/preferences';
 import { formatKg, formatMinutes, formatSet } from '@/utils/format';
+import { isTimedExercise } from '@/data/timedExercises';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -31,6 +32,30 @@ const warmupOptions: WarmupOption[] = [
   { id: '3', name: 'Yoga Flow', duration: '10 min', description: 'Gentle yoga sequence for mobility' },
   { id: '4', name: 'Joint Mobility', duration: '6 min', description: 'Targeted joint activation exercises' },
 ];
+
+// Guard rails on the two free-text numeric fields. Without them a slip on the
+// keypad is persisted silently and then poisons lifetime volume, the PR list
+// and the CSV export — a stray "17897 kg × 69592 reps" once banked a workout
+// at 1,245,613,856 kg. Bounds are deliberately generous: the heaviest lift
+// ever recorded is well under 1000 kg, and 100 reps covers any real set.
+const MAX_WEIGHT_KG = 1000;
+const MAX_REPS = 100;
+
+/** The value to store, or null to reject the keystroke and keep the old one. */
+function sanitiseSetValue(field: 'weight' | 'reps', raw: string): string | null {
+  if (raw === '') return '';
+
+  if (field === 'reps') {
+    if (!/^\d{1,3}$/.test(raw)) return null;
+    return Number(raw) <= MAX_REPS ? raw : null;
+  }
+
+  // Weight takes one decimal place or two (82.5), with either separator.
+  // A trailing "." is allowed so the field can be typed through.
+  const normalised = raw.replace(',', '.');
+  if (!/^\d{1,4}(\.\d{0,2})?$/.test(normalised)) return null;
+  return Number(normalised) <= MAX_WEIGHT_KG ? normalised : null;
+}
 
 export default function WorkoutScreen() {
   const { 
@@ -294,7 +319,10 @@ export default function WorkoutScreen() {
         <TextInput
           style={[styles.input, isCompleted && styles.inputComplete]}
           value={set.weight}
-          onChangeText={(value) => updateSet(exerciseId, set.id, 'weight', value)}
+          onChangeText={(value) => {
+            const next = sanitiseSetValue('weight', value);
+            if (next !== null) updateSet(exerciseId, set.id, 'weight', next);
+          }}
           keyboardType="numeric"
           placeholder="kg"
           placeholderTextColor={Colors.light.textTertiary}
@@ -306,7 +334,10 @@ export default function WorkoutScreen() {
         <TextInput
           style={[styles.input, isCompleted && styles.inputComplete]}
           value={set.reps}
-          onChangeText={(value) => updateSet(exerciseId, set.id, 'reps', value)}
+          onChangeText={(value) => {
+            const next = sanitiseSetValue('reps', value);
+            if (next !== null) updateSet(exerciseId, set.id, 'reps', next);
+          }}
           keyboardType="numeric"
           placeholder="reps"
           placeholderTextColor={Colors.light.textTertiary}
@@ -488,7 +519,9 @@ export default function WorkoutScreen() {
               <Text style={styles.setHeaderText}>Set</Text>
               <Text style={styles.setHeaderText}>Last time</Text>
               <Text style={styles.setHeaderText}>Weight</Text>
-              <Text style={styles.setHeaderText}>Reps</Text>
+              <Text style={styles.setHeaderText}>
+                {isTimedExercise(exercise.name) ? 'Secs' : 'Reps'}
+              </Text>
             </View>
 
             <View style={styles.setsContainer}>

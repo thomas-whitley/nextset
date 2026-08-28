@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Platform } from 'react-native';
-import { Zap, FileText, User, TrendingUp, TrendingUp as LucideTrendingUp } from 'lucide-react-native';
+import { Zap, FileText, User, TrendingUp } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 
 export default function TabLayout() {
@@ -10,7 +10,9 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors.light.primary,
         tabBarInactiveTintColor: Colors.light.tabIconDefault,
         tabBarStyle: styles.tabBar,
-        tabBarShowLabel: false,
+        // A lightning bolt for Home and a page icon for Programs are not
+        // self-evident; the labels were styled but never switched on.
+        tabBarShowLabel: true,
         tabBarLabelStyle: styles.tabBarLabel,
         headerShown: false,
         tabBarAccessibilityLabel: 'Main navigation',
@@ -41,7 +43,7 @@ export default function TabLayout() {
         options={{
           title: 'Progress',
           tabBarIcon: ({ color, size }) => (
-            <LucideTrendingUp size={size} color={color} />
+            <TrendingUp size={size} color={color} />
           ),
           tabBarAccessibilityLabel: 'Progress tab',
         }}
@@ -65,9 +67,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.backgroundSecondary,
     borderTopWidth: 1,
     borderTopColor: Colors.light.border,
-    height: 65,
-    paddingBottom: 14,
-    paddingTop: 14,
+    height: 68,
+    paddingBottom: 10,
+    paddingTop: 8,
     ...Platform.select({
       web: {
         shadowColor: '#000',
@@ -88,10 +90,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     fontSize: 11,
     fontWeight: '600',
-  },
-  centralTab: {
-    backgroundColor: Colors.light.primary,
-    borderRadius: 20,
-    padding: 8,
   },
 });

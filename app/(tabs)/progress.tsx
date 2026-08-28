@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Activ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TrendingUp, Trophy, Target, Calendar, Heart, Zap, User, FileText } from 'lucide-react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
+import { formatKg } from '@/utils/format';
 import Colors from '@/constants/Colors';
 import { WorkoutHistoryService, ProgressStats } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
@@ -101,12 +102,20 @@ export default function ProgressScreen() {
         return `${d.getMonth() + 1}/${d.getDate()}`;
       }),
       datasets: [{
-        data: sortedWeeks.map(([, volume]) => Math.round(volume / 1000)), // Convert to thousands
+        // Plot real kilograms. Rounding to thousands flattened every early
+        // user to 0 or 1 — a 960 kg week drew as "1" and a 400 kg week as a
+        // flat zero, which is precisely the range a new lifter sits in.
+        data: sortedWeeks.map(([, volume]) => Math.round(volume)),
         color: () => Colors.light.primary,
         strokeWidth: 3,
       }],
     };
   };
+
+  /** One axis segment per whole workout, capped, so ticks stay distinct. */
+  const peakWeeklyWorkouts = (progressStats?.workoutFrequency ?? [])
+    .reduce((peak, day) => Math.max(peak, day.count), 1);
+  const frequencySegments = Math.min(4, peakWeeklyWorkouts);
 
   const formatFrequencyData = () => {
     if (!progressStats?.workoutFrequency.length) {
@@ -204,14 +213,16 @@ export default function ProgressScreen() {
           <View style={styles.statCard}>
             <Target size={24} color={Colors.light.primary} />
             <Text style={styles.statValue}>
-              {progressStats?.totalVolume ? `${Math.round(progressStats.totalVolume / 1000)}k` : '0'}
+              {formatKg(progressStats?.totalVolume)}
             </Text>
             <Text style={styles.statLabel}>Total Volume</Text>
           </View>
         </View>
 
         {/* Health Stats */}
-        {progressStats?.averageHeartRate && progressStats.averageHeartRate > 0 && (
+        {/* Compare, don't rely on truthiness: `0 && ...` evaluates to 0, which
+            React renders as a literal "0" floating above the card. */}
+        {progressStats != null && (progressStats.averageHeartRate ?? 0) > 0 && (
           <View style={styles.healthCard}>
             <View style={styles.healthHeader}>
               <Heart size={24} color={Colors.light.error} />
@@ -226,7 +237,7 @@ export default function ProgressScreen() {
               </View>
               <View style={styles.healthStat}>
                 <Text style={styles.healthStatValue}>
-                  {Math.round((progressStats.totalVolume / progressStats.totalWorkouts) / 1000)}k
+                  {formatKg(progressStats.totalVolume / progressStats.totalWorkouts)}
                 </Text>
                 <Text style={styles.healthStatLabel}>Avg Volume</Text>
               </View>
@@ -234,9 +245,16 @@ export default function ProgressScreen() {
           </View>
         )}
 
-        {/* Volume Chart */}
+        {/* Volume Chart. One point is not a trend, and chart-kit misplaces an
+            axis label outside the card when given a single value — so wait for
+            a second week before drawing anything. */}
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Weekly Volume Trend</Text>
+          {formatVolumeData().datasets[0].data.length < 2 ? (
+            <Text style={styles.chartEmpty}>
+              Log a workout in another week and your volume trend appears here.
+            </Text>
+          ) : (
           <LineChart
             data={formatVolumeData()}
             width={screenWidth - 80}
@@ -248,9 +266,12 @@ export default function ProgressScreen() {
             withOuterLines={false}
             withVerticalLabels={true}
             withHorizontalLabels={true}
-            fromZero={false}
+            fromZero={true}
           />
-          <Text style={styles.chartSubtitle}>Volume in thousands (kg)</Text>
+          )}
+          {/* Points are labelled with the week's start date, which reads as
+              plain wrong unless we say so — a Friday session showed "8/23". */}
+          <Text style={styles.chartSubtitle}>Total volume (kg), by week commencing</Text>
         </View>
 
         {/* Bodyweight Progress */}
@@ -294,7 +315,12 @@ export default function ProgressScreen() {
             chartConfig={{
               ...chartConfig,
               barPercentage: 0.7,
+              // Workout counts are small integers. The default four segments
+              // divide a max of 1 into fractions that all format as whole
+              // numbers, drawing the axis as "1, 1, 1, 0, 0".
+              decimalPlaces: 0,
             }}
+            segments={frequencySegments}
             style={styles.chart}
             withInnerLines={false}
             withHorizontalLabels={true}
@@ -531,6 +557,14 @@ const styles = StyleSheet.create({
     color: Colors.light.textTertiary,
     textAlign: 'center',
     marginTop: 8,
+  },
+  chartEmpty: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: Colors.light.textTertiary,
+    textAlign: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 16,
   },
   exerciseCard: {
     backgroundColor: Colors.light.card,

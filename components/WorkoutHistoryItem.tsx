@@ -10,7 +10,12 @@ interface WorkoutHistoryItemProps {
 }
 
 const WorkoutHistoryItem = ({ workout }: WorkoutHistoryItemProps) => {
-  const exerciseCount = workout.workout_data?.exercises?.length ?? 0;
+  // Count what was actually performed, not what the template listed: a
+  // session where one exercise was ticked off should not read "4 exercises".
+  const exerciseCount =
+    workout.workout_data?.exercises?.filter((exercise: any) =>
+      exercise?.sets?.some((set: any) => set?.isComplete)
+    ).length ?? 0;
   return (
     <View style={styles.container} accessibilityRole="summary">
       <View style={styles.content}>

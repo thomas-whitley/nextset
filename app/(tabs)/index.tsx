@@ -10,6 +10,7 @@ import WorkoutCalendarView from '@/components/WorkoutCalendarView';
 import { WorkoutHistoryService, WorkoutHistoryEntry, toDateKey } from '@/services/workoutHistoryService';
 import { Workout } from '@/services/exercise.types';
 import { formatKg, formatShortDate, formatMinutes } from '@/utils/format';
+import { greetingFor } from '@/data/userDisplay';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -85,7 +86,7 @@ export default function HomeScreen() {
     router.push('/workout');
   };
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
+  const greeting = greetingFor(user);
   const dateLabel = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
   if (loading) {
@@ -102,7 +103,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.greeting}>Hello, {displayName}</Text>
+          <Text style={styles.greeting}>{greeting}</Text>
           <Text style={styles.date}>{dateLabel}</Text>
         </View>
 

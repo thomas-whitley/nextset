@@ -10,6 +10,7 @@ import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { shareHistoryCsv } from '@/services/csvExport';
 import { getDefaultRestSeconds, setDefaultRestSeconds } from '@/services/preferences';
 import { LEGAL_URLS, FEEDBACK_FORM_URL, SUPPORT_EMAIL } from '@/constants/Links';
+import { displayNameOf, initialsOf } from '@/data/userDisplay';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -135,10 +136,10 @@ export default function SettingsScreen() {
           <View style={styles.profileSection}>
             <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')} accessibilityRole="button" accessibilityLabel="Edit profile">
               <View style={styles.profileIcon}>
-                <Text style={styles.profileInitial}>{user.user_metadata?.full_name?.[0] || user.email?.[0] || '?'}</Text>
+                <Text style={styles.profileInitial}>{initialsOf(user)}</Text>
               </View>
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{user.user_metadata?.full_name || user.email?.split('@')[0]}</Text>
+                <Text style={styles.profileName}>{displayNameOf(user)}</Text>
                 <Text style={styles.profileEmail}>{user.email}</Text>
               </View>
               <ChevronRight size={18} color={Colors.light.textTertiary} />

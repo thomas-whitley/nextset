@@ -7,14 +7,7 @@ import Colors from '@/constants/Colors';
 import { useAuth } from '@/data/AuthContext';
 import { WorkoutHistoryService, LifetimeStats } from '@/services/workoutHistoryService';
 import { formatKg, formatCount, formatMinutes, formatShortDate, formatSet } from '@/utils/format';
-
-const initialsOf = (name: string | undefined, email: string | undefined): string => {
-  const source = (name && name.trim()) || (email ? email.split('@')[0] : '');
-  const parts = source.replace(/[._-]+/g, ' ').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-};
+import { displayNameOf, initialsOf } from '@/data/userDisplay';
 
 export default function ProfileScreen() {
   const { user } = useAuth();
@@ -38,9 +31,8 @@ export default function ProfileScreen() {
     }, [load])
   );
 
-  const fullName: string | undefined = user?.user_metadata?.full_name;
   const username: string | undefined = user?.user_metadata?.username;
-  const displayName = fullName || user?.email?.split('@')[0] || 'Your profile';
+  const displayName = displayNameOf(user);
   const subline = username ? `@${username}` : user?.email ?? '';
 
   const summary = [
@@ -76,7 +68,7 @@ export default function ProfileScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
           <View style={styles.avatarRing}>
-            <Text style={styles.avatarText}>{initialsOf(fullName, user?.email)}</Text>
+            <Text style={styles.avatarText}>{initialsOf(user)}</Text>
           </View>
           <Text style={styles.profileName}>{displayName}</Text>
           {subline ? <Text style={styles.profileUsername}>{subline}</Text> : null}
