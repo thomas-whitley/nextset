@@ -66,6 +66,8 @@ export default {
     onRubber: '#EEF0ED',
     onRubberSecondary: '#9BA1A6',
     borderOnRubber: '#2A2D30',
+    // Inputs and wells sitting on a rubber slab.
+    slabField: '#1F2225',
   },
   dark: {
     primary: '#4F8EF7',
@@ -93,5 +95,6 @@ export default {
     onRubber: '#EEF0ED',
     onRubberSecondary: '#9BA1A6',
     borderOnRubber: '#2A2D30',
+    slabField: '#1F2225',
   },
 };

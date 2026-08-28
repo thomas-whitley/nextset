@@ -11,6 +11,8 @@ import BrowseExercisesScreen from '@/components/browse-exercises';
 import { getDefaultRestSeconds, DEFAULT_REST_SECONDS } from '@/services/preferences';
 import { formatKg, formatMinutes, formatSet } from '@/utils/format';
 import BarLoadingStrip from '@/components/BarLoadingStrip';
+import * as Haptics from 'expo-haptics';
+import { radius, elevation } from '@/constants/theme';
 import { isTimedExercise } from '@/data/timedExercises';
 
 interface WorkoutMetadata {
@@ -151,6 +153,7 @@ export default function WorkoutScreen() {
 
   const handleSetComplete = async (exerciseId: string, setId: string) => {
     await completeSet(exerciseId, setId);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     
     const newCompletedSets = new Set(completedSets);
     if (!completedSets.has(setId)) {
@@ -290,7 +293,16 @@ export default function WorkoutScreen() {
     }
   };
 
-  const renderSetRow = (set: any, setIndex: number, exerciseId: string, libraryExerciseId?: number) => {
+  // The exercise you are actually on: the first with a set still to do. Its
+  // card gets the rubber slab, so "where am I" is answerable at arm's length.
+  const activeExerciseId =
+    currentWorkout?.exercises.find((ex: any) => ex.sets.some((s: any) => !s.isComplete))?.id ?? null;
+
+  /** The set the loading strip should answer for — the next one you will do. */
+  const nextSetIdFor = (exercise: any): string | null =>
+    exercise.sets.find((s: any) => !s.isComplete)?.id ?? null;
+
+  const renderSetRow = (set: any, setIndex: number, exerciseId: string, libraryExerciseId?: number, showStrip = false, onSlab = false) => {
     const isCompleted = set.isComplete;
     const isActiveRest = activeRestTimer === set.id;
 
@@ -300,6 +312,7 @@ export default function WorkoutScreen() {
         <TouchableOpacity
           style={[
             styles.setIndicator,
+            onSlab && styles.setIndicatorOnSlab,
             isCompleted && styles.completedIndicator,
             isActiveRest && styles.activeRestIndicator
           ]}
@@ -312,11 +325,13 @@ export default function WorkoutScreen() {
           {isCompleted ? (
             <Check size={12} color="#FFFFFF" />
           ) : (
-            <Text style={styles.setNumber}>{setIndex + 1}</Text>
+            <Text style={[styles.setNumber, onSlab && styles.onSlabText]}>{setIndex + 1}</Text>
           )}
         </TouchableOpacity>
         
-        <Text style={styles.previousData}>{formatSet(set.previousWeight, set.previousReps)}</Text>
+        <Text style={[styles.previousData, onSlab && styles.onSlabMuted]}>
+          {formatSet(set.previousWeight, set.previousReps)}
+        </Text>
         
         <TextInput
           style={[styles.input, isCompleted && styles.inputComplete]}
@@ -356,7 +371,9 @@ export default function WorkoutScreen() {
         )}
       </View>
 
-      <BarLoadingStrip totalKg={parseFloat(set.weight)} exerciseId={libraryExerciseId} />
+      {showStrip ? (
+        <BarLoadingStrip totalKg={parseFloat(set.weight)} exerciseId={libraryExerciseId} onRubber={onSlab} />
+      ) : null}
       </View>
     );
   };
@@ -477,16 +494,30 @@ export default function WorkoutScreen() {
 
         {/* Exercises */}
         {currentWorkout.exercises.map((exercise, exerciseIndex) => (
-          <View key={exercise.id} style={styles.exerciseCard}>
+          <View
+            key={exercise.id}
+            style={[styles.exerciseCard, exercise.id === activeExerciseId && styles.exerciseCardActive]}
+          >
             <View style={styles.exerciseHeader}>
-              <Text style={styles.exerciseName}>{exercise.name}</Text>
+              <Text
+                style={[styles.exerciseName, exercise.id === activeExerciseId && styles.onSlabText]}
+              >
+                {exercise.name}
+              </Text>
               <TouchableOpacity
                 style={styles.removeButton}
                 onPress={() => handleRemoveExercise(exercise.id, exercise.name)}
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${exercise.name}`}
               >
-                <Trash2 size={16} color={Colors.light.textTertiary} />
+                <Trash2
+                  size={16}
+                  color={
+                    exercise.id === activeExerciseId
+                      ? Colors.light.onRubberSecondary
+                      : Colors.light.textTertiary
+                  }
+                />
               </TouchableOpacity>
               <View style={styles.setControls}>
                 <TouchableOpacity
@@ -511,27 +542,45 @@ export default function WorkoutScreen() {
 
             {/* Exercise Notes */}
             <TextInput
-              style={styles.notesInput}
+              style={[styles.notesInput, exercise.id === activeExerciseId && styles.notesInputOnSlab]}
               value={exerciseNotes[exercise.id] || ''}
               onChangeText={(value) => setExerciseNotes(prev => ({ ...prev, [exercise.id]: value }))}
               placeholder="Notes for this session..."
-              placeholderTextColor={Colors.light.textTertiary}
+              placeholderTextColor={
+                exercise.id === activeExerciseId
+                  ? Colors.light.onRubberSecondary
+                  : Colors.light.textTertiary
+              }
               multiline
               numberOfLines={2}
             />
             
             <View style={styles.setHeader}>
-              <Text style={styles.setHeaderText}>Set</Text>
-              <Text style={styles.setHeaderText}>Last time</Text>
-              <Text style={styles.setHeaderText}>Weight</Text>
-              <Text style={styles.setHeaderText}>
-                {isTimedExercise(exercise.name) ? 'Secs' : 'Reps'}
-              </Text>
+              {['Set', 'Last time', 'Weight', isTimedExercise(exercise.name) ? 'Secs' : 'Reps'].map(
+                (heading) => (
+                  <Text
+                    key={heading}
+                    style={[
+                      styles.setHeaderText,
+                      exercise.id === activeExerciseId && styles.onSlabMuted,
+                    ]}
+                  >
+                    {heading}
+                  </Text>
+                )
+              )}
             </View>
 
             <View style={styles.setsContainer}>
               {exercise.sets.map((set, setIndex) => 
-                renderSetRow(set, setIndex, exercise.id, exercise.exerciseId)
+                renderSetRow(
+                  set,
+                  setIndex,
+                  exercise.id,
+                  exercise.exerciseId,
+                  set.id === nextSetIdFor(exercise),
+                  exercise.id === activeExerciseId
+                )
               )}
             </View>
           </View>
@@ -859,6 +908,28 @@ const styles = StyleSheet.create({
   },
   setBlock: {
     marginBottom: 2,
+  },
+  exerciseCardActive: {
+    backgroundColor: Colors.light.rubber,
+    borderRadius: radius.slab,
+    ...elevation.slab,
+  },
+  onSlabText: {
+    color: Colors.light.onRubber,
+  },
+  onSlabMuted: {
+    color: Colors.light.onRubberSecondary,
+  },
+  // A white disc on a near-black slab swallowed its own number, so a pending
+  // set becomes an outline instead of a fill.
+  setIndicatorOnSlab: {
+    backgroundColor: 'transparent',
+    borderColor: Colors.light.onRubberSecondary,
+  },
+  notesInputOnSlab: {
+    backgroundColor: Colors.light.slabField,
+    color: Colors.light.onRubber,
+    borderColor: Colors.light.borderOnRubber,
   },
   setRow: {
     flexDirection: 'row',
