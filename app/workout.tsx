@@ -10,6 +10,7 @@ import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
 import { getDefaultRestSeconds, DEFAULT_REST_SECONDS } from '@/services/preferences';
 import { formatKg, formatMinutes, formatSet } from '@/utils/format';
+import BarLoadingStrip from '@/components/BarLoadingStrip';
 import { isTimedExercise } from '@/data/timedExercises';
 
 interface WorkoutMetadata {
@@ -289,12 +290,13 @@ export default function WorkoutScreen() {
     }
   };
 
-  const renderSetRow = (set: any, setIndex: number, exerciseId: string) => {
+  const renderSetRow = (set: any, setIndex: number, exerciseId: string, libraryExerciseId?: number) => {
     const isCompleted = set.isComplete;
     const isActiveRest = activeRestTimer === set.id;
 
     return (
-      <View key={set.id} style={styles.setRow}>
+      <View key={set.id} style={styles.setBlock}>
+      <View style={styles.setRow}>
         <TouchableOpacity
           style={[
             styles.setIndicator,
@@ -352,6 +354,9 @@ export default function WorkoutScreen() {
             <Text style={styles.restTimerText}>{formatTime(restTime)}</Text>
           </View>
         )}
+      </View>
+
+      <BarLoadingStrip totalKg={parseFloat(set.weight)} exerciseId={libraryExerciseId} />
       </View>
     );
   };
@@ -526,7 +531,7 @@ export default function WorkoutScreen() {
 
             <View style={styles.setsContainer}>
               {exercise.sets.map((set, setIndex) => 
-                renderSetRow(set, setIndex, exercise.id)
+                renderSetRow(set, setIndex, exercise.id, exercise.exerciseId)
               )}
             </View>
           </View>
@@ -852,12 +857,14 @@ const styles = StyleSheet.create({
   setsContainer: {
     marginBottom: 4
   },
+  setBlock: {
+    marginBottom: 2,
+  },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 4,
     position: 'relative',
-    marginBottom: 2
   },
   setIndicator: {
     width: 24,

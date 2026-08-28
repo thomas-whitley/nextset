@@ -19,3 +19,24 @@ export async function getDefaultRestSeconds(): Promise<number> {
 export async function setDefaultRestSeconds(seconds: number): Promise<void> {
   await AsyncStorage.setItem(KEY_DEFAULT_REST, String(seconds));
 }
+
+// The bar the loading strip assumes. 20 kg is a men's Olympic bar; women's
+// are 15 and technique bars 10. One global value rather than per-exercise
+// detection, so the strip always prints the bar it assumed — a wrong
+// assumption should be visible, not silent.
+const KEY_BAR_WEIGHT = 'nextset:bar_weight_kg';
+export const DEFAULT_BAR_WEIGHT_KG = 20;
+
+export async function getBarWeightKg(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(KEY_BAR_WEIGHT);
+    const n = raw ? parseFloat(raw) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT_BAR_WEIGHT_KG;
+  } catch {
+    return DEFAULT_BAR_WEIGHT_KG;
+  }
+}
+
+export async function setBarWeightKg(kg: number): Promise<void> {
+  await AsyncStorage.setItem(KEY_BAR_WEIGHT, String(kg));
+}
