@@ -39,3 +39,6 @@ yarn-error.*
 
 # superpowers SDD scratch (ledgers, briefs, review packages)
 .superpowers/
+
+# planning docs stay local (private notes)
+docs/superpowers/
