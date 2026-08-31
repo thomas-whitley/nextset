@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Play, ArrowUp, ArrowDown, GripVertical, Dumbbell } from 'lucide-react-native';
+import { X, Play, Dumbbell } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 import { useWorkout } from '@/contexts/WorkoutContext';
+import { Workout } from '@/services/exercise.types';
+import DraggableList from '@/components/gestures/DraggableList';
 
 export default function ProgramDetailScreen() {
   const { currentProgram, startWorkout, reorderWorkouts } = useWorkout();
-  const [isReordering, setIsReordering] = useState(false);
 
-  const handleStartWorkout = (workout: any) => {
+  const handleStartWorkout = (workout: Workout) => {
     startWorkout(workout);
     router.dismiss();
     router.push('/workout');
@@ -20,27 +22,10 @@ export default function ProgramDetailScreen() {
     router.dismiss();
   };
 
-  const handleMoveWorkout = async (workoutId: string, direction: 'up' | 'down') => {
-    if (!currentProgram) return;
-
-    const workouts = [...currentProgram.workouts].sort((a, b) => a.order - b.order);
-    const currentIndex = workouts.findIndex(w => w.id === workoutId);
-    
-    if (currentIndex === -1) return;
-    
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    
-    if (newIndex < 0 || newIndex >= workouts.length) return;
-
-    // Swap the workouts
-    [workouts[currentIndex], workouts[newIndex]] = [workouts[newIndex], workouts[currentIndex]];
-    
-    // Get the new order of workout IDs
-    const newWorkoutOrder = workouts.map(w => w.id);
-    
+  const handleReorder = async (orderedWorkoutIds: string[]) => {
     try {
-      await reorderWorkouts(newWorkoutOrder);
-    } catch (error) {
+      await reorderWorkouts(orderedWorkoutIds);
+    } catch {
       Alert.alert('Could not reorder', 'Check your connection and try again.');
     }
   };
@@ -54,20 +39,22 @@ export default function ProgramDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleClose}>
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={handleClose}
+          hitSlop={HIT_SLOP}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
           <X size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{currentProgram.name}</Text>
-        <TouchableOpacity onPress={() => setIsReordering(!isReordering)}>
-          <Text style={styles.reorderButton}>
-            {isReordering ? 'Done' : 'Reorder'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.programBanner}>
-          <Dumbbell size={40} color="#FFFFFF" />
+          <Dumbbell size={40} color={Colors.light.onRubber} />
         </View>
 
         <View style={styles.programInfo}>
@@ -88,81 +75,43 @@ export default function ProgramDetailScreen() {
           <Text style={styles.workoutsTitle}>
             {sortedWorkouts.length} {sortedWorkouts.length === 1 ? 'workout' : 'workouts'}
           </Text>
-          
-          {sortedWorkouts.map((workout: any, index: number) => (
-            <View key={workout.id} style={styles.workoutCardContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.workoutCard,
-                  isReordering && styles.workoutCardReordering
-                ]}
-                onPress={() => !isReordering && handleStartWorkout(workout)}
-                disabled={isReordering}
+          <Text style={styles.workoutsHint}>Long-press a day to reorder.</Text>
+
+          <DraggableList
+            items={sortedWorkouts}
+            keyExtractor={(workout) => workout.id}
+            gap={spacing.md}
+            enabled={sortedWorkouts.length > 1}
+            onReorder={handleReorder}
+            renderItem={(workout, index, isActive) => (
+              <TouchableOpacity
+                style={[styles.workoutCard, isActive && styles.workoutCardActive]}
+                onPress={() => handleStartWorkout(workout)}
+                accessibilityRole="button"
+                accessibilityLabel={`Day ${index + 1}, ${workout.name}`}
+                accessibilityHint="Double tap to start this workout. Long-press to reorder days."
               >
-                {isReordering && (
-                  <View style={styles.reorderControls}>
-                    <GripVertical size={20} color={Colors.light.textTertiary} />
-                  </View>
-                )}
-                
                 <View style={styles.workoutInfo}>
-                  <Text style={styles.workoutName}>
-                    Day {index + 1}: {workout.name}
-                  </Text>
+                  <Text style={styles.dayEyebrow}>Day {index + 1}</Text>
+                  <Text style={styles.workoutName}>{workout.name}</Text>
                   <Text style={styles.workoutDescription}>{workout.description}</Text>
                   <Text style={styles.exerciseCount}>
                     {workout.exercises.length} {workout.exercises.length === 1 ? 'exercise' : 'exercises'}
-                    {workout.exercises.length > 0 ? ` · ${workout.exercises.map((e: any) => e.name).join(', ')}` : ''}
+                    {workout.exercises.length > 0 ? ` · ${workout.exercises.map((e) => e.name).join(', ')}` : ''}
                   </Text>
                   {/* Same numeric-&& trap: a 0-minute estimate would render
                       a bare "0" rather than nothing. */}
                   {(workout.estimatedDuration ?? 0) > 0 && (
-                    <Text style={styles.estimatedDuration}>
-                      ~{workout.estimatedDuration} min
-                    </Text>
+                    <Text style={styles.estimatedDuration}>~{workout.estimatedDuration} min</Text>
                   )}
                 </View>
-                
-                {!isReordering && (
-                  <View style={styles.startButton}>
-                    <Play size={20} color={Colors.light.primary} />
-                  </View>
-                )}
-              </TouchableOpacity>
 
-              {isReordering && (
-                <View style={styles.moveButtons}>
-                  <TouchableOpacity
-                    style={[
-                      styles.moveButton,
-                      index === 0 && styles.moveButtonDisabled
-                    ]}
-                    onPress={() => handleMoveWorkout(workout.id, 'up')}
-                    disabled={index === 0}
-                  >
-                    <ArrowUp 
-                      size={16} 
-                      color={index === 0 ? Colors.light.border : Colors.light.primary} 
-                    />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[
-                      styles.moveButton,
-                      index === sortedWorkouts.length - 1 && styles.moveButtonDisabled
-                    ]}
-                    onPress={() => handleMoveWorkout(workout.id, 'down')}
-                    disabled={index === sortedWorkouts.length - 1}
-                  >
-                    <ArrowDown 
-                      size={16} 
-                      color={index === sortedWorkouts.length - 1 ? Colors.light.border : Colors.light.primary} 
-                    />
-                  </TouchableOpacity>
+                <View style={styles.startButton}>
+                  <Play size={20} color={Colors.light.primary} />
                 </View>
-              )}
-            </View>
-          ))}
+              </TouchableOpacity>
+            )}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -178,22 +127,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.section,
     color: Colors.light.text,
     flex: 1,
     textAlign: 'center',
   },
-  reorderButton: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.primary,
+  // Explicit box rather than relying on hitSlop alone: hitSlop pads the
+  // existing 24px icon box by 8 each side (40x40), still short of the
+  // 44x44 minimum. minWidth/minHeight + centering gets the real box there.
+  closeButton: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  // Balances the close button on the left so the title actually sits
+  // centred now that the arrow-reorder toggle on the right is gone.
+  headerSpacer: {
+    width: 44,
   },
   content: {
     flex: 1,
@@ -201,128 +153,109 @@ const styles = StyleSheet.create({
   programBanner: {
     width: '100%',
     height: 120,
-    backgroundColor: '#141517',
+    backgroundColor: Colors.light.rubber,
     justifyContent: 'center',
     alignItems: 'center',
   },
   programInfo: {
-    padding: 20,
+    padding: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
   programName: {
-    fontSize: 24,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.title,
     color: Colors.light.text,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   programCreator: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+    ...type.bodyMedium,
     color: Colors.light.textTertiary,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   programDescription: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+    ...type.body,
     color: Colors.light.textSecondary,
-    lineHeight: 24,
   },
   customizationBadge: {
     backgroundColor: Colors.light.primaryLight,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    borderRadius: radius.input,
+    paddingVertical: spacing.sm - 2,
+    paddingHorizontal: spacing.md,
     alignSelf: 'flex-start',
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   customizationBadgeText: {
-    fontSize: 12,
-    fontFamily: 'ArchivoNarrow-SemiBold',
+    ...type.label,
     color: Colors.light.primary,
   },
   workoutsList: {
-    padding: 20,
+    padding: spacing.lg,
   },
   workoutsTitle: {
-    fontSize: 20,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.section,
     color: Colors.light.text,
-    marginBottom: 16,
+    marginBottom: spacing.xs,
+    fontVariant: ['tabular-nums'],
   },
-  workoutCardContainer: {
-    marginBottom: 12,
+  workoutsHint: {
+    ...type.label,
+    color: Colors.light.textTertiary,
+    marginBottom: spacing.md,
   },
   workoutCard: {
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  workoutCardReordering: {
-    backgroundColor: Colors.light.primaryLight,
+  // The wrapper already applies elevation.dragging and a slight scale while
+  // an item is actually being dragged; this is the resting-state cue that a
+  // card is the one currently active.
+  workoutCardActive: {
     borderWidth: 2,
     borderColor: Colors.light.primary,
-  },
-  reorderControls: {
-    marginRight: 12,
-    padding: 4,
   },
   workoutInfo: {
     flex: 1,
   },
+  dayEyebrow: {
+    ...type.eyebrow,
+    color: Colors.light.textTertiary,
+    marginBottom: spacing.xs,
+    fontVariant: ['tabular-nums'],
+  },
   workoutName: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.section,
     color: Colors.light.text,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   workoutDescription: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
+    ...type.label,
     color: Colors.light.textTertiary,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   exerciseCount: {
-    fontSize: 12,
-    fontFamily: 'Archivo-Medium',
+    ...type.label,
     color: Colors.light.textTertiary,
+    fontVariant: ['tabular-nums'],
   },
   estimatedDuration: {
-    fontSize: 12,
-    fontFamily: 'Archivo-Medium',
+    ...type.label,
     color: Colors.light.success,
-    marginTop: 2,
+    marginTop: spacing.xs,
+    fontVariant: ['tabular-nums'],
   },
   startButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  moveButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  moveButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  moveButtonDisabled: {
-    backgroundColor: Colors.light.border,
+    marginLeft: spacing.md,
   },
 });
