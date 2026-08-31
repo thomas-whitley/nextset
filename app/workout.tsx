@@ -219,10 +219,18 @@ export default function WorkoutScreen() {
     }
   };
 
+  // Only clears pendingRemoval if it's still the one this commit was for:
+  // committing exercise A (because B got swiped before A's undo window
+  // closed) must not wipe B's still-pending state out from under it once
+  // A's write resolves.
+  const clearPendingRemovalFor = (exercise: WorkoutExercise) => {
+    setPendingRemoval((p) => (p?.exercise.id === exercise.id ? null : p));
+  };
+
   /** Actually sends the removal once the undo window has elapsed (or the screen closes with one still pending). */
   const commitRemoval = async (exercise: WorkoutExercise) => {
     if (!currentWorkout) {
-      if (isMountedRef.current) setPendingRemoval(null);
+      if (isMountedRef.current) clearPendingRemovalFor(exercise);
       return;
     }
     try {
@@ -230,7 +238,7 @@ export default function WorkoutScreen() {
     } catch {
       if (isMountedRef.current) Alert.alert('Could not remove exercise', 'Check your connection and try again.');
     } finally {
-      if (isMountedRef.current) setPendingRemoval(null);
+      if (isMountedRef.current) clearPendingRemovalFor(exercise);
     }
   };
 
@@ -279,8 +287,23 @@ export default function WorkoutScreen() {
   };
 
   const handleReorderExercises = async (orderedExerciseIds: string[]) => {
+    // DraggableList only ever sees visibleExercises, which is one shorter
+    // than currentWorkout.exercises while a removal is mid-undo-window.
+    // WorkoutContext.reorderExercises rejects any ordering that doesn't
+    // account for every exercise (so it never silently drops one), so the
+    // pending one has to be reinserted here — at its pre-drag position —
+    // before persisting, or every drag would silently no-op for as long as
+    // the undo snackbar is showing.
+    let finalOrder = orderedExerciseIds;
+    if (pendingRemoval && currentWorkout) {
+      const pendingId = pendingRemoval.exercise.id;
+      const originalIndex = currentWorkout.exercises.findIndex((e) => e.id === pendingId);
+      finalOrder = [...orderedExerciseIds];
+      finalOrder.splice(Math.max(0, Math.min(originalIndex, finalOrder.length)), 0, pendingId);
+    }
+
     try {
-      await reorderExercises(orderedExerciseIds);
+      await reorderExercises(finalOrder);
     } catch {
       Alert.alert('Could not reorder', 'Check your connection and try again.');
     }
