@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Timer, X, Calendar, Play, ChevronRight, Flame } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Colors from '@/constants/Colors';
+import { spacing, radius, elevation, type, HIT_SLOP } from '@/constants/theme';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutCalendarView from '@/components/WorkoutCalendarView';
@@ -107,10 +108,10 @@ export default function HomeScreen() {
           <Text style={styles.date}>{dateLabel}</Text>
         </View>
 
-        {/* Up next */}
+        {/* Up next — rubber slab */}
         {isLoadingProgram ? (
           <View style={[styles.mainCard, styles.mainCardLoading]}>
-            <ActivityIndicator color={Colors.light.primary} />
+            <ActivityIndicator color={Colors.light.onRubber} />
           </View>
         ) : nextWorkout && currentProgram ? (
           <View style={styles.mainCard}>
@@ -170,12 +171,17 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.weekView}>
-            {weekKeys.map((key, index) => (
-              <View key={key} style={styles.dayContainer}>
-                <Text style={[styles.dayLabel, key === todayKey && styles.dayLabelToday]}>{DAY_LABELS[index]}</Text>
-                <View style={[styles.dayDot, doneKeys.has(key) && styles.dayDotActive]} />
-              </View>
-            ))}
+            {weekKeys.map((key, index) => {
+              const done = doneKeys.has(key);
+              return (
+                <View key={key} style={styles.dayContainer}>
+                  <Text style={[styles.dayLabel, key === todayKey && styles.dayLabelToday]}>{DAY_LABELS[index]}</Text>
+                  <View style={[styles.dayDot, done && styles.dayDotActive]}>
+                    {done && <View style={styles.dayDotInnerRing} />}
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -209,7 +215,7 @@ export default function HomeScreen() {
           accessibilityHint="Interval and rest timers"
         >
           <Timer size={24} color={Colors.light.primary} />
-          <View style={{ flex: 1, marginLeft: 12 }}>
+          <View style={styles.quickTimerTextGroup}>
             <Text style={styles.quickTimerText}>Timer</Text>
             <Text style={styles.quickTimerSubtext}>Intervals and rest between sets</Text>
           </View>
@@ -223,7 +229,12 @@ export default function HomeScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Recent workouts</Text>
-              <TouchableOpacity onPress={() => setRecentModalVisible(false)} accessibilityRole="button" accessibilityLabel="Close">
+              <TouchableOpacity
+                onPress={() => setRecentModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                hitSlop={HIT_SLOP}
+              >
                 <X size={24} color={Colors.light.textTertiary} />
               </TouchableOpacity>
             </View>
@@ -232,7 +243,7 @@ export default function HomeScreen() {
             ) : (
               recent.slice(0, 6).map((row) => (
                 <View key={row.id} style={styles.workoutItem}>
-                  <View style={{ flex: 1, marginRight: 12 }}>
+                  <View style={styles.workoutItemText}>
                     <Text style={styles.workoutItemName}>{row.workout_data?.name ?? 'Workout'}</Text>
                     <Text style={styles.workoutItemDate}>
                       {formatShortDate(row.completed_at)} · {formatMinutes(row.duration_minutes)}
@@ -261,76 +272,100 @@ const shadow = {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
-  content: { flex: 1, paddingHorizontal: 20 },
+  content: { flex: 1, paddingHorizontal: spacing.lg },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { paddingTop: 20, paddingBottom: 24 },
-  greeting: { fontSize: 28, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, marginBottom: 4 },
-  date: { fontSize: 16, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary },
+  header: { paddingTop: spacing.lg, paddingBottom: spacing.xl },
+  greeting: { ...type.title, color: Colors.light.text, marginBottom: spacing.xs },
+  date: { ...type.body, color: Colors.light.textTertiary },
+
+  // Up next — rubber slab.
   mainCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: Colors.light.rubber,
+    borderRadius: radius.slab,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+    ...elevation.slab,
   },
   mainCardLoading: { minHeight: 180, justifyContent: 'center', alignItems: 'center' },
-  workoutLabel: { fontSize: 14, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginBottom: 4 },
-  workoutName: { fontSize: 26, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, marginBottom: 8 },
-  workoutExercises: { fontSize: 14, fontFamily: 'Archivo-Regular', color: Colors.light.textSecondary, lineHeight: 20, marginBottom: 20 },
+  workoutLabel: { ...type.label, color: Colors.light.onRubberSecondary, marginBottom: spacing.xs },
+  workoutName: { ...type.display, color: Colors.light.onRubber, marginBottom: spacing.sm },
+  workoutExercises: { ...type.body, color: Colors.light.onRubberSecondary, marginBottom: spacing.xl },
   startButton: {
     backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    borderRadius: radius.card,
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing.sm,
+    minHeight: 44,
   },
-  startButtonText: { fontSize: 18, fontFamily: 'ArchivoNarrow-Bold', color: '#FFFFFF' },
-  card: { backgroundColor: Colors.light.card, borderRadius: 16, padding: 20, marginBottom: 16, ...shadow },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  cardTitle: { fontSize: 18, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
-  cardSubtitle: { fontSize: 14, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, marginTop: 2 },
+  startButtonText: { ...type.section, color: '#FFFFFF' },
+
+  card: { backgroundColor: Colors.light.card, borderRadius: radius.card, padding: spacing.lg, marginBottom: spacing.base, ...shadow },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
+  cardTitle: { ...type.section, color: Colors.light.text },
+  cardSubtitle: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.xs / 2 },
   calendarButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // Week dots — plate discs. Done days get a filled disc with a quiet inner
+  // ring; open days stay a hollow slot, same idiom as an empty bar peg.
   weekView: { flexDirection: 'row', justifyContent: 'space-between' },
   dayContainer: { alignItems: 'center' },
-  dayLabel: { fontSize: 12, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginBottom: 8 },
-  dayLabelToday: { color: Colors.light.primary, fontFamily: 'ArchivoNarrow-Bold' },
-  dayDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.light.border },
-  dayDotActive: { backgroundColor: Colors.light.primary },
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  statCard: { flex: 1, backgroundColor: Colors.light.card, borderRadius: 16, padding: 16, alignItems: 'center', ...shadow },
-  statValue: { fontSize: 20, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, marginTop: 8, marginBottom: 4 },
-  statLabel: { fontSize: 12, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, textAlign: 'center' },
+  dayLabel: { ...type.label, color: Colors.light.textTertiary, marginBottom: spacing.sm },
+  dayLabelToday: { color: Colors.light.primary },
+  dayDot: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayDotActive: { backgroundColor: Colors.light.success, borderColor: Colors.light.success },
+  dayDotInnerRing: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.light.card,
+  },
+
+  statsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.base },
+  statCard: { flex: 1, backgroundColor: Colors.light.card, borderRadius: radius.card, padding: spacing.base, alignItems: 'center', ...shadow },
+  statValue: { ...type.numeric, color: Colors.light.text, marginTop: spacing.sm, marginBottom: spacing.xs },
+  statLabel: { ...type.label, color: Colors.light.textTertiary, textAlign: 'center' },
+
   quickTimer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.primaryLight,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 40,
+    borderRadius: radius.card,
+    padding: spacing.lg,
+    marginBottom: spacing.xxxl,
   },
-  quickTimerText: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text },
-  quickTimerSubtext: { fontSize: 12, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, marginTop: 2 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  modalContent: { backgroundColor: Colors.light.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  modalTitle: { fontSize: 20, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
-  modalEmpty: { fontSize: 14, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, paddingVertical: 12 },
-  workoutItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
-  workoutItemName: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text },
-  workoutItemDate: { fontSize: 13, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, marginTop: 2 },
-  workoutItemVolume: { fontSize: 16, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.primary },
+  quickTimerTextGroup: { flex: 1, marginLeft: spacing.md },
+  quickTimerText: { ...type.section, color: Colors.light.text },
+  quickTimerSubtext: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.xs / 2 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg },
+  modalContent: { backgroundColor: Colors.light.card, borderRadius: radius.slab, padding: spacing.xl, width: '100%', maxWidth: 400 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  modalTitle: { ...type.section, color: Colors.light.text },
+  modalEmpty: { ...type.body, color: Colors.light.textTertiary, paddingVertical: spacing.md },
+  workoutItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
+  workoutItemText: { flex: 1, marginRight: spacing.md },
+  workoutItemName: { ...type.bodyMedium, color: Colors.light.text },
+  workoutItemDate: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.xs / 2 },
+  workoutItemVolume: { ...type.numeric, color: Colors.light.primary },
 });
