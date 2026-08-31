@@ -230,6 +230,7 @@ export default function HomeScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Recent workouts</Text>
               <TouchableOpacity
+                style={styles.modalCloseButton}
                 onPress={() => setRecentModalVisible(false)}
                 accessibilityRole="button"
                 accessibilityLabel="Close"
@@ -361,6 +362,10 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg },
   modalContent: { backgroundColor: Colors.light.card, borderRadius: radius.slab, padding: spacing.xl, width: '100%', maxWidth: 400 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  // Explicit box rather than relying on hitSlop alone: hitSlop pads the
+  // existing 24px icon box by 8 each side (40x40), still short of the
+  // 44x44 minimum. minWidth/minHeight + centering gets the real box there.
+  modalCloseButton: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   modalTitle: { ...type.section, color: Colors.light.text },
   modalEmpty: { ...type.body, color: Colors.light.textTertiary, paddingVertical: spacing.md },
   workoutItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
