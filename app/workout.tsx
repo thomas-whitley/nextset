@@ -16,6 +16,7 @@ import { radius, elevation, spacing, motion, HIT_SLOP } from '@/constants/theme'
 import { isTimedExercise } from '@/data/timedExercises';
 import SwipeToRemove from '@/components/gestures/SwipeToRemove';
 import DragDismissSheet from '@/components/gestures/DragDismissSheet';
+import DraggableList from '@/components/gestures/DraggableList';
 import type { WorkoutExercise } from '@/services/exercise.types';
 
 interface WorkoutMetadata {
@@ -72,7 +73,8 @@ export default function WorkoutScreen() {
     addExerciseToWorkout,
     removeExerciseFromWorkout,
     updateExerciseSets,
-    finishWorkout 
+    reorderExercises,
+    finishWorkout
   } = useWorkout();
   const { user } = useAuth();
   const { height: windowHeight } = useWindowDimensions();
@@ -274,6 +276,14 @@ export default function WorkoutScreen() {
   const handleWarmupSelect = (warmup: WarmupOption) => {
     setSelectedWarmup(warmup);
     setShowWarmupModal(false);
+  };
+
+  const handleReorderExercises = async (orderedExerciseIds: string[]) => {
+    try {
+      await reorderExercises(orderedExerciseIds);
+    } catch {
+      Alert.alert('Could not reorder', 'Check your connection and try again.');
+    }
   };
 
   const stopTimers = () => {
@@ -555,110 +565,121 @@ export default function WorkoutScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Exercises */}
-        {visibleExercises.map((exercise, exerciseIndex) => (
-          <View
-            key={exercise.id}
-            style={[styles.exerciseCardOuter, exercise.id === activeExerciseId && styles.exerciseCardOuterActive]}
-          >
-            <SwipeToRemove
-              onRemove={() => handleRemoveExercise(exercise)}
-              label={`Remove ${exercise.name}`}
-              cornerRadius={exercise.id === activeExerciseId ? radius.slab : radius.card}
+        {/* Exercises — long-press a card to pick it up and reorder. */}
+        <DraggableList
+          items={visibleExercises}
+          keyExtractor={(exercise) => exercise.id}
+          gap={spacing.md}
+          enabled={visibleExercises.length > 1}
+          onReorder={handleReorderExercises}
+          renderItem={(exercise, exerciseIndex, isDragging) => (
+            <View
+              style={[
+                styles.exerciseCardOuter,
+                exercise.id === activeExerciseId && styles.exerciseCardOuterActive,
+                isDragging && styles.exerciseCardDragging,
+                isDragging && { borderRadius: exercise.id === activeExerciseId ? radius.slab : radius.card },
+              ]}
             >
-              <View
-                style={[styles.exerciseCard, exercise.id === activeExerciseId && styles.exerciseCardActive]}
+              <SwipeToRemove
+                onRemove={() => handleRemoveExercise(exercise)}
+                label={`Remove ${exercise.name}`}
+                cornerRadius={exercise.id === activeExerciseId ? radius.slab : radius.card}
               >
-                <View style={styles.exerciseHeader}>
-                  <Text
-                    style={[styles.exerciseName, exercise.id === activeExerciseId && styles.onSlabText]}
-                  >
-                    {exercise.name}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => handleRemoveExercise(exercise)}
-                    hitSlop={HIT_SLOP}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${exercise.name}`}
-                  >
-                    <Trash2
-                      size={16}
-                      color={
-                        exercise.id === activeExerciseId
-                          ? Colors.light.onRubberSecondary
-                          : Colors.light.textTertiary
-                      }
-                    />
-                  </TouchableOpacity>
-                  <View style={styles.setControls}>
-                    <TouchableOpacity
-                      style={styles.setControlButton}
-                      onPress={() => handleUpdateSets(exercise.id, -1)}
-                      disabled={exercise.sets.length <= 1}
+                <View
+                  style={[styles.exerciseCard, exercise.id === activeExerciseId && styles.exerciseCardActive]}
+                >
+                  <View style={styles.exerciseHeader}>
+                    <Text
+                      style={[styles.exerciseName, exercise.id === activeExerciseId && styles.onSlabText]}
                     >
-                      <Minus
-                        size={12}
-                        color={exercise.sets.length <= 1 ? Colors.light.border : Colors.light.primary}
+                      {exercise.name}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => handleRemoveExercise(exercise)}
+                      hitSlop={HIT_SLOP}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${exercise.name}`}
+                    >
+                      <Trash2
+                        size={16}
+                        color={
+                          exercise.id === activeExerciseId
+                            ? Colors.light.onRubberSecondary
+                            : Colors.light.textTertiary
+                        }
                       />
                     </TouchableOpacity>
-                    <Text style={styles.setCount}>{exercise.sets.length}</Text>
-                    <TouchableOpacity
-                      style={styles.setControlButton}
-                      onPress={() => handleUpdateSets(exercise.id, 1)}
-                    >
-                      <Plus size={12} color={Colors.light.primary} />
-                    </TouchableOpacity>
+                    <View style={styles.setControls}>
+                      <TouchableOpacity
+                        style={styles.setControlButton}
+                        onPress={() => handleUpdateSets(exercise.id, -1)}
+                        disabled={exercise.sets.length <= 1}
+                      >
+                        <Minus
+                          size={12}
+                          color={exercise.sets.length <= 1 ? Colors.light.border : Colors.light.primary}
+                        />
+                      </TouchableOpacity>
+                      <Text style={styles.setCount}>{exercise.sets.length}</Text>
+                      <TouchableOpacity
+                        style={styles.setControlButton}
+                        onPress={() => handleUpdateSets(exercise.id, 1)}
+                      >
+                        <Plus size={12} color={Colors.light.primary} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Exercise Notes */}
+                  <TextInput
+                    style={[styles.notesInput, exercise.id === activeExerciseId && styles.notesInputOnSlab]}
+                    value={exerciseNotes[exercise.id] || ''}
+                    onChangeText={(value) => setExerciseNotes(prev => ({ ...prev, [exercise.id]: value }))}
+                    placeholder="Notes for this session..."
+                    placeholderTextColor={
+                      exercise.id === activeExerciseId
+                        ? Colors.light.onRubberSecondary
+                        : Colors.light.textTertiary
+                    }
+                    multiline
+                    numberOfLines={2}
+                  />
+
+                  <View style={styles.setHeader}>
+                    {['Set', 'Last time', 'Weight', isTimedExercise(exercise.name) ? 'Secs' : 'Reps'].map(
+                      (heading) => (
+                        <Text
+                          key={heading}
+                          style={[
+                            styles.setHeaderText,
+                            exercise.id === activeExerciseId && styles.onSlabMuted,
+                          ]}
+                        >
+                          {heading}
+                        </Text>
+                      )
+                    )}
+                  </View>
+
+                  <View style={styles.setsContainer}>
+                    {exercise.sets.map((set, setIndex) =>
+                      renderSetRow(
+                        set,
+                        setIndex,
+                        exercise.id,
+                        exercise.exerciseId,
+                        set.id === nextSetIdFor(exercise),
+                        exercise.id === activeExerciseId
+                      )
+                    )}
                   </View>
                 </View>
-
-                {/* Exercise Notes */}
-                <TextInput
-                  style={[styles.notesInput, exercise.id === activeExerciseId && styles.notesInputOnSlab]}
-                  value={exerciseNotes[exercise.id] || ''}
-                  onChangeText={(value) => setExerciseNotes(prev => ({ ...prev, [exercise.id]: value }))}
-                  placeholder="Notes for this session..."
-                  placeholderTextColor={
-                    exercise.id === activeExerciseId
-                      ? Colors.light.onRubberSecondary
-                      : Colors.light.textTertiary
-                  }
-                  multiline
-                  numberOfLines={2}
-                />
-
-                <View style={styles.setHeader}>
-                  {['Set', 'Last time', 'Weight', isTimedExercise(exercise.name) ? 'Secs' : 'Reps'].map(
-                    (heading) => (
-                      <Text
-                        key={heading}
-                        style={[
-                          styles.setHeaderText,
-                          exercise.id === activeExerciseId && styles.onSlabMuted,
-                        ]}
-                      >
-                        {heading}
-                      </Text>
-                    )
-                  )}
-                </View>
-
-                <View style={styles.setsContainer}>
-                  {exercise.sets.map((set, setIndex) =>
-                    renderSetRow(
-                      set,
-                      setIndex,
-                      exercise.id,
-                      exercise.exerciseId,
-                      set.id === nextSetIdFor(exercise),
-                      exercise.id === activeExerciseId
-                    )
-                  )}
-                </View>
-              </View>
-            </SwipeToRemove>
-          </View>
-        ))}
+              </SwipeToRemove>
+            </View>
+          )}
+        />
 
         <TouchableOpacity 
           style={styles.addExerciseButton}
@@ -924,6 +945,14 @@ const styles = StyleSheet.create({
   },
   exerciseCardOuterActive: {
     ...elevation.slab,
+  },
+  // DraggableList already applies elevation.dragging + a scale bump while a
+  // card is actually moving; this is the resting-state cue for which one.
+  // Radius is set inline at the call site so it matches radius.slab when the
+  // dragged card is also the active one.
+  exerciseCardDragging: {
+    borderWidth: 2,
+    borderColor: Colors.light.primary,
   },
   exerciseCard: {
     backgroundColor: Colors.light.card,

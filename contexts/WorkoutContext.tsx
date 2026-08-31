@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserActiveProgramService } from '../services/userActiveProgramService';
 import { WorkoutHistoryService } from '../services/workoutHistoryService';
-import { Exercise as DetailedExercise, Program, Workout, UserActiveProgram } from '../services/exercise.types';
+import { Exercise as DetailedExercise, Program, Workout, WorkoutExercise, UserActiveProgram } from '../services/exercise.types';
 import { programTemplates } from '../data/programTemplates';
 import { useAuth } from '../data/AuthContext';
 
@@ -29,6 +29,8 @@ interface WorkoutContextType {
   removeExerciseFromWorkout: (workoutId: string, exerciseId: string) => Promise<void>;
   updateExerciseSets: (workoutId: string, exerciseId: string, newSetCount: number) => Promise<void>;
   reorderWorkouts: (workoutIds: string[]) => Promise<void>;
+  /** Reorders the exercises within the current workout (drag-reorder on the workout screen). */
+  reorderExercises: (orderedExerciseIds: string[]) => Promise<void>;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -233,6 +235,27 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     await applyWorkoutUpdate(updatedWorkout, 'complete set');
   };
 
+  const reorderExercises = async (orderedExerciseIds: string[]) => {
+    if (!currentWorkout) return;
+
+    const byId = new Map(currentWorkout.exercises.map((exercise) => [exercise.id, exercise]));
+    const reordered = orderedExerciseIds
+      .map((id, index) => {
+        const exercise = byId.get(id);
+        return exercise ? { ...exercise, order: index } : undefined;
+      })
+      .filter((exercise): exercise is WorkoutExercise => exercise !== undefined);
+
+    // An ordering that doesn't account for every exercise (a stale id, one
+    // dropped mid-drag) is worse than doing nothing — never silently shrink
+    // the exercise list.
+    if (reordered.length !== currentWorkout.exercises.length) return;
+
+    const updatedWorkout: Workout = { ...currentWorkout, exercises: reordered };
+
+    await applyWorkoutUpdate(updatedWorkout, 'reorder exercises');
+  };
+
   /** After the service rewrites the program, mirror it into state (and the running workout if affected). */
   const adoptActiveProgram = (updated: UserActiveProgram, workoutId: string) => {
     setCurrentActiveProgram(updated);
@@ -338,6 +361,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         removeExerciseFromWorkout,
         updateExerciseSets,
         reorderWorkouts,
+        reorderExercises,
       }}
     >
       {children}
