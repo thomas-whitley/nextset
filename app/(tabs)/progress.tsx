@@ -682,9 +682,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   streakValue: {
-    ...type.numeric,
-    fontSize: 32,
-    lineHeight: 36,
+    ...type.display,
     color: Colors.light.primary,
     marginBottom: spacing.xs,
   },
@@ -698,8 +696,6 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...type.title,
-    fontSize: 24,
-    lineHeight: 30,
     color: Colors.light.text,
     marginTop: spacing.base,
     marginBottom: spacing.sm,
