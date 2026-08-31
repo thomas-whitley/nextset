@@ -13,6 +13,8 @@ const BY_ID = new Map<number, Exercise>(EXERCISES.map((e) => [e.id, e]));
 
 const normalise = (s: string) => s.toLowerCase().trim();
 
+const BY_NAME = new Map<string, Exercise>(EXERCISES.map((e) => [normalise(e.name), e]));
+
 export class ExerciseService {
   /** Every exercise, sorted by name. */
   static getAll(): Exercise[] {
@@ -26,6 +28,15 @@ export class ExerciseService {
 
   static getById(id: number): Exercise | undefined {
     return BY_ID.get(id);
+  }
+
+  /**
+   * Case-insensitive exact match on name — for resolving equipment when only
+   * the exercise name was stored (e.g. a workout-history row). Never guesses:
+   * a name that doesn't match returns undefined rather than a nearest hit.
+   */
+  static getByName(name: string): Exercise | undefined {
+    return BY_NAME.get(normalise(name));
   }
 
   /** Case-insensitive match on name, primary/secondary muscle, or equipment. */
