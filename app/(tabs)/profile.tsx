@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, Pencil } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type } from '@/constants/theme';
 import { useAuth } from '@/data/AuthContext';
 import { WorkoutHistoryService, LifetimeStats } from '@/services/workoutHistoryService';
 import { formatKg, formatCount, formatMinutes, formatShortDate, formatSet } from '@/utils/format';
@@ -67,7 +68,10 @@ export default function ProfileScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
-          <View style={styles.avatarRing}>
+          {/* Weight plate, not a ring: solid disc with an inset bevel line,
+              same material language as the bar-loading strip. */}
+          <View style={styles.avatarPlate}>
+            <View style={styles.avatarPlateRing} />
             <Text style={styles.avatarText}>{initialsOf(user)}</Text>
           </View>
           <Text style={styles.profileName}>{displayName}</Text>
@@ -76,11 +80,14 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>All time</Text>
-          <View style={styles.statsGrid}>
-            {summary.map((stat) => (
-              <View key={stat.label} style={styles.statCard}>
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
+          <View style={styles.statsCard}>
+            {summary.map((stat, index) => (
+              <View
+                key={stat.label}
+                style={[styles.statRow, index === summary.length - 1 && styles.statRowLast]}
+              >
+                <Text style={styles.statRowLabel}>{stat.label}</Text>
+                <Text style={styles.statRowValue}>{stat.value}</Text>
               </View>
             ))}
           </View>
@@ -93,7 +100,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Personal records</Text>
           <View style={styles.prList}>
             {loading ? (
-              <ActivityIndicator color={Colors.light.primary} style={{ paddingVertical: 24 }} />
+              <ActivityIndicator color={Colors.light.primary} style={styles.loadingSpinner} />
             ) : !stats || stats.personalRecords.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyTitle}>No records yet</Text>
@@ -111,7 +118,7 @@ export default function ProfileScreen() {
             ) : (
               stats.personalRecords.slice(0, 8).map((pr, index, arr) => (
                 <View key={pr.exercise} style={[styles.prItem, index === arr.length - 1 && styles.prItemLast]}>
-                  <View style={{ flex: 1, marginRight: 12 }}>
+                  <View style={styles.prItemText}>
                     <Text style={styles.prExercise}>{pr.exercise}</Text>
                     <Text style={styles.prDate}>{formatShortDate(pr.date)}</Text>
                   </View>
@@ -140,53 +147,101 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.base,
   },
-  title: { fontSize: 28, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
+  title: { ...type.title, color: Colors.light.text },
   headerButtons: { flexDirection: 'row', alignItems: 'center' },
+  // Explicit 44x44 box rather than a smaller icon plus hitSlop — the whole
+  // box is the touch target, not just the icon glyph inside it.
   headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.card,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
-  content: { flex: 1, paddingHorizontal: 20 },
-  profileHeader: { alignItems: 'center', paddingVertical: 24 },
-  avatarRing: {
+  content: { flex: 1, paddingHorizontal: spacing.lg },
+  profileHeader: { alignItems: 'center', paddingVertical: spacing.xl },
+
+  // Avatar-as-plate: solid disc in plate blue with an inset bevel ring,
+  // rather than an outlined initials circle.
+  avatarPlate: {
     width: 88,
     height: 88,
     borderRadius: 44,
-    borderWidth: 4,
-    borderColor: Colors.light.primary,
-    backgroundColor: Colors.light.card,
+    backgroundColor: Colors.light.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.base,
+    ...shadow,
   },
-  avatarText: { fontSize: 30, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.primary },
-  profileName: { fontSize: 24, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, marginBottom: 4 },
-  profileUsername: { fontSize: 15, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary },
-  section: { marginBottom: 28 },
-  sectionTitle: { fontSize: 18, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, marginBottom: 12 },
-  statsGrid: { flexDirection: 'row', gap: 8 },
-  statCard: { flex: 1, backgroundColor: Colors.light.card, borderRadius: 16, paddingVertical: 18, paddingHorizontal: 8, alignItems: 'center', ...shadow },
-  statValue: { fontSize: 18, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, marginBottom: 4 },
-  statLabel: { fontSize: 12, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, textAlign: 'center' },
-  sinceText: { fontSize: 13, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, textAlign: 'center', marginTop: 12 },
-  prList: { backgroundColor: Colors.light.card, borderRadius: 16, paddingHorizontal: 16, ...shadow },
-  prItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
+  avatarPlateRing: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    right: 8,
+    bottom: 8,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: Colors.light.onRubberSecondary,
+  },
+  // White text on the primary disc — `card` is white and is the established
+  // token for this pairing (see progress.tsx activeTimeRangeText).
+  avatarText: { ...type.title, color: Colors.light.card },
+
+  profileName: { ...type.section, color: Colors.light.text, marginBottom: spacing.xs },
+  profileUsername: { ...type.body, color: Colors.light.textTertiary },
+
+  section: { marginBottom: spacing.xl + spacing.xs },
+  sectionTitle: { ...type.section, color: Colors.light.text, marginBottom: spacing.md },
+
+  // Lifetime stats as a rows-in-a-card list, one figure per row — the
+  // display role reads at 44pt, so three side-by-side columns would crowd.
+  statsCard: { backgroundColor: Colors.light.card, borderRadius: radius.card, paddingHorizontal: spacing.lg, ...shadow },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  statRowLast: { borderBottomWidth: 0 },
+  statRowLabel: { ...type.eyebrow, color: Colors.light.textTertiary },
+  statRowValue: { ...type.display, color: Colors.light.text },
+
+  sinceText: { ...type.label, color: Colors.light.textTertiary, textAlign: 'center', marginTop: spacing.md },
+
+  prList: { backgroundColor: Colors.light.card, borderRadius: radius.card, paddingHorizontal: spacing.base, ...shadow },
+  loadingSpinner: { paddingVertical: spacing.xl },
+  prItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
   prItemLast: { borderBottomWidth: 0 },
-  prExercise: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text },
-  prDate: { fontSize: 12, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, marginTop: 2 },
-  prWeight: { fontSize: 16, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.primary },
-  emptyState: { paddingVertical: 28, paddingHorizontal: 8, alignItems: 'center' },
-  emptyTitle: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text, marginBottom: 6 },
-  emptyText: { fontSize: 14, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
-  emptyButton: { backgroundColor: Colors.light.primaryLight, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 20 },
-  emptyButtonText: { fontSize: 14, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.primary },
+  prItemText: { flex: 1, marginRight: spacing.md },
+  prExercise: { ...type.bodyMedium, color: Colors.light.text },
+  prDate: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.xs / 2 },
+  prWeight: { ...type.numeric, color: Colors.light.primary },
+
+  emptyState: { paddingVertical: spacing.xl, paddingHorizontal: spacing.sm, alignItems: 'center' },
+  emptyTitle: { ...type.section, color: Colors.light.text, marginBottom: spacing.sm },
+  emptyText: { ...type.body, color: Colors.light.textTertiary, textAlign: 'center', marginBottom: spacing.base },
+  emptyButton: {
+    minHeight: 44,
+    backgroundColor: Colors.light.primaryLight,
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyButtonText: { ...type.bodyMedium, color: Colors.light.primary },
 });
