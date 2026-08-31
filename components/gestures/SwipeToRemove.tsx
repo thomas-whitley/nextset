@@ -34,9 +34,17 @@ type Props = {
   /** Read out by screen readers and shown beside the bin icon. */
   label?: string;
   enabled?: boolean;
+  /** Corner radius of the row and its reveal backdrop, for callers whose row isn't the standard card radius (e.g. the active slab). Defaults to the standard card radius. */
+  cornerRadius?: number;
 };
 
-export default function SwipeToRemove({ children, onRemove, label = 'Remove', enabled = true }: Props) {
+export default function SwipeToRemove({
+  children,
+  onRemove,
+  label = 'Remove',
+  enabled = true,
+  cornerRadius = radius.card,
+}: Props) {
   const translateX = useSharedValue(0);
   const rowWidth = useSharedValue(0);
   const rowHeight = useSharedValue(0);
@@ -95,8 +103,8 @@ export default function SwipeToRemove({ children, onRemove, label = 'Remove', en
   }));
 
   return (
-    <View onLayout={onLayout} style={styles.container}>
-      <Animated.View style={[styles.backdrop, backdropStyle]} pointerEvents="none">
+    <View onLayout={onLayout} style={[styles.container, { borderRadius: cornerRadius }]}>
+      <Animated.View style={[styles.backdrop, backdropStyle, { borderRadius: cornerRadius }]} pointerEvents="none">
         <Trash2 size={18} color={Colors.light.onRubber} />
         <Text style={styles.backdropLabel}>{label}</Text>
       </Animated.View>
@@ -112,12 +120,10 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
     overflow: 'hidden',
-    borderRadius: radius.card,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: Colors.light.error,
-    borderRadius: radius.card,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',

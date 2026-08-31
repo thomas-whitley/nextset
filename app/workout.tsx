@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, Timer, Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Watch, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -12,8 +12,11 @@ import { getDefaultRestSeconds, DEFAULT_REST_SECONDS } from '@/services/preferen
 import { formatKg, formatMinutes, formatSet } from '@/utils/format';
 import BarLoadingStrip from '@/components/BarLoadingStrip';
 import * as Haptics from 'expo-haptics';
-import { radius, elevation } from '@/constants/theme';
+import { radius, elevation, spacing, motion, HIT_SLOP } from '@/constants/theme';
 import { isTimedExercise } from '@/data/timedExercises';
+import SwipeToRemove from '@/components/gestures/SwipeToRemove';
+import DragDismissSheet from '@/components/gestures/DragDismissSheet';
+import type { WorkoutExercise } from '@/services/exercise.types';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -72,7 +75,8 @@ export default function WorkoutScreen() {
     finishWorkout 
   } = useWorkout();
   const { user } = useAuth();
-  
+  const { height: windowHeight } = useWindowDimensions();
+
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [showMetadataModal, setShowMetadataModal] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
@@ -95,9 +99,36 @@ export default function WorkoutScreen() {
     notes: ''
   });
 
+  // Swipe-to-remove is optimistic: the card disappears immediately and the
+  // actual removal (a write to the active program) is delayed behind an Undo
+  // window, so Undo is just "never send the write" rather than trying to
+  // reconstruct a completed one.
+  const UNDO_WINDOW_MS = 4000;
+  const [pendingRemoval, setPendingRemoval] = useState<{ exercise: WorkoutExercise } | null>(null);
+  const pendingRemovalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+  const undoSnackbarAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     getDefaultRestSeconds().then(setDefaultRestSecondsState);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pendingRemoval) {
+      undoSnackbarAnim.setValue(0);
+      Animated.timing(undoSnackbarAnim, {
+        toValue: 1,
+        duration: motion.base,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [pendingRemoval?.exercise.id]);
 
   // Start workout timer when workout becomes active
   useEffect(() => {
@@ -186,22 +217,43 @@ export default function WorkoutScreen() {
     }
   };
 
-  const handleRemoveExercise = (exerciseId: string, name: string) => {
-    if (!currentWorkout) return;
-    Alert.alert('Remove exercise', `Remove ${name} from this workout? It stays in the exercise library.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await removeExerciseFromWorkout(currentWorkout.id, exerciseId);
-          } catch {
-            Alert.alert('Could not remove exercise', 'Check your connection and try again.');
-          }
-        },
-      },
-    ]);
+  /** Actually sends the removal once the undo window has elapsed (or the screen closes with one still pending). */
+  const commitRemoval = async (exercise: WorkoutExercise) => {
+    if (!currentWorkout) {
+      if (isMountedRef.current) setPendingRemoval(null);
+      return;
+    }
+    try {
+      await removeExerciseFromWorkout(currentWorkout.id, exercise.id);
+    } catch {
+      if (isMountedRef.current) Alert.alert('Could not remove exercise', 'Check your connection and try again.');
+    } finally {
+      if (isMountedRef.current) setPendingRemoval(null);
+    }
+  };
+
+  const handleRemoveExercise = (exercise: WorkoutExercise) => {
+    // Only one undo window open at a time: swiping a second row commits
+    // whichever removal was already pending, so "removed" stays meaningful.
+    if (pendingRemovalTimer.current) {
+      clearTimeout(pendingRemovalTimer.current);
+      pendingRemovalTimer.current = null;
+      if (pendingRemoval) commitRemoval(pendingRemoval.exercise);
+    }
+
+    setPendingRemoval({ exercise });
+    pendingRemovalTimer.current = setTimeout(() => {
+      pendingRemovalTimer.current = null;
+      commitRemoval(exercise);
+    }, UNDO_WINDOW_MS);
+  };
+
+  const handleUndoRemoval = () => {
+    if (pendingRemovalTimer.current) {
+      clearTimeout(pendingRemovalTimer.current);
+      pendingRemovalTimer.current = null;
+    }
+    setPendingRemoval(null);
   };
 
   const handleUpdateSets = async (exerciseId: string, change: number) => {
@@ -229,15 +281,18 @@ export default function WorkoutScreen() {
     if (restTimerInterval) clearInterval(restTimerInterval);
   };
 
-  const completedSetCount = currentWorkout
-    ? currentWorkout.exercises.reduce((n, e) => n + e.sets.filter((st) => st.isComplete).length, 0)
-    : 0;
-  const sessionVolume = currentWorkout
-    ? currentWorkout.exercises.reduce(
-        (total, e) => total + e.sets.filter((st) => st.isComplete).reduce((t, st) => t + (parseFloat(st.weight) || 0) * (parseFloat(st.reps) || 0), 0),
-        0
-      )
-    : 0;
+  // Excludes whichever exercise is mid-swipe: once removed from view it
+  // should stop counting toward the summary too, even before the delayed
+  // write actually lands.
+  const visibleExercises = currentWorkout
+    ? currentWorkout.exercises.filter((e) => e.id !== pendingRemoval?.exercise.id)
+    : [];
+
+  const completedSetCount = visibleExercises.reduce((n, e) => n + e.sets.filter((st) => st.isComplete).length, 0);
+  const sessionVolume = visibleExercises.reduce(
+    (total, e) => total + e.sets.filter((st) => st.isComplete).reduce((t, st) => t + (parseFloat(st.weight) || 0) * (parseFloat(st.reps) || 0), 0),
+    0
+  );
 
   const handleFinishWorkout = () => {
     if (!currentWorkout) return;
@@ -263,11 +318,19 @@ export default function WorkoutScreen() {
     const endTime = new Date();
     const durationMinutes = Math.max(1, Math.round(workoutDuration / 60));
 
+    // Match whatever the summary above showed: if a swipe is still inside
+    // its undo window when the user saves, its sets must not be banked —
+    // the delayed write and this save must never disagree about volume.
+    const workoutToSave = {
+      ...currentWorkout,
+      exercises: currentWorkout.exercises.filter((e) => e.id !== pendingRemoval?.exercise.id),
+    };
+
     try {
       await WorkoutHistoryService.saveWorkoutHistory(
         user.id,
         {
-          ...currentWorkout,
+          ...workoutToSave,
           metadata: { ...metadata, endTime, duration: workoutDuration, exerciseNotes },
         },
         durationMinutes
@@ -296,7 +359,7 @@ export default function WorkoutScreen() {
   // The exercise you are actually on: the first with a set still to do. Its
   // card gets the rubber slab, so "where am I" is answerable at arm's length.
   const activeExerciseId =
-    currentWorkout?.exercises.find((ex: any) => ex.sets.some((s: any) => !s.isComplete))?.id ?? null;
+    visibleExercises.find((ex: any) => ex.sets.some((s: any) => !s.isComplete))?.id ?? null;
 
   /** The set the loading strip should answer for — the next one you will do. */
   const nextSetIdFor = (exercise: any): string | null =>
@@ -493,96 +556,107 @@ export default function WorkoutScreen() {
         </TouchableOpacity>
 
         {/* Exercises */}
-        {currentWorkout.exercises.map((exercise, exerciseIndex) => (
+        {visibleExercises.map((exercise, exerciseIndex) => (
           <View
             key={exercise.id}
-            style={[styles.exerciseCard, exercise.id === activeExerciseId && styles.exerciseCardActive]}
+            style={[styles.exerciseCardOuter, exercise.id === activeExerciseId && styles.exerciseCardOuterActive]}
           >
-            <View style={styles.exerciseHeader}>
-              <Text
-                style={[styles.exerciseName, exercise.id === activeExerciseId && styles.onSlabText]}
+            <SwipeToRemove
+              onRemove={() => handleRemoveExercise(exercise)}
+              label={`Remove ${exercise.name}`}
+              cornerRadius={exercise.id === activeExerciseId ? radius.slab : radius.card}
+            >
+              <View
+                style={[styles.exerciseCard, exercise.id === activeExerciseId && styles.exerciseCardActive]}
               >
-                {exercise.name}
-              </Text>
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => handleRemoveExercise(exercise.id, exercise.name)}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${exercise.name}`}
-              >
-                <Trash2
-                  size={16}
-                  color={
+                <View style={styles.exerciseHeader}>
+                  <Text
+                    style={[styles.exerciseName, exercise.id === activeExerciseId && styles.onSlabText]}
+                  >
+                    {exercise.name}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => handleRemoveExercise(exercise)}
+                    hitSlop={HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${exercise.name}`}
+                  >
+                    <Trash2
+                      size={16}
+                      color={
+                        exercise.id === activeExerciseId
+                          ? Colors.light.onRubberSecondary
+                          : Colors.light.textTertiary
+                      }
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.setControls}>
+                    <TouchableOpacity
+                      style={styles.setControlButton}
+                      onPress={() => handleUpdateSets(exercise.id, -1)}
+                      disabled={exercise.sets.length <= 1}
+                    >
+                      <Minus
+                        size={12}
+                        color={exercise.sets.length <= 1 ? Colors.light.border : Colors.light.primary}
+                      />
+                    </TouchableOpacity>
+                    <Text style={styles.setCount}>{exercise.sets.length}</Text>
+                    <TouchableOpacity
+                      style={styles.setControlButton}
+                      onPress={() => handleUpdateSets(exercise.id, 1)}
+                    >
+                      <Plus size={12} color={Colors.light.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Exercise Notes */}
+                <TextInput
+                  style={[styles.notesInput, exercise.id === activeExerciseId && styles.notesInputOnSlab]}
+                  value={exerciseNotes[exercise.id] || ''}
+                  onChangeText={(value) => setExerciseNotes(prev => ({ ...prev, [exercise.id]: value }))}
+                  placeholder="Notes for this session..."
+                  placeholderTextColor={
                     exercise.id === activeExerciseId
                       ? Colors.light.onRubberSecondary
                       : Colors.light.textTertiary
                   }
+                  multiline
+                  numberOfLines={2}
                 />
-              </TouchableOpacity>
-              <View style={styles.setControls}>
-                <TouchableOpacity
-                  style={styles.setControlButton}
-                  onPress={() => handleUpdateSets(exercise.id, -1)}
-                  disabled={exercise.sets.length <= 1}
-                >
-                  <Minus 
-                    size={12} 
-                    color={exercise.sets.length <= 1 ? Colors.light.border : Colors.light.primary} 
-                  />
-                </TouchableOpacity>
-                <Text style={styles.setCount}>{exercise.sets.length}</Text>
-                <TouchableOpacity
-                  style={styles.setControlButton}
-                  onPress={() => handleUpdateSets(exercise.id, 1)}
-                >
-                  <Plus size={12} color={Colors.light.primary} />
-                </TouchableOpacity>
+
+                <View style={styles.setHeader}>
+                  {['Set', 'Last time', 'Weight', isTimedExercise(exercise.name) ? 'Secs' : 'Reps'].map(
+                    (heading) => (
+                      <Text
+                        key={heading}
+                        style={[
+                          styles.setHeaderText,
+                          exercise.id === activeExerciseId && styles.onSlabMuted,
+                        ]}
+                      >
+                        {heading}
+                      </Text>
+                    )
+                  )}
+                </View>
+
+                <View style={styles.setsContainer}>
+                  {exercise.sets.map((set, setIndex) =>
+                    renderSetRow(
+                      set,
+                      setIndex,
+                      exercise.id,
+                      exercise.exerciseId,
+                      set.id === nextSetIdFor(exercise),
+                      exercise.id === activeExerciseId
+                    )
+                  )}
+                </View>
               </View>
-            </View>
-
-            {/* Exercise Notes */}
-            <TextInput
-              style={[styles.notesInput, exercise.id === activeExerciseId && styles.notesInputOnSlab]}
-              value={exerciseNotes[exercise.id] || ''}
-              onChangeText={(value) => setExerciseNotes(prev => ({ ...prev, [exercise.id]: value }))}
-              placeholder="Notes for this session..."
-              placeholderTextColor={
-                exercise.id === activeExerciseId
-                  ? Colors.light.onRubberSecondary
-                  : Colors.light.textTertiary
-              }
-              multiline
-              numberOfLines={2}
-            />
-            
-            <View style={styles.setHeader}>
-              {['Set', 'Last time', 'Weight', isTimedExercise(exercise.name) ? 'Secs' : 'Reps'].map(
-                (heading) => (
-                  <Text
-                    key={heading}
-                    style={[
-                      styles.setHeaderText,
-                      exercise.id === activeExerciseId && styles.onSlabMuted,
-                    ]}
-                  >
-                    {heading}
-                  </Text>
-                )
-              )}
-            </View>
-
-            <View style={styles.setsContainer}>
-              {exercise.sets.map((set, setIndex) => 
-                renderSetRow(
-                  set,
-                  setIndex,
-                  exercise.id,
-                  exercise.exerciseId,
-                  set.id === nextSetIdFor(exercise),
-                  exercise.id === activeExerciseId
-                )
-              )}
-            </View>
+            </SwipeToRemove>
           </View>
         ))}
 
@@ -599,16 +673,40 @@ export default function WorkoutScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Warmup Selection Modal */}
-      <Modal
-        visible={showWarmupModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer} edges={['top']}>
+      {/* Undo snackbar for an optimistically-removed exercise */}
+      {pendingRemoval && (
+        <Animated.View
+          style={[
+            styles.undoSnackbar,
+            {
+              opacity: undoSnackbarAnim,
+              transform: [
+                { translateY: undoSnackbarAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.undoSnackbarText} numberOfLines={1}>
+            {pendingRemoval.exercise.name} removed
+          </Text>
+          <TouchableOpacity
+            onPress={handleUndoRemoval}
+            hitSlop={HIT_SLOP}
+            style={styles.undoButton}
+            accessibilityRole="button"
+            accessibilityLabel={`Undo removing ${pendingRemoval.exercise.name}`}
+          >
+            <Text style={styles.undoButtonText}>Undo</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
+      {/* Warmup Selection sheet */}
+      <DragDismissSheet visible={showWarmupModal} onDismiss={() => setShowWarmupModal(false)}>
+        <View style={[styles.sheetPickerBody, { maxHeight: windowHeight * 0.7 }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Choose Warmup</Text>
-            <TouchableOpacity onPress={() => setShowWarmupModal(false)}>
+            <TouchableOpacity onPress={() => setShowWarmupModal(false)} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
               <X size={20} color={Colors.light.text} />
             </TouchableOpacity>
           </View>
@@ -627,13 +725,13 @@ export default function WorkoutScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </SafeAreaView>
-      </Modal>
+        </View>
+      </DragDismissSheet>
 
       {/* Finish sheet */}
-      <Modal visible={showMetadataModal} transparent animationType="slide" onRequestClose={() => setShowMetadataModal(false)}>
-        <KeyboardAvoidingView style={styles.sheetOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.sheet}>
+      <DragDismissSheet visible={showMetadataModal} onDismiss={() => setShowMetadataModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.sheetBody}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Finish workout</Text>
               <TouchableOpacity onPress={() => setShowMetadataModal(false)} accessibilityRole="button" accessibilityLabel="Back to workout">
@@ -677,27 +775,23 @@ export default function WorkoutScreen() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      </DragDismissSheet>
 
-      {/* Exercise Selection Modal */}
-      <Modal
-        visible={showExerciseModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer} edges={['top']}>
+      {/* Exercise Selection sheet */}
+      <DragDismissSheet visible={showExerciseModal} onDismiss={() => setShowExerciseModal(false)}>
+        <View style={[styles.sheetPickerBody, { height: windowHeight * 0.85 }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add Exercise</Text>
-            <TouchableOpacity onPress={() => setShowExerciseModal(false)}>
+            <TouchableOpacity onPress={() => setShowExerciseModal(false)} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
               <X size={24} color={Colors.light.text} />
             </TouchableOpacity>
           </View>
-          <BrowseExercisesScreen 
-            onExerciseSelect={handleAddExercise} 
+          <BrowseExercisesScreen
+            onExerciseSelect={handleAddExercise}
             autoFocusSearch={false}
           />
-        </SafeAreaView>
-      </Modal>
+        </View>
+      </DragDismissSheet>
     </SafeAreaView>
   );
 }
@@ -820,12 +914,21 @@ const styles = StyleSheet.create({
     color: Colors.light.textTertiary,
     marginTop: 4
   },
+  // The shadow lives on this outer, non-clipping wrapper rather than on the
+  // card itself: SwipeToRemove's container clips to its own bounds so it can
+  // mask the row sliding past its edge, and that clip would otherwise cut
+  // the slab's drop shadow off along with it.
+  exerciseCardOuter: {
+    marginBottom: 12,
+    elevation: 2,
+  },
+  exerciseCardOuterActive: {
+    ...elevation.slab,
+  },
   exerciseCard: {
     backgroundColor: Colors.light.card,
-    borderRadius: 12,
+    borderRadius: radius.card,
     padding: 12,
-    marginBottom: 12,
-    elevation: 2
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -835,8 +938,45 @@ const styles = StyleSheet.create({
   },
   exerciseName: { fontSize: 16, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, flex: 1 },
   removeButton: { padding: 6, marginRight: 4 },
-  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: Colors.light.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  undoSnackbar: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.lg,
+    backgroundColor: Colors.light.rubber,
+    borderRadius: radius.card,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.base,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...elevation.dragging,
+  },
+  undoSnackbarText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Archivo-Medium',
+    color: Colors.light.onRubber,
+    marginRight: spacing.md,
+  },
+  undoButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  undoButtonText: {
+    fontSize: 13,
+    fontFamily: 'ArchivoNarrow-Bold',
+    color: Colors.light.accent,
+    textTransform: 'uppercase',
+  },
+  // Body content for the two full-picker sheets (warmup, exercise): the
+  // sheet itself only hugs content, so a bounded height here is what lets a
+  // long inner list (BrowseExercisesScreen's FlatList uses flex: 1) size and
+  // scroll correctly instead of collapsing to nothing.
+  sheetPickerBody: {
+    width: '100%',
+  },
+  sheetBody: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 8 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   sheetTitle: { fontSize: 20, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
   sheetSummary: { fontSize: 15, fontFamily: 'Archivo-Medium', color: Colors.light.textSecondary, marginBottom: 20 },
@@ -912,7 +1052,6 @@ const styles = StyleSheet.create({
   exerciseCardActive: {
     backgroundColor: Colors.light.rubber,
     borderRadius: radius.slab,
-    ...elevation.slab,
   },
   onSlabText: {
     color: Colors.light.onRubber,
@@ -1047,10 +1186,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'ArchivoNarrow-Bold',
     color: '#FFFFFF'
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: Colors.light.background
   },
   modalHeader: {
     flexDirection: 'row',
