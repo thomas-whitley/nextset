@@ -7,6 +7,7 @@ import { MailCheck } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
 import { parseAuthFragment } from '@/data/authLink';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 
 const DEFAULT_ERROR =
   'This confirmation link is invalid or has already been used. Please sign in, or request a new confirmation email.';
@@ -90,20 +91,24 @@ export default function ConfirmEmailScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.content}>
-          <View style={styles.iconContainer}>
+          <View style={styles.card}>
             <View style={styles.icon}>
-              <MailCheck size={48} color={Colors.light.primary} />
+              <MailCheck size={40} color={Colors.light.error} />
             </View>
-          </View>
 
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>Link Invalid or Expired</Text>
+            <Text style={styles.eyebrow}>Email confirmation</Text>
+            <Text style={styles.title}>Link invalid or expired</Text>
             <Text style={styles.subtitle}>{errorMessage}</Text>
-          </View>
 
-          <TouchableOpacity style={styles.button} onPress={() => router.replace('/(auth)')}>
-            <Text style={styles.buttonText}>Back to Sign In</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.button}
+              hitSlop={HIT_SLOP}
+              onPress={() => router.replace('/(auth)')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.buttonText}>Back to sign in</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -113,7 +118,7 @@ export default function ConfirmEmailScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.content}>
         <ActivityIndicator size="large" color={Colors.light.primary} />
-        <Text style={styles.verifyingText}>Verifying your email...</Text>
+        <Text style={styles.verifyingText}>Verifying your email…</Text>
       </View>
     </SafeAreaView>
   );
@@ -126,63 +131,61 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconContainer: {
+  card: {
+    width: '100%',
+    backgroundColor: Colors.light.card,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    padding: spacing.xl,
     alignItems: 'center',
-    marginBottom: 32,
   },
   icon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.light.primaryLight,
+    width: 72,
+    height: 72,
+    borderRadius: radius.pill,
+    backgroundColor: Colors.light.background,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: spacing.lg,
   },
-  titleSection: {
-    marginBottom: 32,
-    alignItems: 'center',
+  eyebrow: {
+    ...type.eyebrow,
+    color: Colors.light.textTertiary,
+    marginBottom: spacing.xs,
   },
   title: {
-    fontSize: 28,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.title,
     color: Colors.light.text,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    lineHeight: 24,
+    ...type.body,
+    color: Colors.light.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: 12,
+    marginBottom: spacing.xl,
   },
   verifyingText: {
-    marginTop: 16,
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+    ...type.bodyMedium,
     color: Colors.light.textTertiary,
+    marginTop: spacing.base,
   },
   button: {
+    alignSelf: 'stretch',
     backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 32,
+    borderRadius: radius.input,
+    paddingVertical: spacing.base,
     alignItems: 'center',
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    justifyContent: 'center',
+    minHeight: 52,
   },
   buttonText: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
+    ...type.bodyMedium,
+    color: Colors.light.card,
   },
 });
