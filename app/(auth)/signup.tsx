@@ -249,11 +249,11 @@ export default function SignUpScreen() {
           </View>
           <Text style={styles.stateTitle}>Check your email</Text>
           <Text style={styles.stateMessage}>
-            We've sent a verification link to{' '}
+            We&apos;ve sent a verification link to{' '}
             <Text style={styles.emailAddress}>{formData.email}</Text>
           </Text>
           <Text style={styles.stateInstructions}>
-            Open the link to activate your account, then come back here to log in. Check your spam folder if it hasn't arrived.
+            Open the link to activate your account, then come back here to log in. Check your spam folder if it hasn&apos;t arrived.
           </Text>
 
           <TouchableOpacity
@@ -286,7 +286,7 @@ export default function SignUpScreen() {
           </View>
           <Text style={styles.stateTitle}>Account created</Text>
           <Text style={styles.stateMessage}>
-            You're logged in. Setting things up.
+            You&apos;re logged in. Setting things up.
           </Text>
           <View style={styles.loadingDots}>
             <Animated.View style={[styles.dot, dot1AnimatedStyle]} />

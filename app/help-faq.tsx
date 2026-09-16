@@ -83,7 +83,7 @@ export default function HelpFAQScreen() {
         <View style={styles.introSection}>
           <Text style={styles.introTitle}>Help</Text>
           <Text style={styles.introSubtitle}>
-            Common questions about NextSet. If yours isn't here, email support.nextset@gmail.com.
+            Common questions about NextSet. If yours isn&apos;t here, email support.nextset@gmail.com.
           </Text>
         </View>
 

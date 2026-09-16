@@ -154,7 +154,7 @@ export default function UpdatePasswordScreen() {
         <View style={styles.titleSection}>
           <Text style={styles.title}>Update password</Text>
           <Text style={styles.subtitle}>
-            Enter your new password below. Make sure it's secure and easy for you to remember.
+            Enter your new password below. Make sure it&apos;s secure and easy for you to remember.
           </Text>
         </View>
 

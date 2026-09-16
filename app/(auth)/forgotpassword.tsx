@@ -73,7 +73,7 @@ export default function ForgotPasswordScreen() {
             </View>
             <Text style={styles.successTitle}>Check your email</Text>
             <Text style={styles.successMessage}>
-              If an account with that email exists, we've sent you a password reset link.
+              If an account with that email exists, we&apos;ve sent you a password reset link.
               Check your inbox and follow the instructions to reset your password.
             </Text>
             <TouchableOpacity
@@ -107,7 +107,7 @@ export default function ForgotPasswordScreen() {
         <View style={styles.titleSection}>
           <Text style={styles.title}>Forgot password?</Text>
           <Text style={styles.subtitle}>
-            Enter your email address and we'll send you a link to reset your password.
+            Enter your email address and we&apos;ll send you a link to reset your password.
           </Text>
         </View>
 
