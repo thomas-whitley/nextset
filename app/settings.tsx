@@ -1,14 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Modal, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Linking,
+  Alert,
+  Modal,
+  ActivityIndicator,
+  TextInput,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Dumbbell, CircleHelp as HelpCircle, LogOut, Info, MessageSquare, FileDown, Shield, Trash2, ChevronRight } from 'lucide-react-native';
+import {
+  X,
+  Dumbbell,
+  Timer,
+  CircleHelp as HelpCircle,
+  LogOut,
+  Info,
+  MessageSquare,
+  FileDown,
+  Shield,
+  Trash2,
+  ChevronRight,
+} from 'lucide-react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 import { useAuth } from '@/data/AuthContext';
 import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { shareHistoryCsv } from '@/services/csvExport';
-import { getDefaultRestSeconds, setDefaultRestSeconds } from '@/services/preferences';
+import {
+  getDefaultRestSeconds,
+  setDefaultRestSeconds,
+  getBarWeightKg,
+  setBarWeightKg,
+  DEFAULT_REST_SECONDS,
+  DEFAULT_BAR_WEIGHT_KG,
+} from '@/services/preferences';
 import { LEGAL_URLS, FEEDBACK_FORM_URL, SUPPORT_EMAIL } from '@/constants/Links';
 import { displayNameOf, initialsOf } from '@/data/userDisplay';
 
@@ -42,13 +73,108 @@ function SettingItem({ icon, title, subtitle, rightElement, onPress, showBorder 
   );
 }
 
+type PickerOption = { value: number; label: string };
+
+type PickerModalProps = {
+  visible: boolean;
+  title: string;
+  options: PickerOption[];
+  selected: number;
+  onSelect: (value: number) => void;
+  onClose: () => void;
+  /** When set, a "Custom" row lets the user type a value. */
+  custom?: { placeholder: string; unit: string; parse: (text: string) => number | null };
+};
+
+/** One list, one selection. Used for rest time and bar weight. */
+function PickerModal({ visible, title, options, selected, onSelect, onClose, custom }: PickerModalProps) {
+  const [customText, setCustomText] = useState('');
+  const isPreset = options.some((o) => o.value === selected);
+  const customValue = custom ? custom.parse(customText) : null;
+
+  useEffect(() => {
+    if (visible) setCustomText(isPreset ? '' : String(selected));
+  }, [visible, isPreset, selected]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <ScrollView style={styles.modalScrollView} keyboardShouldPersistTaps="handled">
+            {options.map((option) => {
+              const active = selected === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.modalOption, active && styles.modalOptionSelected]}
+                  onPress={() => onSelect(option.value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={[styles.modalOptionText, active && styles.modalOptionTextSelected]}>{option.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+            {custom && (
+              <View style={[styles.modalOption, styles.modalCustomRow, !isPreset && styles.modalOptionSelected]}>
+                <Text style={[styles.modalOptionText, !isPreset && styles.modalOptionTextSelected]}>Custom</Text>
+                <View style={styles.modalCustomField}>
+                  <TextInput
+                    style={styles.modalCustomInput}
+                    value={customText}
+                    onChangeText={setCustomText}
+                    placeholder={custom.placeholder}
+                    placeholderTextColor={Colors.light.textTertiary}
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={() => customValue !== null && onSelect(customValue)}
+                    accessibilityLabel={`Custom ${title.toLowerCase()}`}
+                  />
+                  <Text style={styles.modalCustomUnit}>{custom.unit}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.modalCustomSet, customValue === null && styles.modalCustomSetDisabled]}
+                  disabled={customValue === null}
+                  onPress={() => customValue !== null && onSelect(customValue)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Use custom value"
+                >
+                  <Text style={styles.modalCustomSetText}>Set</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+          <TouchableOpacity style={styles.modalCancelButton} onPress={onClose} accessibilityRole="button">
+            <Text style={styles.modalCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const REST_OPTIONS = [30, 45, 60, 75, 90, 105, 120, 150, 180, 240];
+
+// Men's Olympic, women's Olympic, technique bar. Anything else is custom.
+const BAR_OPTIONS = [20, 15, 10];
+const MAX_BAR_KG = 50;
 
 const formatRestTime = (seconds: number) => {
   if (seconds < 60) return `${seconds} s`;
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return s === 0 ? `${m} min` : `${m} min ${s} s`;
+};
+
+const formatKg = (kg: number) => `${Number.isInteger(kg) ? kg : kg.toFixed(1)} kg`;
+
+/** Accepts 0 < kg <= 50 in 0.5 kg steps; rejects the rest as a bar weight. */
+const parseBarKg = (text: string): number | null => {
+  const n = parseFloat(text.replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0 || n > MAX_BAR_KG) return null;
+  if (Math.round(n * 2) !== n * 2) return null;
+  return n;
 };
 
 const openUrl = async (url: string) => {
@@ -61,14 +187,17 @@ const openUrl = async (url: string) => {
 };
 
 export default function SettingsScreen() {
-  const [defaultRestTime, setDefaultRestTime] = useState(90);
+  const [defaultRestTime, setDefaultRestTime] = useState(DEFAULT_REST_SECONDS);
+  const [barWeight, setBarWeight] = useState(DEFAULT_BAR_WEIGHT_KG);
   const [showRestTimeModal, setShowRestTimeModal] = useState(false);
+  const [showBarWeightModal, setShowBarWeightModal] = useState(false);
   const [exporting, setExporting] = useState(false);
   const { signOut, user } = useAuth();
   const version = Constants.expoConfig?.version ?? '1.0.1';
 
   useEffect(() => {
     getDefaultRestSeconds().then(setDefaultRestTime);
+    getBarWeightKg().then(setBarWeight);
   }, []);
 
   const handleLogOut = async () => {
@@ -88,6 +217,16 @@ export default function SettingsScreen() {
       await setDefaultRestSeconds(seconds);
     } catch (error) {
       console.error('Error saving rest time preference:', error);
+    }
+  };
+
+  const handleBarWeightChange = async (kg: number) => {
+    setBarWeight(kg);
+    setShowBarWeightModal(false);
+    try {
+      await setBarWeightKg(kg);
+    } catch (error) {
+      console.error('Error saving bar weight preference:', error);
     }
   };
 
@@ -124,7 +263,12 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.dismiss()} accessibilityRole="button" accessibilityLabel="Close settings">
+        <TouchableOpacity
+          onPress={() => router.dismiss()}
+          hitSlop={HIT_SLOP}
+          accessibilityRole="button"
+          accessibilityLabel="Close settings"
+        >
           <X size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
@@ -134,7 +278,12 @@ export default function SettingsScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {user && (
           <View style={styles.profileSection}>
-            <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')} accessibilityRole="button" accessibilityLabel="Edit profile">
+            <TouchableOpacity
+              style={styles.profileCard}
+              onPress={() => router.push('/edit-profile')}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile"
+            >
               <View style={styles.profileIcon}>
                 <Text style={styles.profileInitial}>{initialsOf(user)}</Text>
               </View>
@@ -151,10 +300,16 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Workout</Text>
           <View style={styles.settingsCard}>
             <SettingItem
-              icon={<Dumbbell size={20} color={Colors.light.primary} />}
+              icon={<Timer size={20} color={Colors.light.primary} />}
               title="Default rest time"
               subtitle={`${formatRestTime(defaultRestTime)} between sets`}
               onPress={() => setShowRestTimeModal(true)}
+            />
+            <SettingItem
+              icon={<Dumbbell size={20} color={Colors.light.primary} />}
+              title="Barbell weight"
+              subtitle={`${formatKg(barWeight)} bar assumed when loading plates`}
+              onPress={() => setShowBarWeightModal(true)}
               showBorder={false}
             />
           </View>
@@ -207,34 +362,35 @@ export default function SettingsScreen() {
         <Text style={styles.version}>NextSet v{version}</Text>
       </ScrollView>
 
-      <Modal visible={showRestTimeModal} transparent animationType="slide" onRequestClose={() => setShowRestTimeModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Default rest time</Text>
-            <ScrollView style={styles.modalScrollView}>
-              {REST_OPTIONS.map((seconds) => (
-                <TouchableOpacity
-                  key={seconds}
-                  style={[styles.modalOption, defaultRestTime === seconds && styles.modalOptionSelected]}
-                  onPress={() => handleRestTimeChange(seconds)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: defaultRestTime === seconds }}
-                >
-                  <Text style={[styles.modalOptionText, defaultRestTime === seconds && styles.modalOptionTextSelected]}>
-                    {formatRestTime(seconds)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowRestTimeModal(false)}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <PickerModal
+        visible={showRestTimeModal}
+        title="Default rest time"
+        options={REST_OPTIONS.map((s) => ({ value: s, label: formatRestTime(s) }))}
+        selected={defaultRestTime}
+        onSelect={handleRestTimeChange}
+        onClose={() => setShowRestTimeModal(false)}
+      />
+
+      <PickerModal
+        visible={showBarWeightModal}
+        title="Barbell weight"
+        options={BAR_OPTIONS.map((kg) => ({ value: kg, label: formatKg(kg) }))}
+        selected={barWeight}
+        onSelect={handleBarWeightChange}
+        onClose={() => setShowBarWeightModal(false)}
+        custom={{ placeholder: '0', unit: 'kg', parse: parseBarKg }}
+      />
     </SafeAreaView>
   );
 }
+
+const shadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 8,
+  elevation: 4,
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
@@ -242,74 +398,116 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
-  headerTitle: { fontSize: 18, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
-  content: { flex: 1, paddingHorizontal: 20 },
-  profileSection: { marginTop: 20, marginBottom: 8 },
+  headerTitle: { ...type.section, color: Colors.light.text },
+  content: { flex: 1, paddingHorizontal: spacing.lg },
+  profileSection: { marginTop: spacing.lg, marginBottom: spacing.sm },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: radius.card,
+    padding: spacing.lg,
+    ...shadow,
   },
   profileIcon: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.primary,
+    borderWidth: 3,
+    borderColor: Colors.light.rubber,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: spacing.base,
   },
-  profileInitial: { fontSize: 22, fontFamily: 'ArchivoNarrow-Bold', color: '#FFFFFF', textTransform: 'uppercase' },
+  profileInitial: { ...type.section, color: Colors.light.card, textTransform: 'uppercase' },
   profileInfo: { flex: 1 },
-  profileName: { fontSize: 18, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text, marginBottom: 2 },
-  profileEmail: { fontSize: 14, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary },
-  section: { marginTop: 24 },
-  sectionTitle: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text, marginBottom: 12 },
-  sectionNote: { fontSize: 13, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, marginTop: 8, marginLeft: 4 },
+  profileName: { ...type.section, color: Colors.light.text, marginBottom: spacing.xs / 2 },
+  profileEmail: { ...type.label, color: Colors.light.textTertiary },
+  section: { marginTop: spacing.xl },
+  sectionTitle: { ...type.eyebrow, color: Colors.light.textTertiary, marginBottom: spacing.sm, marginLeft: spacing.xs },
+  sectionNote: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.sm, marginLeft: spacing.xs },
   settingsCard: {
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: radius.card,
+    ...shadow,
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
   settingItemNoBorder: { borderBottomWidth: 0 },
-  settingIcon: { marginRight: 16 },
+  settingIcon: { marginRight: spacing.base },
   settingContent: { flex: 1 },
-  settingTitle: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text, marginBottom: 2 },
+  settingTitle: { ...type.bodyMedium, color: Colors.light.text },
   settingTitleDestructive: { color: Colors.light.error },
-  settingSubtitle: { fontSize: 13, fontFamily: 'Archivo-Regular', color: Colors.light.textSecondary },
-  version: { fontSize: 14, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, textAlign: 'center', marginTop: 32, marginBottom: 40 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  modalContent: { backgroundColor: Colors.light.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400, maxHeight: '80%' },
-  modalTitle: { fontSize: 20, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, marginBottom: 20, textAlign: 'center' },
-  modalScrollView: { maxHeight: 320 },
-  modalOption: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, marginBottom: 8, backgroundColor: Colors.light.background },
-  modalOptionSelected: { backgroundColor: Colors.light.primaryLight },
-  modalOptionText: { fontSize: 16, fontFamily: 'Archivo-Medium', color: Colors.light.text, textAlign: 'center' },
-  modalOptionTextSelected: { color: Colors.light.primary, fontFamily: 'ArchivoNarrow-Bold' },
-  modalCancelButton: { marginTop: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.light.border },
-  modalCancelText: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.textSecondary, textAlign: 'center' },
+  settingSubtitle: { ...type.label, color: Colors.light.textSecondary, marginTop: spacing.xs / 2 },
+  version: { ...type.label, color: Colors.light.textTertiary, textAlign: 'center', marginTop: spacing.xxl, marginBottom: spacing.xxxl },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 21, 23, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: Colors.light.card,
+    borderRadius: radius.slab,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalTitle: { ...type.section, color: Colors.light.text, marginBottom: spacing.lg, textAlign: 'center' },
+  modalScrollView: { maxHeight: 360 },
+  modalOption: {
+    paddingVertical: spacing.md + spacing.xs / 2,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.input,
+    marginBottom: spacing.sm,
+    backgroundColor: Colors.light.background,
+    borderWidth: 1,
+    borderColor: Colors.light.background,
+  },
+  modalOptionSelected: { backgroundColor: Colors.light.primaryLight, borderColor: Colors.light.primary },
+  modalOptionText: { ...type.numeric, color: Colors.light.text, textAlign: 'center' },
+  modalOptionTextSelected: { color: Colors.light.primary },
+  modalCustomRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
+  modalCustomField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.card,
+    borderRadius: radius.input,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    paddingHorizontal: spacing.md,
+  },
+  modalCustomInput: { ...type.numeric, flex: 1, color: Colors.light.text, paddingVertical: spacing.sm, textAlign: 'right' },
+  modalCustomUnit: { ...type.label, color: Colors.light.textTertiary, marginLeft: spacing.xs },
+  modalCustomSet: {
+    backgroundColor: Colors.light.primary,
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm + spacing.xs / 2,
+  },
+  modalCustomSetDisabled: { opacity: 0.4 },
+  modalCustomSetText: { ...type.label, color: Colors.light.card },
+  modalCancelButton: {
+    marginTop: spacing.base,
+    paddingVertical: spacing.md + spacing.xs / 2,
+    borderRadius: radius.input,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  modalCancelText: { ...type.bodyMedium, color: Colors.light.textSecondary, textAlign: 'center' },
 });
