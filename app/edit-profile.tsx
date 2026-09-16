@@ -1,628 +1,382 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, User, Mail, Phone, AtSign, Save, CircleAlert as AlertCircle } from 'lucide-react-native';
+import { X, User, Phone, AtSign, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 import { useAuth } from '@/data/AuthContext';
 import { supabase } from '@/data/supabase-client';
+import { initialsOf } from '@/data/userDisplay';
 
+// Only the columns migration 0005 grants UPDATE on. Email is owned by
+// Supabase Auth and is shown read-only below.
 interface ProfileData {
   full_name: string;
   username: string;
-  email: string;
   phone: string;
 }
 
+const EMPTY: ProfileData = { full_name: '', username: '', phone: '' };
+
+const formatDate = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
 export default function EditProfileScreen() {
   const { user, refreshUser } = useAuth();
-  const [profileData, setProfileData] = useState<ProfileData>({
-    full_name: '',
-    username: '',
-    email: '',
-    phone: '',
-  });
-  const [originalData, setOriginalData] = useState<ProfileData>({
-    full_name: '',
-    username: '',
-    email: '',
-    phone: '',
-  });
-  const [loading, setLoading] = useState(false);
+  const [profileData, setProfileData] = useState<ProfileData>(EMPTY);
+  const [originalData, setOriginalData] = useState<ProfileData>(EMPTY);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
 
-  useEffect(() => {
-    loadProfileData();
-  }, [user]);
+  const hasChanges = (Object.keys(profileData) as (keyof ProfileData)[]).some(
+    (key) => profileData[key] !== originalData[key]
+  );
 
-  useEffect(() => {
-    // Check if there are any changes
-    const changes = Object.keys(profileData).some(
-      key => profileData[key as keyof ProfileData] !== originalData[key as keyof ProfileData]
-    );
-    setHasChanges(changes);
-  }, [profileData, originalData]);
-
-  const loadProfileData = async () => {
+  const loadProfileData = useCallback(async () => {
     if (!user) return;
-
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error: loadError } = await supabase
         .from('profile')
-        .select('full_name, username, email, phone')
+        .select('full_name, username, phone')
         .eq('id', user.id)
         .single();
 
-      if (error) {
-        console.error('Error loading profile:', error);
-        setError('Failed to load profile data');
+      if (loadError) {
+        console.error('Error loading profile:', loadError);
+        setError('Could not load your profile.');
         return;
       }
 
-      const profile = {
-        full_name: data.full_name || '',
-        username: data.username || '',
-        email: data.email || user.email || '',
-        phone: data.phone || '',
+      const profile: ProfileData = {
+        full_name: data.full_name ?? '',
+        username: data.username ?? '',
+        phone: data.phone ?? '',
       };
-
       setProfileData(profile);
       setOriginalData(profile);
-    } catch (error) {
-      console.error('Unexpected error loading profile:', error);
-      setError('Failed to load profile data');
+    } catch (e) {
+      console.error('Unexpected error loading profile:', e);
+      setError('Could not load your profile.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    loadProfileData();
+  }, [loadProfileData]);
 
   const updateField = (field: keyof ProfileData, value: string) => {
-    setProfileData(prev => ({ ...prev, [field]: value }));
+    setProfileData((prev) => ({ ...prev, [field]: value }));
     if (error) setError(null);
   };
 
   const validateForm = (): boolean => {
     if (!profileData.full_name.trim()) {
-      setError('Full name is required');
+      setError('Name is required.');
       return false;
     }
-
-    if (!profileData.username.trim()) {
-      setError('Username is required');
-      return false;
-    }
-
     if (profileData.username.trim().length < 3) {
-      setError('Username must be at least 3 characters long');
+      setError('Username needs at least 3 characters.');
       return false;
     }
-
-    if (!profileData.email.trim()) {
-      setError('Email is required');
-      return false;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(profileData.email.trim())) {
-      setError('Please enter a valid email address');
-      return false;
-    }
-
     return true;
   };
 
   const handleSave = async () => {
-    if (!validateForm()) return;
-    if (!user) return;
-
+    if (!user || saving || !validateForm()) return;
     setSaving(true);
     setError(null);
 
+    const fullName = profileData.full_name.trim();
+    const username = profileData.username.trim();
+    const phone = profileData.phone.trim() || null;
+
     try {
-      // Check if email is being changed
-      const emailChanged = profileData.email !== originalData.email;
-      
-      if (emailChanged) {
-        Alert.alert(
-          'Email Change',
-          'Changing your email will require verification. You will need to confirm the new email address.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Continue', onPress: () => saveProfile(true) }
-          ]
-        );
+      const { error: profileError } = await supabase
+        .from('profile')
+        .update({ full_name: fullName, username, phone, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (profileError) {
+        const msg = profileError.message;
+        if (msg.includes('duplicate') || msg.includes('unique')) {
+          setError('That username is taken.');
+        } else {
+          console.error('Error updating profile:', profileError);
+          setError('Could not save. Check your connection and try again.');
+        }
         return;
       }
 
-      await saveProfile(false);
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      setError('Failed to save profile. Please try again.');
+      // Mirror into auth metadata so displayNameOf/initialsOf update at once.
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { full_name: fullName, username, phone },
+      });
+      if (metadataError) console.error('Error updating user metadata:', metadataError);
+
+      setOriginalData({ full_name: fullName, username, phone: phone ?? '' });
+      await refreshUser();
+      router.back();
+    } catch (e) {
+      console.error('Unexpected error saving profile:', e);
+      setError('Could not save. Check your connection and try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const saveProfile = async (emailChanged: boolean) => {
-    if (!user) return;
-
-    try {
-      // Update profile table
-      const { error: profileError } = await supabase
-        .from('profile')
-        .update({
-          full_name: profileData.full_name.trim(),
-          username: profileData.username.trim(),
-          email: profileData.email.trim(),
-          phone: profileData.phone.trim() || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
-
-      if (profileError) {
-        if (profileError.message.includes('duplicate') || profileError.message.includes('unique')) {
-          if (profileError.message.includes('username')) {
-            setError('This username is already taken. Please choose a different one.');
-          } else if (profileError.message.includes('email')) {
-            setError('This email is already in use. Please use a different email address.');
-          } else {
-            setError('This information is already in use. Please try different values.');
-          }
-        } else {
-          setError('Failed to update profile. Please try again.');
-        }
-        return;
-      }
-
-      // If email changed, update auth user email
-      if (emailChanged) {
-        const { error: authError } = await supabase.auth.updateUser({
-          email: profileData.email.trim(),
-        });
-
-        if (authError) {
-          console.error('Error updating auth email:', authError);
-          setError('Profile updated but email change failed. Please try updating email again.');
-          return;
-        }
-      }
-
-      // Update auth user metadata to reflect changes immediately
-      const { error: metadataError } = await supabase.auth.updateUser({
-        data: {
-          full_name: profileData.full_name.trim(),
-          username: profileData.username.trim(),
-          phone: profileData.phone.trim() || null,
-        }
-      });
-
-      if (metadataError) {
-        console.error('Error updating user metadata:', metadataError);
-        // Don't return here as profile was still updated successfully
-      }
-
-      // Update original data to reflect saved state
-      setOriginalData({ ...profileData });
-      
-      // Refresh user data in AuthContext to reflect changes immediately
-      await refreshUser();
-      
-      // Navigate back immediately and show success
-      router.back();
-      
-      // Show success message after navigation
-      setTimeout(() => {
-        Alert.alert(
-          'Profile Updated',
-          emailChanged 
-            ? 'Your profile has been updated. Please check your email to verify your new email address.'
-            : 'Your profile has been updated successfully!'
-        );
-      }, 100);
-
-    } catch (error) {
-      console.error('Unexpected error saving profile:', error);
-      setError('An unexpected error occurred. Please try again.');
-    }
-  };
-
   const handleClose = () => {
-    if (hasChanges) {
-      Alert.alert(
-        'Unsaved Changes',
-        'You have unsaved changes. Are you sure you want to leave?',
-        [
-          { text: 'Stay', style: 'cancel' },
-          { text: 'Leave', style: 'destructive', onPress: () => router.back() }
-        ]
-      );
-    } else {
+    if (!hasChanges) {
       router.back();
+      return;
     }
+    Alert.alert('Discard changes?', 'Your edits have not been saved.', [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+    ]);
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading profile...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const canSave = hasChanges && !saving;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleClose}>
+          <TouchableOpacity onPress={handleClose} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
             <X size={24} color={Colors.light.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
-          <TouchableOpacity 
-            style={[
-              styles.saveButton,
-              (!hasChanges || saving) && styles.saveButtonDisabled
-            ]}
+          <Text style={styles.headerTitle}>Edit profile</Text>
+          <TouchableOpacity
             onPress={handleSave}
-            disabled={!hasChanges || saving}
+            disabled={!canSave}
+            hitSlop={HIT_SLOP}
+            accessibilityRole="button"
+            accessibilityLabel="Save"
+            accessibilityState={{ disabled: !canSave }}
           >
-            <Save size={20} color={hasChanges && !saving ? Colors.light.primary : Colors.light.textTertiary} />
+            <Text style={[styles.headerAction, !canSave && styles.headerActionDisabled]}>Save</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView 
-          style={styles.content} 
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Profile Picture Section */}
-          <View style={styles.profilePictureSection}>
-            <View style={styles.profilePictureContainer}>
-              <View style={styles.profilePicture}>
-                <User size={40} color={Colors.light.textTertiary} />
-              </View>
-            </View>
-            <Text style={styles.profilePictureText}>Profile Picture</Text>
-            <Text style={styles.profilePictureSubtext}>Coming soon</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={Colors.light.primary} />
           </View>
-
-          {error && (
-            <View style={styles.errorContainer}>
-              <AlertCircle size={16} color="#DC2626" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Form Fields */}
-          <View style={styles.formSection}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Full Name *</Text>
-              <View style={styles.inputContainer}>
-                <User size={20} color={Colors.light.textTertiary} />
-                <TextInput
-                  style={styles.textInput}
-                  value={profileData.full_name}
-                  onChangeText={(value) => updateField('full_name', value)}
-                  placeholder="Enter your full name"
-                  placeholderTextColor={Colors.light.textTertiary}
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                />
+        ) : (
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={styles.avatarSection}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{user ? initialsOf(user) : ''}</Text>
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Username *</Text>
-              <View style={styles.inputContainer}>
-                <AtSign size={20} color={Colors.light.textTertiary} />
-                <TextInput
-                  style={styles.textInput}
-                  value={profileData.username}
-                  onChangeText={(value) => updateField('username', value)}
-                  placeholder="Choose a username"
-                  placeholderTextColor={Colors.light.textTertiary}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                />
+            {error && (
+              <View style={styles.errorContainer} accessibilityRole="alert">
+                <AlertCircle size={16} color={Colors.light.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            <View style={styles.formSection}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Name</Text>
+                <View style={styles.inputContainer}>
+                  <User size={20} color={Colors.light.textTertiary} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={profileData.full_name}
+                    onChangeText={(value) => updateField('full_name', value)}
+                    placeholder="Your name"
+                    placeholderTextColor={Colors.light.textTertiary}
+                    autoCapitalize="words"
+                    returnKeyType="next"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Username</Text>
+                <View style={styles.inputContainer}>
+                  <AtSign size={20} color={Colors.light.textTertiary} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={profileData.username}
+                    onChangeText={(value) => updateField('username', value)}
+                    placeholder="At least 3 characters"
+                    placeholderTextColor={Colors.light.textTertiary}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone</Text>
+                <View style={styles.inputContainer}>
+                  <Phone size={20} color={Colors.light.textTertiary} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={profileData.phone}
+                    onChangeText={(value) => updateField('phone', value)}
+                    placeholder="Optional"
+                    placeholderTextColor={Colors.light.textTertiary}
+                    keyboardType="phone-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={handleSave}
+                  />
+                </View>
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address *</Text>
-              <View style={styles.inputContainer}>
-                <Mail size={20} color={Colors.light.textTertiary} />
-                <TextInput
-                  style={styles.textInput}
-                  value={profileData.email}
-                  onChangeText={(value) => updateField('email', value)}
-                  placeholder="Enter your email"
-                  placeholderTextColor={Colors.light.textTertiary}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                />
+            <View style={styles.accountSection}>
+              <Text style={styles.sectionTitle}>Account</Text>
+              <View style={styles.accountInfoCard}>
+                <View style={styles.accountInfoItem}>
+                  <Text style={styles.accountInfoLabel}>Email</Text>
+                  <Text style={styles.accountInfoValue} numberOfLines={1}>
+                    {user?.email ?? '—'}
+                  </Text>
+                </View>
+                <View style={styles.accountInfoDivider} />
+                <View style={styles.accountInfoItem}>
+                  <Text style={styles.accountInfoLabel}>Verified</Text>
+                  <Text
+                    style={[
+                      styles.accountInfoValue,
+                      { color: user?.email_confirmed_at ? Colors.light.success : Colors.light.textTertiary },
+                    ]}
+                  >
+                    {user?.email_confirmed_at ? 'Yes' : 'Pending'}
+                  </Text>
+                </View>
+                <View style={styles.accountInfoDivider} />
+                <View style={styles.accountInfoItem}>
+                  <Text style={styles.accountInfoLabel}>Member since</Text>
+                  <Text style={styles.accountInfoValue}>{formatDate(user?.created_at)}</Text>
+                </View>
               </View>
+              <Text style={styles.sectionNote}>Email is your login and cannot be changed here.</Text>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone Number</Text>
-              <View style={styles.inputContainer}>
-                <Phone size={20} color={Colors.light.textTertiary} />
-                <TextInput
-                  style={styles.textInput}
-                  value={profileData.phone}
-                  onChangeText={(value) => updateField('phone', value)}
-                  placeholder="Enter your phone number"
-                  placeholderTextColor={Colors.light.textTertiary}
-                  keyboardType="phone-pad"
-                  returnKeyType="done"
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* Account Information */}
-          <View style={styles.accountSection}>
-            <Text style={styles.sectionTitle}>Account Information</Text>
-            
-            <View style={styles.accountInfoCard}>
-              <View style={styles.accountInfoItem}>
-                <Text style={styles.accountInfoLabel}>Account Created</Text>
-                <Text style={styles.accountInfoValue}>
-                  {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
-                </Text>
-              </View>
-              
-              <View style={styles.accountInfoDivider} />
-              
-              <View style={styles.accountInfoItem}>
-                <Text style={styles.accountInfoLabel}>Last Sign In</Text>
-                <Text style={styles.accountInfoValue}>
-                  {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Unknown'}
-                </Text>
-              </View>
-              
-              <View style={styles.accountInfoDivider} />
-              
-              <View style={styles.accountInfoItem}>
-                <Text style={styles.accountInfoLabel}>Email Verified</Text>
-                <Text style={[
-                  styles.accountInfoValue,
-                  { color: user?.email_confirmed_at ? Colors.light.success : Colors.light.warning }
-                ]}>
-                  {user?.email_confirmed_at ? 'Yes' : 'Pending'}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Save Button (Mobile) */}
-          <TouchableOpacity 
-            style={[
-              styles.mobileeSaveButton,
-              (!hasChanges || saving) && styles.mobileSaveButtonDisabled
-            ]}
-            onPress={handleSave}
-            disabled={!hasChanges || saving}
-          >
-            <Text style={[
-              styles.mobileSaveButtonText,
-              (!hasChanges || saving) && styles.mobileSaveButtonTextDisabled
-            ]}>
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
+            <TouchableOpacity
+              style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={!canSave}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canSave }}
+            >
+              {saving ? (
+                <ActivityIndicator color={Colors.light.card} />
+              ) : (
+                <Text style={[styles.saveButtonText, !canSave && styles.saveButtonTextDisabled]}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.background },
+  keyboardAvoid: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-  },
-  saveButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: Colors.light.border,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  profilePictureSection: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  profilePictureContainer: {
-    position: 'relative',
-    marginBottom: 12,
-  },
-  profilePicture: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: Colors.light.border,
-  },
-  cameraButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  headerTitle: { ...type.section, color: Colors.light.text },
+  headerAction: { ...type.bodyMedium, color: Colors.light.primary },
+  headerActionDisabled: { color: Colors.light.textTertiary },
+  content: { flex: 1, paddingHorizontal: spacing.lg },
+  avatarSection: { alignItems: 'center', paddingVertical: spacing.xxl },
+  avatar: {
+    width: 88,
+    height: 88,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.primary,
+    borderWidth: 4,
+    borderColor: Colors.light.rubber,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: Colors.light.background,
   },
-  profilePictureText: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 4,
-  },
-  profilePictureSubtext: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-  },
+  avatarText: { ...type.title, color: Colors.light.card, textTransform: 'uppercase' },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: Colors.light.card,
     borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderColor: Colors.light.error,
+    borderRadius: radius.input,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
   },
-  errorText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: '#DC2626',
-    marginLeft: 8,
-    flex: 1,
-  },
-  formSection: {
-    marginBottom: 32,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 8,
-  },
+  errorText: { ...type.label, color: Colors.light.error, marginLeft: spacing.sm, flex: 1 },
+  formSection: { marginBottom: spacing.xxl },
+  inputGroup: { marginBottom: spacing.lg },
+  inputLabel: { ...type.eyebrow, color: Colors.light.textTertiary, marginBottom: spacing.sm, marginLeft: spacing.xs },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.base,
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
-  textInput: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingLeft: 12,
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.text,
-  },
-  accountSection: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-    marginBottom: 16,
-  },
+  textInput: { ...type.body, flex: 1, paddingVertical: spacing.md + spacing.xs / 2, paddingLeft: spacing.md, color: Colors.light.text },
+  accountSection: { marginBottom: spacing.xxl },
+  sectionTitle: { ...type.eyebrow, color: Colors.light.textTertiary, marginBottom: spacing.sm, marginLeft: spacing.xs },
+  sectionNote: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.sm, marginLeft: spacing.xs },
   accountInfoCard: {
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: radius.card,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
   accountInfoItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md + spacing.xs / 2,
+    gap: spacing.md,
   },
-  accountInfoDivider: {
-    height: 1,
-    backgroundColor: Colors.light.border,
-  },
-  accountInfoLabel: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textSecondary,
-  },
-  accountInfoValue: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-  },
-  mobileeSaveButton: {
+  accountInfoDivider: { height: 1, backgroundColor: Colors.light.border },
+  accountInfoLabel: { ...type.body, color: Colors.light.textSecondary },
+  accountInfoValue: { ...type.bodyMedium, color: Colors.light.text, flexShrink: 1, textAlign: 'right' },
+  saveButton: {
     backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
+    borderRadius: radius.input,
+    paddingVertical: spacing.base,
     alignItems: 'center',
-    marginBottom: 40,
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    justifyContent: 'center',
+    minHeight: 52,
+    marginBottom: spacing.xxxl,
   },
-  mobileSaveButtonDisabled: {
-    backgroundColor: Colors.light.border,
-    shadowOpacity: 0,
-  },
-  mobileSaveButtonText: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
-  },
-  mobileSaveButtonTextDisabled: {
-    color: Colors.light.textTertiary,
-  },
+  saveButtonDisabled: { backgroundColor: Colors.light.border },
+  saveButtonText: { ...type.bodyMedium, color: Colors.light.card },
+  saveButtonTextDisabled: { color: Colors.light.textTertiary },
 });
