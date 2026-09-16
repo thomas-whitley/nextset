@@ -5,6 +5,7 @@ import { ArrowLeft, Mail, Shield, LifeBuoy, ExternalLink } from 'lucide-react-na
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 import { LEGAL_URLS, SUPPORT_EMAIL, EXERCISE_DB_URL } from '@/constants/Links';
 import { ExerciseService } from '@/services/exerciseService';
 
@@ -16,7 +17,7 @@ export default function AboutScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Back">
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>About</Text>
@@ -47,7 +48,7 @@ export default function AboutScreen() {
         <Text style={styles.credit}>
           The exercise library ({ExerciseService.count} exercises) includes data from free-exercise-db, released under the Unlicense.
         </Text>
-        <TouchableOpacity style={styles.link} onPress={() => open(EXERCISE_DB_URL)} accessibilityRole="link">
+        <TouchableOpacity style={styles.link} onPress={() => open(EXERCISE_DB_URL)} hitSlop={HIT_SLOP} accessibilityRole="link">
           <Text style={styles.linkText}>github.com/yuhonas/free-exercise-db</Text>
           <ExternalLink size={14} color={Colors.light.primary} />
         </TouchableOpacity>
@@ -75,38 +76,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
-  backButton: { width: 40, height: 40, justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
-  content: { flex: 1, paddingHorizontal: 20 },
-  hero: { alignItems: 'center', paddingVertical: 32 },
+  backButton: { width: spacing.xxxl, height: spacing.xxxl, justifyContent: 'center' },
+  headerTitle: { ...type.section, color: Colors.light.text },
+  content: { flex: 1, paddingHorizontal: spacing.lg },
+  hero: { alignItems: 'center', paddingVertical: spacing.xxl },
   ring: {
     width: 72,
     height: 72,
     borderRadius: 36,
     borderWidth: 10,
-    borderColor: '#1C4FA1',
-    backgroundColor: '#141517',
+    borderColor: Colors.light.primary,
+    backgroundColor: Colors.light.rubber,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.base,
   },
-  hub: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#EEF0ED' },
-  appName: { fontSize: 28, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
-  version: { fontSize: 14, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, marginTop: 4 },
-  body: { fontSize: 16, fontFamily: 'Archivo-Regular', color: Colors.light.textSecondary, lineHeight: 24, marginBottom: 24 },
-  card: { backgroundColor: Colors.light.card, borderRadius: 16, paddingHorizontal: 16, marginBottom: 28 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
+  hub: { width: 14, height: 14, borderRadius: 7, backgroundColor: Colors.light.concrete },
+  appName: { ...type.title, color: Colors.light.text },
+  version: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.xs },
+  body: { ...type.body, color: Colors.light.textSecondary, marginBottom: spacing.xl },
+  card: { backgroundColor: Colors.light.card, borderRadius: radius.card, paddingHorizontal: spacing.base, marginBottom: spacing.xl },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md + spacing.xs / 2,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
   rowLast: { borderBottomWidth: 0 },
-  rowIcon: { width: 36, alignItems: 'flex-start' },
-  rowTitle: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text },
-  rowSubtitle: { fontSize: 13, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, marginTop: 2 },
-  sectionTitle: { fontSize: 14, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.textTertiary, marginBottom: 8 },
-  credit: { fontSize: 14, fontFamily: 'Archivo-Regular', color: Colors.light.textSecondary, lineHeight: 20 },
-  link: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, marginBottom: 40 },
-  linkText: { fontSize: 14, fontFamily: 'Archivo-Medium', color: Colors.light.primary },
+  rowIcon: { width: spacing.xxl + spacing.xs, alignItems: 'flex-start' },
+  rowTitle: { ...type.bodyMedium, color: Colors.light.text },
+  rowSubtitle: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.xs / 2 },
+  sectionTitle: { ...type.eyebrow, color: Colors.light.textTertiary, marginBottom: spacing.sm, marginLeft: spacing.xs },
+  credit: { ...type.body, color: Colors.light.textSecondary },
+  link: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2, marginTop: spacing.sm, marginBottom: spacing.xxxl },
+  linkText: { ...type.bodyMedium, color: Colors.light.primary },
 });

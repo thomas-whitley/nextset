@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 
 type FAQItem = {
   question: string;
@@ -71,7 +72,7 @@ export default function HelpFAQScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Back">
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Help & FAQ</Text>
@@ -86,6 +87,7 @@ export default function HelpFAQScreen() {
           </Text>
         </View>
 
+        <Text style={styles.sectionTitle}>Questions</Text>
         <View style={styles.faqContainer}>
           {faqItems.map((item, index) => (
             <View key={index} style={styles.faqItemContainer}>
@@ -120,140 +122,39 @@ export default function HelpFAQScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.background },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  introSection: {
-    paddingVertical: 24,
-  },
-  introTitle: {
-    fontSize: 24,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-    marginBottom: 8,
-  },
-  introSubtitle: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    lineHeight: 24,
-  },
+  backButton: { width: spacing.xxxl, height: spacing.xxxl, justifyContent: 'center' },
+  headerTitle: { ...type.section, color: Colors.light.text },
+  content: { flex: 1, paddingHorizontal: spacing.lg },
+  introSection: { paddingVertical: spacing.xl },
+  introTitle: { ...type.title, color: Colors.light.text, marginBottom: spacing.sm },
+  introSubtitle: { ...type.body, color: Colors.light.textSecondary },
+  sectionTitle: { ...type.eyebrow, color: Colors.light.textTertiary, marginBottom: spacing.sm, marginLeft: spacing.xs },
   faqContainer: {
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
+    borderRadius: radius.card,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 24,
+    marginBottom: spacing.xxxl,
   },
-  faqItemContainer: {
-    // Container for each FAQ item
-  },
+  faqItemContainer: {},
   faqItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.base,
   },
-  faqQuestion: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginRight: 12,
-    lineHeight: 22,
-  },
-  faqAnswer: {
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  faqAnswerText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textSecondary,
-    lineHeight: 20,
-  },
-  faqDivider: {
-    height: 1,
-    backgroundColor: Colors.light.border,
-    marginHorizontal: 20,
-  },
-  liveChatSection: {
-    marginBottom: 40,
-  },
-  liveChatCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  liveChatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  liveChatTitle: {
-    fontSize: 20,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-    marginLeft: 12,
-  },
-  liveChatDescription: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textSecondary,
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  liveChatButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.light.background,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    opacity: 0.6,
-  },
-  liveChatButtonText: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.textTertiary,
-    marginLeft: 8,
-  },
+  faqQuestion: { ...type.bodyMedium, flex: 1, color: Colors.light.text, marginRight: spacing.md },
+  faqAnswer: { paddingBottom: spacing.base, paddingHorizontal: spacing.base },
+  faqAnswerText: { ...type.body, color: Colors.light.textSecondary },
+  faqDivider: { height: 1, backgroundColor: Colors.light.border, marginHorizontal: spacing.base },
 });
