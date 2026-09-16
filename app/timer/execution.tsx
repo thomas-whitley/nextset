@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Play, Pause, RotateCcw, Clock, Watch } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 import { useIntervalTimer, TimerConfig } from '@/hooks/useIntervalTimer';
 
 const { width } = Dimensions.get('window');
@@ -52,24 +53,25 @@ export default function TimerExecutionScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   
+  // Plate colours: work is the action blue, every rest phase is the yellow
+  // caution plate. Yellow needs rubber text on it, everything else takes white.
   const getStatusColor = () => {
     switch (state.currentStatus) {
       case 'Work':
         return Colors.light.primary;
       case 'Rest':
-        return Colors.light.accent;
       case 'Round Rest':
-        return Colors.light.success;
       case 'Circuit Rest':
-        return '#9333EA'; // Purple
+        return Colors.light.warning;
       case 'Finished':
-        return Colors.light.error;
+        return Colors.light.success;
       default:
         return Colors.light.primary;
     }
   };
-  
+
   const statusColor = getStatusColor();
+  const onStatusColor = statusColor === Colors.light.warning ? Colors.light.text : Colors.light.card;
   
   const strokeDashoffset = animatedValue.interpolate({
     inputRange: [0, 1],
@@ -79,11 +81,23 @@ export default function TimerExecutionScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.iconButton}
+          hitSlop={HIT_SLOP}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{presetName}</Text>
-        <TouchableOpacity onPress={() => setIsDigitalClock(!isDigitalClock)} style={styles.clockToggle}>
+        <Text style={styles.headerTitle} numberOfLines={1}>{presetName}</Text>
+        <TouchableOpacity
+          onPress={() => setIsDigitalClock(!isDigitalClock)}
+          style={styles.iconButton}
+          hitSlop={HIT_SLOP}
+          accessibilityRole="button"
+          accessibilityLabel={isDigitalClock ? 'Show analog clock' : 'Show digital clock'}
+        >
           {isDigitalClock ? (
             <Watch size={24} color={Colors.light.text} />
           ) : (
@@ -127,9 +141,11 @@ export default function TimerExecutionScreen() {
             ) : (
               <AnalogClock seconds={state.timeRemaining} color={statusColor} />
             )}
-            <Text style={[styles.statusText, { color: statusColor }]}>
-              {state.currentStatus}
-            </Text>
+            <View style={[styles.statusPill, { backgroundColor: statusColor }]}>
+              <Text style={[styles.statusText, { color: onStatusColor }]}>
+                {state.currentStatus}
+              </Text>
+            </View>
           </View>
         </View>
         
@@ -152,21 +168,23 @@ export default function TimerExecutionScreen() {
         {/* Controls */}
         <View style={styles.controls}>
           {state.isRunning ? (
-            <TouchableOpacity style={styles.controlButton} onPress={pauseTimer}>
-              <Pause size={32} color="#FFFFFF" />
+            <TouchableOpacity style={styles.controlButton} onPress={pauseTimer} accessibilityRole="button" accessibilityLabel="Pause">
+              <Pause size={32} color={Colors.light.card} />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity 
-              style={[styles.controlButton, { backgroundColor: state.currentStatus === 'Finished' ? Colors.light.textTertiary : Colors.light.primary }]} 
+            <TouchableOpacity
+              style={[styles.controlButton, state.currentStatus === 'Finished' && styles.controlButtonDisabled]}
               onPress={startTimer}
               disabled={state.currentStatus === 'Finished'}
+              accessibilityRole="button"
+              accessibilityLabel="Start"
             >
-              <Play size={32} color="#FFFFFF" />
+              <Play size={32} color={Colors.light.card} />
             </TouchableOpacity>
           )}
-          
-          <TouchableOpacity style={[styles.controlButton, styles.resetButton]} onPress={resetTimer}>
-            <RotateCcw size={32} color="#FFFFFF" />
+
+          <TouchableOpacity style={[styles.controlButton, styles.resetButton]} onPress={resetTimer} accessibilityRole="button" accessibilityLabel="Reset">
+            <RotateCcw size={32} color={Colors.light.card} />
           </TouchableOpacity>
         </View>
       </View>
@@ -243,45 +261,30 @@ function AnalogClock({ seconds, color }: { seconds: number, color: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.background },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.card,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-  },
-  clockToggle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  headerTitle: { ...type.section, color: Colors.light.text, flex: 1, textAlign: 'center', marginHorizontal: spacing.sm },
   timerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 40,
+    paddingVertical: spacing.xxxl,
   },
   progressRingContainer: {
     width: TIMER_SIZE,
@@ -294,63 +297,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timerText: {
-    fontSize: 48,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
+  // Tabular numerals via the token: the readout must not reflow every second.
+  timerText: { ...type.display, color: Colors.light.text },
+  statusPill: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
   },
-  statusText: {
-    fontSize: 20,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    marginTop: 8,
-  },
+  statusText: { ...type.eyebrow },
   statusBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    paddingHorizontal: 20,
-    marginTop: 20,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.lg,
   },
-  statusItem: {
-    alignItems: 'center',
-  },
-  statusLabel: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    marginBottom: 4,
-  },
-  statusValue: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-  },
+  statusItem: { alignItems: 'center' },
+  statusLabel: { ...type.eyebrow, color: Colors.light.textTertiary, marginBottom: spacing.xs },
+  statusValue: { ...type.numeric, color: Colors.light.text },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 40,
+    marginTop: spacing.xxxl,
   },
   controlButton: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+    marginHorizontal: spacing.base,
   },
-  resetButton: {
-    backgroundColor: Colors.light.textTertiary,
-  },
-  analogClock: {
-    alignItems: 'center',
-  },
+  controlButtonDisabled: { backgroundColor: Colors.light.textTertiary },
+  resetButton: { backgroundColor: Colors.light.textSecondary },
+  analogClock: { alignItems: 'center' },
   clockFace: {
     width: TIMER_SIZE - 80,
     height: TIMER_SIZE - 80,
@@ -387,12 +370,9 @@ const styles = StyleSheet.create({
   centerDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: radius.pill,
     position: 'absolute',
   },
-  analogTimeText: {
-    fontSize: 24,
-    fontFamily: 'ArchivoNarrow-Bold',
-    marginTop: 16,
-  },
+  // Also ticks, so also tabular. Rubber rather than the phase colour: yellow text on concrete fails contrast.
+  analogTimeText: { ...type.display, color: Colors.light.text, marginTop: spacing.md },
 });

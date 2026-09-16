@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Clock, Zap, Timer } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type } from '@/constants/theme';
 
 export default function TimerTab() {
   const handleNavigateToTimers = () => {
@@ -17,9 +18,11 @@ export default function TimerTab() {
       </View>
 
       <View style={styles.content}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.timerCard}
           onPress={handleNavigateToTimers}
+          accessibilityRole="button"
+          accessibilityLabel="Workout timers"
         >
           <View style={styles.timerIconContainer}>
             <Clock size={48} color={Colors.light.primary} />
@@ -30,7 +33,7 @@ export default function TimerTab() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.timerCard}>
+        <TouchableOpacity style={styles.timerCard} accessibilityRole="button" accessibilityLabel="Rest timer">
           <View style={styles.timerIconContainer}>
             <Timer size={48} color={Colors.light.success} />
           </View>
@@ -40,9 +43,9 @@ export default function TimerTab() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.timerCard}>
-          <View style={styles.timerIconContainer}>
-            <Zap size={48} color={Colors.light.accent} />
+        <TouchableOpacity style={styles.timerCard} accessibilityRole="button" accessibilityLabel="Tabata timer">
+          <View style={[styles.timerIconContainer, styles.timerIconWarning]}>
+            <Zap size={48} color={Colors.light.text} />
           </View>
           <Text style={styles.timerTitle}>Tabata Timer</Text>
           <Text style={styles.timerDescription}>
@@ -54,56 +57,41 @@ export default function TimerTab() {
   );
 }
 
+const shadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 8,
+  elevation: 4,
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.background },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.base,
   },
-  title: {
-    fontSize: 28,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
+  title: { ...type.title, color: Colors.light.text },
+  content: { flex: 1, padding: spacing.lg },
   timerCard: {
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 16,
+    borderRadius: radius.card,
+    padding: spacing.xl,
+    marginBottom: spacing.base,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
+    ...shadow,
   },
   timerIconContainer: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.base,
   },
-  timerTitle: {
-    fontSize: 20,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-    marginBottom: 8,
-  },
-  timerDescription: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
-  },
+  timerIconWarning: { backgroundColor: Colors.light.warning },
+  timerTitle: { ...type.section, color: Colors.light.text, marginBottom: spacing.sm },
+  timerDescription: { ...type.body, color: Colors.light.textTertiary, textAlign: 'center' },
 });

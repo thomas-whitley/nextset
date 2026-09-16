@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { ArrowLeft, Play } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 
 export default function CustomTimerConfigScreen() {
   const [circuitAmount, setCircuitAmount] = useState(1);
@@ -44,11 +45,17 @@ export default function CustomTimerConfigScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          hitSlop={HIT_SLOP}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Custom Timer</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 44 }} />
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
@@ -221,117 +228,80 @@ export default function CustomTimerConfigScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.beginButton} onPress={handleBegin}>
+        <TouchableOpacity style={styles.beginButton} onPress={handleBegin} accessibilityRole="button" accessibilityLabel="Begin timer">
           <Text style={styles.beginButtonText}>Begin</Text>
-          <Play size={20} color="#FFFFFF" />
+          <Play size={20} color={Colors.light.card} />
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+const shadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 8,
+  elevation: 4,
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.background },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.card,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
+  headerTitle: { ...type.section, color: Colors.light.text },
+  content: { flex: 1 },
+  scrollContent: { padding: spacing.lg, paddingBottom: spacing.xxxl },
   section: {
-    marginBottom: 32,
+    marginBottom: spacing.xl,
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: radius.card,
+    padding: spacing.lg,
+    ...shadow,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.primary,
-    marginBottom: 20,
-  },
-  sliderContainer: {
-    marginBottom: 24,
-  },
+  // Eyebrow token uppercases; the source strings are already caps and stay readable either way.
+  sectionTitle: { ...type.eyebrow, color: Colors.light.textTertiary, marginBottom: spacing.lg },
+  sliderContainer: { marginBottom: spacing.xl },
   sliderLabelContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
-  sliderLabel: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-  },
-  sliderValue: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.primary,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
+  sliderLabel: { ...type.bodyMedium, color: Colors.light.text },
+  // Tabular: the value changes as the thumb moves and must not reflow the row.
+  sliderValue: { ...type.numeric, color: Colors.light.primary },
+  slider: { width: '100%', height: 44 },
   sliderRange: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: -8,
+    marginTop: -spacing.sm,
   },
-  rangeText: {
-    fontSize: 12,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-  },
+  rangeText: { ...type.label, color: Colors.light.textTertiary },
   beginButton: {
     backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: radius.card,
+    paddingVertical: spacing.base,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    marginTop: spacing.base,
   },
-  beginButtonText: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
+  beginButtonText: { ...type.section, color: Colors.light.card, marginRight: spacing.sm },
 });
