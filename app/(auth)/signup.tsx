@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Eye, EyeOff, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { Eye, EyeOff, CircleCheck as CheckCircle, Mail } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withSequence } from 'react-native-reanimated';
-import { Svg, Path } from 'react-native-svg';
 import { supabase } from '@/data/supabase-client';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
-
-// Create animated components
-const AnimatedSvg = Animated.createAnimatedComponent(Svg);
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import Wordmark from '@/components/Wordmark';
 
 export default function SignUpScreen() {
   const [formData, setFormData] = useState({
@@ -44,14 +41,14 @@ export default function SignUpScreen() {
           withTiming(1, { duration: 300 }),
           withTiming(0.4, { duration: 300 })
         );
-        
+
         setTimeout(() => {
           dot2Opacity.value = withSequence(
             withTiming(1, { duration: 300 }),
             withTiming(0.4, { duration: 300 })
           );
         }, 200);
-        
+
         setTimeout(() => {
           dot3Opacity.value = withSequence(
             withTiming(1, { duration: 300 }),
@@ -63,14 +60,14 @@ export default function SignUpScreen() {
       // Start animation and repeat
       animateDots();
       const interval = setInterval(animateDots, 1000);
-      
+
       // Auto-navigate to main app after 3 seconds
       const navigationTimeout = setTimeout(() => {
         // The AuthProvider should handle navigation automatically
         // But if it doesn't, we can force navigation to the main app
         console.log('Auto-navigating to main app...');
       }, 3000);
-      
+
       return () => {
         clearInterval(interval);
         clearTimeout(navigationTimeout);
@@ -126,10 +123,10 @@ export default function SignUpScreen() {
 
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log('Starting signup process...');
-      
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password,
@@ -145,25 +142,25 @@ export default function SignUpScreen() {
 
       if (signUpError) {
         console.error('Sign up error:', signUpError);
-        
+
         // Handle specific error cases
-        if (signUpError.message.includes('User already registered') || 
+        if (signUpError.message.includes('User already registered') ||
             signUpError.message.includes('already registered') ||
             signUpError.message.includes('already exists')) {
           setError('An account with this email already exists. Log in instead.');
           return;
         }
-        
+
         if (signUpError.message.includes('Invalid email')) {
           setError('Please enter a valid email address');
           return;
         }
-        
+
         if (signUpError.message.includes('Password')) {
           setError('Password must be at least 6 characters long');
           return;
         }
-        
+
         // Generic error handling
         setError(signUpError.message || 'Failed to create account. Please try again.');
         return;
@@ -198,7 +195,7 @@ export default function SignUpScreen() {
 
   const handleResendEmail = async () => {
     if (!formData.email) return;
-    
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.resend({
@@ -245,33 +242,34 @@ export default function SignUpScreen() {
   // Email verification screen
   const renderEmailVerificationScreen = () => (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.emailVerificationContainer}>
-        <View style={styles.emailVerificationContent}>
-          <View style={styles.emailIcon}>
-            <Text style={styles.emailIconText}>📧</Text>
+      <View style={styles.stateContainer}>
+        <View style={styles.stateContent}>
+          <View style={styles.stateIcon}>
+            <Mail size={36} color={Colors.light.primary} />
           </View>
-          <Text style={styles.emailVerificationTitle}>Check Your Email</Text>
-          <Text style={styles.emailVerificationMessage}>
+          <Text style={styles.stateTitle}>Check your email</Text>
+          <Text style={styles.stateMessage}>
             We've sent a verification link to{' '}
             <Text style={styles.emailAddress}>{formData.email}</Text>
           </Text>
-          <Text style={styles.emailVerificationInstructions}>
-            Please check your inbox (including spam folder) and click the verification link to activate your account. 
-            After clicking the link, you can return here to sign in.
+          <Text style={styles.stateInstructions}>
+            Open the link to activate your account, then come back here to log in. Check your spam folder if it hasn't arrived.
           </Text>
-          
-          <TouchableOpacity 
-            style={styles.resendButton}
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
             onPress={handleResendEmail}
+            accessibilityRole="button"
           >
-            <Text style={styles.resendText}>Resend verification email</Text>
+            <Text style={styles.secondaryButtonText}>Resend verification email</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.backToLoginButton}
+
+          <TouchableOpacity
+            style={styles.primaryButton}
             onPress={navigateToLogin}
+            accessibilityRole="button"
           >
-            <Text style={styles.backToLoginText}>Back to log in</Text>
+            <Text style={styles.primaryButtonText}>Back to log in</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -281,21 +279,20 @@ export default function SignUpScreen() {
   // Success Screen
   const renderSuccessScreen = () => (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.successContainer}>
-        <Animated.View style={[styles.successContent, successAnimatedStyle]}>
-          <View style={styles.successIcon}>
-            <CheckCircle size={64} color={Colors.light.success} />
+      <View style={styles.stateContainer}>
+        <Animated.View style={[styles.stateContent, successAnimatedStyle]}>
+          <View style={styles.stateIcon}>
+            <CheckCircle size={36} color={Colors.light.success} />
           </View>
-          <Text style={styles.successTitle}>Welcome to NextSet</Text>
-          <Text style={styles.successMessage}>
-            Your account has been created successfully. Get ready to transform your fitness journey!
+          <Text style={styles.stateTitle}>Account created</Text>
+          <Text style={styles.stateMessage}>
+            You're logged in. Setting things up.
           </Text>
           <View style={styles.loadingDots}>
             <Animated.View style={[styles.dot, dot1AnimatedStyle]} />
             <Animated.View style={[styles.dot, dot2AnimatedStyle]} />
             <Animated.View style={[styles.dot, dot3AnimatedStyle]} />
           </View>
-          <Text style={styles.loadingText}>Setting up your account...</Text>
         </Animated.View>
       </View>
     </SafeAreaView>
@@ -312,38 +309,33 @@ export default function SignUpScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {/* <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color={Colors.light.text} />
-          </TouchableOpacity>
-        </View> */}
-
-        <ScrollView 
-          style={styles.content} 
+        <ScrollView
+          style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={styles.brandSection}>
+            <Wordmark />
+          </View>
+
           <View style={styles.titleSection}>
-            <Text style={styles.title}>Create your account</Text>
-            <Text style={styles.subtitle}>Join us and start your fitness transformation</Text>
+            <Text style={styles.title}>Create account</Text>
           </View>
 
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
               {error.includes('already exists') && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.errorActionButton}
                   onPress={navigateToLogin}
+                  hitSlop={HIT_SLOP}
                 >
                   <Text style={styles.errorActionText}>Log in</Text>
                 </TouchableOpacity>
@@ -352,39 +344,8 @@ export default function SignUpScreen() {
           )}
 
           <View style={styles.formSection}>
-            {/* <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Full Name</Text>
-              <TextInput
-                style={[styles.textInput, error && error.includes('full name') && styles.inputError]}
-                value={formData.fullName}
-                onChangeText={(value) => updateFormData('fullName', value)}
-                placeholder="Enter your full name"
-                placeholderTextColor={Colors.light.textTertiary}
-                autoCapitalize="words"
-                returnKeyType="next"
-                textContentType="name"
-                autoComplete="name"
-              />
-            </View> */}
-
-            {/* <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Username</Text>
-              <TextInput
-                style={[styles.textInput, error && error.includes('username') && styles.inputError]}
-                value={formData.username}
-                onChangeText={(value) => updateFormData('username', value)}
-                placeholder="Choose a username"
-                placeholderTextColor={Colors.light.textTertiary}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-                textContentType="username"
-                autoComplete="username"
-              />
-            </View> */}
-
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
+              <Text style={styles.inputLabel}>Email address</Text>
               <TextInput
                 style={[styles.textInput, error && error.includes('email') && styles.inputError]}
                 value={formData.email}
@@ -397,23 +358,9 @@ export default function SignUpScreen() {
                 returnKeyType="next"
                 textContentType="emailAddress"
                 autoComplete="email"
+                accessibilityLabel="Email address"
               />
             </View>
-
-            {/* <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone Number (Optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.phone}
-                onChangeText={(value) => updateFormData('phone', value)}
-                placeholder="Enter your phone number"
-                placeholderTextColor={Colors.light.textTertiary}
-                keyboardType="phone-pad"
-                returnKeyType="next"
-                textContentType="telephoneNumber"
-                autoComplete="tel"
-              />
-            </View> */}
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Password</Text>
@@ -430,10 +377,14 @@ export default function SignUpScreen() {
                   returnKeyType="next"
                   textContentType="newPassword"
                   autoComplete="password-new"
+                  accessibilityLabel="Password"
+                  accessibilityHint="At least 6 characters"
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
                   onPress={() => setShowPassword(!showPassword)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
                     <EyeOff size={20} color={Colors.light.textTertiary} />
@@ -442,10 +393,11 @@ export default function SignUpScreen() {
                   )}
                 </TouchableOpacity>
               </View>
+              <Text style={styles.inputHelper}>At least 6 characters</Text>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Confirm Password</Text>
+              <Text style={styles.inputLabel}>Confirm password</Text>
               <View style={[styles.passwordContainer, error && error.includes('match') && styles.inputError]}>
                 <TextInput
                   style={styles.passwordInput}
@@ -460,10 +412,13 @@ export default function SignUpScreen() {
                   onSubmitEditing={handleSignUp}
                   textContentType="newPassword"
                   autoComplete="password-new"
+                  accessibilityLabel="Confirm password"
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showConfirmPassword ? 'Hide password' : 'Show password'}
                 >
                   {showConfirmPassword ? (
                     <EyeOff size={20} color={Colors.light.textTertiary} />
@@ -474,32 +429,28 @@ export default function SignUpScreen() {
               </View>
             </View>
 
-            <TouchableOpacity 
-              style={[styles.signUpButton, loading && styles.signUpButtonDisabled]} 
+            <TouchableOpacity
+              style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
               onPress={handleSignUp}
               disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Create account"
+              accessibilityState={{ disabled: loading }}
             >
-              <Text style={styles.signUpButtonText}>
-                {loading ? 'Creating Account...' : 'Create New Account'}
+              <Text style={styles.primaryButtonText}>
+                {loading ? 'Creating account...' : 'Create account'}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Social Login Buttons */}
-          {/*<View style={styles.socialSection}>
-          </View>*/}
-
-          <View style={styles.inputGroup}>
-            <TouchableOpacity 
-              style={styles.LogInButton} 
-              onPress={navigateToLogin}
-              activeOpacity={0.6} 
-            >
-              <Text style={styles.LogInButtonText}>
-                Log In
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={navigateToLogin}
+            activeOpacity={0.6}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryButtonText}>Log in</Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -514,335 +465,189 @@ const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: spacing.xxxl,
+  },
+  brandSection: {
+    paddingTop: spacing.xl,
+    marginBottom: spacing.xxxl,
   },
   titleSection: {
-    marginBottom: 32,
-    paddingTop: 16,
+    marginBottom: spacing.xl,
   },
   title: {
-    fontSize: 32,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.title,
     color: Colors.light.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    lineHeight: 24,
   },
   errorContainer: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: Colors.light.card,
     borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderColor: Colors.light.error,
+    borderRadius: radius.input,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
   },
   errorText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: '#DC2626',
-    marginBottom: 8,
+    ...type.label,
+    color: Colors.light.error,
   },
   errorActionButton: {
     alignSelf: 'flex-start',
+    marginTop: spacing.sm,
   },
   errorActionText: {
-    fontSize: 14,
-    fontFamily: 'ArchivoNarrow-SemiBold',
+    ...type.label,
     color: Colors.light.primary,
     textDecorationLine: 'underline',
   },
   formSection: {
-    marginBottom: 32,
+    marginBottom: spacing.base,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   inputLabel: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 8,
+    ...type.eyebrow,
+    color: Colors.light.textTertiary,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.xs,
+  },
+  inputHelper: {
+    ...type.label,
+    color: Colors.light.textTertiary,
+    marginTop: spacing.sm,
+    marginLeft: spacing.xs,
   },
   textInput: {
+    ...type.body,
     backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md + spacing.xs / 2,
     color: Colors.light.text,
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
   inputError: {
-    borderColor: '#DC2626',
-    borderWidth: 2,
+    borderColor: Colors.light.error,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.card,
-    borderRadius: 12,
+    borderRadius: radius.input,
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
   passwordInput: {
+    ...type.body,
     flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md + spacing.xs / 2,
     color: Colors.light.text,
   },
   eyeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  signUpButton: {
+  primaryButton: {
     backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 16,
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  signUpButtonDisabled: {
-    opacity: 0.6,
-  },
-  signUpButtonText: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
-  },
-  LogInButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 16,
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  LogInButtonDisabled: {
-    opacity: 0.5,
-  },
-  LogInButtonText: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.primary,
-  },
-  socialSection: {
-    marginBottom: 32,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.light.border,
-  },
-  dividerText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    marginHorizontal: 16,
-  },
-  socialButton: {
-    flexDirection: 'row',
+    borderRadius: radius.input,
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 52,
+    alignSelf: 'stretch',
+  },
+  primaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  primaryButtonText: {
+    ...type.bodyMedium,
+    color: Colors.light.card,
+  },
+  secondaryButton: {
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  socialButtonLoading: {
-    opacity: 0.6,
-  },
-  socialButtonText: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginLeft: 12,
-  },
-  footerSection: {
-    paddingBottom: 32,
+    borderRadius: radius.input,
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    alignSelf: 'stretch',
+    marginBottom: spacing.base,
   },
-  footerText: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-  },
-  footerLink: {
+  secondaryButtonText: {
+    ...type.bodyMedium,
     color: Colors.light.primary,
-    fontFamily: 'ArchivoNarrow-SemiBold',
   },
-  // Success Screen Styles
-  successContainer: {
+  // Post-submit state screens (email sent / account created)
+  stateContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: spacing.xxxl,
     backgroundColor: Colors.light.background,
   },
-  successContent: {
+  stateContent: {
     alignItems: 'center',
+    alignSelf: 'stretch',
+    maxWidth: 400,
   },
-  successIcon: {
-    marginBottom: 24,
+  stateIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.pill,
+    backgroundColor: Colors.light.card,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
   },
-  successTitle: {
-    fontSize: 28,
-    fontFamily: 'ArchivoNarrow-Bold',
+  stateTitle: {
+    ...type.title,
     color: Colors.light.text,
-    marginBottom: 16,
+    marginBottom: spacing.base,
     textAlign: 'center',
   },
-  successMessage: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+  stateMessage: {
+    ...type.body,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  emailAddress: {
+    ...type.bodyMedium,
+    color: Colors.light.primary,
+  },
+  stateInstructions: {
+    ...type.label,
     color: Colors.light.textTertiary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
   },
   loadingDots: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginTop: spacing.base,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: spacing.sm,
+    height: spacing.sm,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.primary,
-    marginHorizontal: 4,
-  },
-  loadingText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
-  },
-  // Email Verification Styles
-  emailVerificationContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    backgroundColor: Colors.light.background,
-  },
-  emailVerificationContent: {
-    alignItems: 'center',
-    maxWidth: 400,
-  },
-  emailIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  emailIconText: {
-    fontSize: 40,
-  },
-  emailVerificationTitle: {
-    fontSize: 28,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  emailVerificationMessage: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 8,
-  },
-  emailAddress: {
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.primary,
-  },
-  emailVerificationInstructions: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 32,
-  },
-  backToLoginButton: {
-    backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    marginBottom: 16,
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  backToLoginText: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
-  },
-  resendButton: {
-    backgroundColor: Colors.light.primaryLight,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    marginBottom: 16,
-  },
-  resendText: {
-    fontSize: 14,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.primary,
-    textAlign: 'center',
+    marginHorizontal: spacing.xs,
   },
 });

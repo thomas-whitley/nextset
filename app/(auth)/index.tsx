@@ -1,32 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, AccessibilityInfo } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS, withDelay } from 'react-native-reanimated';
-import { Svg, Path } from 'react-native-svg';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
 import Colors from '@/constants/Colors';
-import { AuthProvider, useAuth } from '@/data/AuthContext';
-
-// Create animated components
-const AnimatedSvg = Animated.createAnimatedComponent(Svg);
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-
-// Animated Dumbbell SVG Component
-const AnimatedDumbbell = ({ size = 20, color = Colors.light.primary }) => (
-  <Animated.View style={{ width: size, height: size }}>
-    <AnimatedSvg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <AnimatedPath
-        d="M6.5 12L17.5 12M9 9L9 15M15 9L15 15M5 10L5 14M19 10L19 14M3 11L3 13M21 11L21 13"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </AnimatedSvg>
-  </Animated.View>
-);
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import { useAuth } from '@/data/AuthContext';
+import Wordmark from '@/components/Wordmark';
 
 export default function LoginScreen() {
   const [formData, setFormData] = useState({
@@ -43,20 +24,7 @@ export default function LoginScreen() {
   const emailInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
 
-  // Animation values
-  const dumbbellX = useSharedValue(-30);
-  const textOpacity = useSharedValue(0);
-  const lastAnimationTime = useRef(Date.now());
-  
   const { user, loading: authLoading } = useAuth();
-
-  // Handle authentication state changes
-  useEffect(() => {
-    if (authLoading) return;
-    if (user) {
-      // Optional: show toast or trigger animation here
-    }
-  }, [user, authLoading]);
 
   // Redirect once authenticated
   useEffect(() => {
@@ -94,50 +62,6 @@ export default function LoginScreen() {
       return () => clearTimeout(timeout);
     }
   }, [resendSuccess]);
-  
-  
-  // Start animation on mount and repeat every 30 seconds
-  useEffect(() => {
-    const startAnimation = () => {
-      // Reset values
-      dumbbellX.value = -30;
-      textOpacity.value = 0;
-      
-      // Start the dumbbell roll animation
-      dumbbellX.value = withSpring(120, {
-        damping: 15,
-        stiffness: 100,
-      });
-
-      // Animate text opacity as dumbbell moves
-      textOpacity.value = withTiming(1, {
-        duration: 750,
-      });
-    };
-
-    // Initial animation
-    startAnimation();
-    lastAnimationTime.current = Date.now();
-
-    // Set up interval for repeating animation every 30 seconds
-    const interval = setInterval(() => {
-      const now = Date.now();
-      if (now - lastAnimationTime.current >= 30000) {
-        startAnimation();
-        lastAnimationTime.current = now;
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const dumbbellStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: dumbbellX.value }],
-  }));
-
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-  }));
 
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -167,7 +91,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log('Starting login process...');
       const { data, error: loginError } = await supabase.auth.signInWithPassword({
@@ -179,31 +103,31 @@ export default function LoginScreen() {
 
       if (loginError) {
         console.error('Login error:', loginError);
-        
+
         // Handle specific error cases
-        if (loginError.message.includes('Invalid login credentials') || 
+        if (loginError.message.includes('Invalid login credentials') ||
             loginError.message.includes('invalid credentials') ||
             loginError.message.includes('Invalid email or password')) {
           setError('Invalid email or password. Please check your credentials and try again.');
           return;
         }
-        
+
         if (loginError.message.includes('Email not confirmed')) {
           setError('Please check your email and click the confirmation link before signing in.');
           setShowResendEmail(true);
           return;
         }
-        
+
         if (loginError.message.includes('Too many requests')) {
           setError('Too many login attempts. Please wait a moment before trying again.');
           return;
         }
-        
+
         if (loginError.message.includes('Invalid email')) {
           setError('Please enter a valid email address');
           return;
         }
-        
+
         // Generic error handling
         setError(loginError.message || 'Failed to sign in. Please try again.');
         return;
@@ -257,7 +181,7 @@ export default function LoginScreen() {
 
       if (error) {
         console.error('Resend confirmation error:', error);
-        
+
         if (error.message.includes('rate limit') || error.message.includes('too many')) {
           setError('Too many requests. Please wait before trying again.');
           setResendCooldown(120); // 2 minutes for rate limit
@@ -280,60 +204,52 @@ export default function LoginScreen() {
     }
   };
 
+  const resendDisabled = resendCooldown > 0 || resendLoading;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {/* <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color={Colors.light.text} />
-          </TouchableOpacity>
-        </View> */}
-
-        <ScrollView 
-          style={styles.content} 
+        <ScrollView
+          style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={styles.brandSection}>
+            <Wordmark />
+          </View>
+
           <View style={styles.titleSection}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Log in to your account</Text>
+            <Text style={styles.title}>Log in</Text>
           </View>
 
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
               {error.includes('Invalid email or password') && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.errorActionButton}
                   onPress={navigateToSignUp}
+                  hitSlop={HIT_SLOP}
                 >
-                  <Text style={styles.errorActionText}>Create New Account</Text>
+                  <Text style={styles.errorActionText}>Create account</Text>
                 </TouchableOpacity>
               )}
               {showResendEmail && error.includes('confirmation link') && (
-                <TouchableOpacity 
-                  style={[
-                    styles.resendButton,
-                    (resendCooldown > 0 || resendLoading) && styles.resendButtonDisabled
-                  ]}
+                <TouchableOpacity
+                  style={[styles.resendButton, resendDisabled && styles.resendButtonDisabled]}
                   onPress={handleResendConfirmation}
-                  disabled={resendCooldown > 0 || resendLoading}
+                  disabled={resendDisabled}
+                  hitSlop={HIT_SLOP}
                 >
-                  <Text style={[
-                    styles.resendButtonText,
-                    (resendCooldown > 0 || resendLoading) && styles.resendButtonTextDisabled
-                  ]}>
-                    {resendLoading 
-                      ? 'Sending...' 
-                      : resendCooldown > 0 
+                  <Text style={[styles.resendButtonText, resendDisabled && styles.resendButtonTextDisabled]}>
+                    {resendLoading
+                      ? 'Sending...'
+                      : resendCooldown > 0
                         ? `Resend in ${resendCooldown}s`
                         : 'Resend confirmation email'
                     }
@@ -346,14 +262,14 @@ export default function LoginScreen() {
           {resendSuccess && (
             <View style={styles.successContainer}>
               <Text style={styles.successText}>
-                ✅ Confirmation email sent! Please check your inbox and spam folder.
+                Confirmation email sent. Check your inbox and spam folder.
               </Text>
             </View>
           )}
 
           <View style={styles.formSection}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
+              <Text style={styles.inputLabel}>Email address</Text>
               <TextInput
                 style={[styles.textInput, error && error.includes('email') && styles.inputError]}
                 ref={emailInputRef}
@@ -397,7 +313,7 @@ export default function LoginScreen() {
                   style={styles.eyeButton}
                   onPress={() => setShowPassword(!showPassword)}
                   accessibilityRole="button"
-                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                   accessibilityHint="Toggle password visibility"
                 >
                   {showPassword ? (
@@ -409,23 +325,17 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* Animated Forgot Password Button */}
-            <View style={styles.forgotPasswordContainer}>
-              <Animated.View style={[styles.dumbbellContainer, dumbbellStyle]}>
-                <AnimatedDumbbell size={16} />
-              </Animated.View>
-              <TouchableOpacity 
-                style={styles.forgotPasswordButton}
-                onPress={navigateToForgotPassword}
-              >
-                <Animated.Text style={[styles.forgotPasswordText, textStyle]}>
-                  Forgot Password?
-                </Animated.Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.forgotPasswordButton}
+              onPress={navigateToForgotPassword}
+              hitSlop={HIT_SLOP}
+              accessibilityRole="button"
+            >
+              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+            <TouchableOpacity
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={loading}
               accessibilityRole="button"
@@ -434,24 +344,20 @@ export default function LoginScreen() {
               accessibilityState={{ disabled: loading }}
             >
               <Text style={styles.loginButtonText}>
-                {loading ? 'Logging In...' : 'Log In'}
+                {loading ? 'Logging in...' : 'Log in'}
               </Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.inputGroup}>
-            <TouchableOpacity
-              style={styles.SignInButton}
-              onPress={navigateToSignUp}
-              activeOpacity={0.6}
-            >
-              <Text style={styles.SignInButtonText}>
-                Create account
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          </ScrollView>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={navigateToSignUp}
+            activeOpacity={0.6}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryButtonText}>Create account</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -465,283 +371,159 @@ const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 20,
+    paddingBottom: spacing.lg,
+  },
+  brandSection: {
+    paddingTop: spacing.xl,
+    marginBottom: spacing.xxxl,
   },
   titleSection: {
-    marginBottom: 32,
-    paddingTop: 16,
+    marginBottom: spacing.xl,
   },
   title: {
-    fontSize: 32,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.title,
     color: Colors.light.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    lineHeight: 24,
   },
   errorContainer: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: Colors.light.card,
     borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderColor: Colors.light.error,
+    borderRadius: radius.input,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
   },
   errorText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: '#DC2626',
-    marginBottom: 8,
+    ...type.label,
+    color: Colors.light.error,
   },
   errorActionButton: {
     alignSelf: 'flex-start',
+    marginTop: spacing.sm,
   },
   errorActionText: {
-    fontSize: 14,
-    fontFamily: 'ArchivoNarrow-SemiBold',
+    ...type.label,
     color: Colors.light.primary,
     textDecorationLine: 'underline',
   },
   resendButton: {
     backgroundColor: Colors.light.primaryLight,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginTop: 8,
+    borderRadius: radius.input,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
     alignSelf: 'flex-start',
   },
   resendButtonDisabled: {
     backgroundColor: Colors.light.border,
-    opacity: 0.6,
   },
   resendButtonText: {
-    fontSize: 12,
-    fontFamily: 'ArchivoNarrow-SemiBold',
+    ...type.label,
     color: Colors.light.primary,
   },
   resendButtonTextDisabled: {
     color: Colors.light.textTertiary,
   },
   successContainer: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: Colors.light.card,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderColor: Colors.light.success,
+    borderRadius: radius.input,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
   },
   successText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: '#15803D',
+    ...type.label,
+    color: Colors.light.success,
   },
   formSection: {
-    marginBottom: 32,
+    marginBottom: spacing.base,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   inputLabel: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 8,
+    ...type.eyebrow,
+    color: Colors.light.textTertiary,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.xs,
   },
   textInput: {
+    ...type.body,
     backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md + spacing.xs / 2,
     color: Colors.light.text,
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
   inputError: {
-    borderColor: '#DC2626',
-    borderWidth: 2,
+    borderColor: Colors.light.error,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.card,
-    borderRadius: 12,
+    borderRadius: radius.input,
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
   passwordInput: {
+    ...type.body,
     flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md + spacing.xs / 2,
     color: Colors.light.text,
   },
   eyeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  forgotPasswordContainer: {
-    position: 'relative',
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-    height: 24,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    minWidth: 44,
+    minHeight: 44,
     justifyContent: 'center',
-  },
-  dumbbellContainer: {
-    position: 'absolute',
-    top: 4,
-    left: -30,
-    zIndex: 1,
+    alignItems: 'center',
   },
   forgotPasswordButton: {
     alignSelf: 'flex-end',
+    marginBottom: spacing.xl,
   },
   forgotPasswordText: {
-    fontSize: 14,
-    fontFamily: 'ArchivoNarrow-SemiBold',
+    ...type.label,
     color: Colors.light.primary,
   },
   loginButton: {
     backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
+    borderRadius: radius.input,
+    paddingVertical: spacing.base,
     alignItems: 'center',
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    justifyContent: 'center',
+    minHeight: 52,
   },
   loginButtonDisabled: {
     opacity: 0.6,
   },
   loginButtonText: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
+    ...type.bodyMedium,
+    color: Colors.light.card,
   },
-  SignInButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 16,
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  SignInButtonText: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.primary,
-  },
-  socialSection: {
-    marginBottom: 20,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.light.border,
-  },
-  dividerText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    marginHorizontal: 16,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  secondaryButton: {
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  socialButtonLoading: {
-    opacity: 0.6,
-  },
-  socialButtonText: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginLeft: 12,
-  },
-  footerSection: {
-    paddingHorizontal: 24,
-    paddingBottom: 32,
+    borderRadius: radius.input,
+    paddingVertical: spacing.base,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
   },
-  footerText: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-  },
-  footerLink: {
+  secondaryButtonText: {
+    ...type.bodyMedium,
     color: Colors.light.primary,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-  },
-  debugSection: {
-    marginTop: 8,
-    alignItems: 'center',
-    paddingBottom: 12,
-  },
-  debugDivider: {
-    height: 1,
-    backgroundColor: Colors.light.border,
-    width: '100%',
-    marginBottom: 12,
-  },
-  debugButton: {
-    borderWidth: 1,
-    borderColor: Colors.light.textTertiary,
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  debugButtonText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
   },
 });
