@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Mail } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -54,9 +55,12 @@ export default function ForgotPasswordScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton} 
+          <TouchableOpacity
+            style={styles.backButton}
             onPress={() => router.back()}
+            hitSlop={HIT_SLOP}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
           >
             <ArrowLeft size={24} color={Colors.light.text} />
           </TouchableOpacity>
@@ -67,16 +71,17 @@ export default function ForgotPasswordScreen() {
             <View style={styles.successIcon}>
               <Mail size={48} color={Colors.light.primary} />
             </View>
-            <Text style={styles.successTitle}>Check Your Email</Text>
+            <Text style={styles.successTitle}>Check your email</Text>
             <Text style={styles.successMessage}>
-              If an account with that email exists, we've sent you a password reset link. 
-              Please check your inbox and follow the instructions to reset your password.
+              If an account with that email exists, we've sent you a password reset link.
+              Check your inbox and follow the instructions to reset your password.
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.backToLoginButton}
               onPress={() => router.push('/(auth)')}
+              accessibilityRole="button"
             >
-              <Text style={styles.backToLoginText}>Back to Sign In</Text>
+              <Text style={styles.backToLoginText}>Back to sign in</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -87,9 +92,12 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => router.back()}
+          hitSlop={HIT_SLOP}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
         >
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
@@ -97,7 +105,7 @@ export default function ForgotPasswordScreen() {
 
       <View style={styles.content}>
         <View style={styles.titleSection}>
-          <Text style={styles.title}>Forgot Password?</Text>
+          <Text style={styles.title}>Forgot password?</Text>
           <Text style={styles.subtitle}>
             Enter your email address and we'll send you a link to reset your password.
           </Text>
@@ -111,7 +119,7 @@ export default function ForgotPasswordScreen() {
 
         <View style={styles.formSection}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email Address</Text>
+            <Text style={styles.inputLabel}>Email address</Text>
             <TextInput
               style={[styles.textInput, error && styles.inputError]}
               value={email}
@@ -129,13 +137,14 @@ export default function ForgotPasswordScreen() {
             />
           </View>
 
-          <TouchableOpacity 
-            style={[styles.sendButton, loading && styles.sendButtonDisabled]} 
+          <TouchableOpacity
+            style={[styles.sendButton, loading && styles.sendButtonDisabled]}
             onPress={handleSendResetLink}
             disabled={loading}
+            accessibilityRole="button"
           >
             <Text style={styles.sendButtonText}>
-              {loading ? 'Sending...' : 'Send Reset Link'}
+              {loading ? 'Sending...' : 'Send reset link'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -143,11 +152,11 @@ export default function ForgotPasswordScreen() {
         <View style={styles.footerSection}>
           <Text style={styles.footerText}>
             Remember your password?{' '}
-            <Text 
-              style={styles.footerLink} 
+            <Text
+              style={styles.footerLink}
               onPress={() => router.push('/(auth)')}
             >
-              Sign In
+              Sign in
             </Text>
           </Text>
         </View>
@@ -162,149 +171,135 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.card,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 32,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
     justifyContent: 'space-between',
   },
   titleSection: {
-    marginBottom: 48,
+    marginBottom: spacing.xxxl,
   },
   title: {
-    fontSize: 32,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.title,
     color: Colors.light.text,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    lineHeight: 24,
+    ...type.body,
+    color: Colors.light.textSecondary,
   },
   errorContainer: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: Colors.light.card,
     borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderColor: Colors.light.error,
+    borderRadius: radius.input,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
   },
   errorText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: '#DC2626',
+    ...type.label,
+    color: Colors.light.error,
   },
   formSection: {
     flex: 1,
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   inputLabel: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 8,
+    ...type.eyebrow,
+    color: Colors.light.textTertiary,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.xs,
   },
   textInput: {
+    ...type.body,
     backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md + spacing.xs / 2,
     color: Colors.light.text,
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
   inputError: {
-    borderColor: '#DC2626',
-    borderWidth: 2,
+    borderColor: Colors.light.error,
   },
   sendButton: {
     backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
+    borderRadius: radius.input,
+    paddingVertical: spacing.base,
     alignItems: 'center',
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
   },
   sendButtonDisabled: {
     opacity: 0.6,
   },
   sendButtonText: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
+    ...type.bodyMedium,
+    color: Colors.light.card,
   },
   footerSection: {
-    paddingBottom: 32,
+    paddingBottom: spacing.xxl,
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
+    ...type.body,
+    color: Colors.light.textSecondary,
   },
   footerLink: {
+    ...type.bodyMedium,
     color: Colors.light.primary,
-    fontFamily: 'ArchivoNarrow-SemiBold',
   },
   successContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.lg,
   },
   successIcon: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   successTitle: {
-    fontSize: 24,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.title,
     color: Colors.light.text,
-    marginBottom: 16,
+    marginBottom: spacing.base,
     textAlign: 'center',
   },
   successMessage: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
+    ...type.body,
+    color: Colors.light.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
   },
   backToLoginButton: {
     backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    borderRadius: radius.input,
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.xxl,
+    alignItems: 'center',
   },
   backToLoginText: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
+    ...type.bodyMedium,
+    color: Colors.light.card,
   },
 });

@@ -7,6 +7,7 @@ import { Eye, EyeOff, Lock } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
 import { parseAuthFragment } from '@/data/authLink';
 import Colors from '@/constants/Colors';
+import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 
 export default function UpdatePasswordScreen() {
   const [password, setPassword] = useState('');
@@ -151,7 +152,7 @@ export default function UpdatePasswordScreen() {
         </View>
 
         <View style={styles.titleSection}>
-          <Text style={styles.title}>Update Password</Text>
+          <Text style={styles.title}>Update password</Text>
           <Text style={styles.subtitle}>
             Enter your new password below. Make sure it's secure and easy for you to remember.
           </Text>
@@ -167,7 +168,7 @@ export default function UpdatePasswordScreen() {
 
         <View style={styles.formSection}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>New Password</Text>
+            <Text style={styles.inputLabel}>New password</Text>
             <View style={[styles.passwordContainer, error && error.includes('Password') && styles.inputError]}>
               <TextInput
                 style={styles.passwordInput}
@@ -186,6 +187,9 @@ export default function UpdatePasswordScreen() {
               <TouchableOpacity
                 style={styles.eyeButton}
                 onPress={() => setShowPassword(!showPassword)}
+                hitSlop={HIT_SLOP}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
                   <EyeOff size={20} color={Colors.light.textTertiary} />
@@ -194,10 +198,11 @@ export default function UpdatePasswordScreen() {
                 )}
               </TouchableOpacity>
             </View>
+            <Text style={styles.helperText}>At least 6 characters</Text>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Confirm New Password</Text>
+            <Text style={styles.inputLabel}>Confirm new password</Text>
             <View style={[styles.passwordContainer, error && error.includes('match') && styles.inputError]}>
               <TextInput
                 style={styles.passwordInput}
@@ -217,6 +222,9 @@ export default function UpdatePasswordScreen() {
               <TouchableOpacity
                 style={styles.eyeButton}
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                hitSlop={HIT_SLOP}
+                accessibilityRole="button"
+                accessibilityLabel={showConfirmPassword ? 'Hide password' : 'Show password'}
               >
                 {showConfirmPassword ? (
                   <EyeOff size={20} color={Colors.light.textTertiary} />
@@ -231,16 +239,17 @@ export default function UpdatePasswordScreen() {
             style={[styles.updateButton, (loading || !sessionReady) && styles.updateButtonDisabled]}
             onPress={handleUpdatePassword}
             disabled={loading || !sessionReady}
+            accessibilityRole="button"
           >
             <Text style={styles.updateButtonText}>
-              {loading ? 'Updating...' : 'Update Password'}
+              {loading ? 'Updating...' : 'Update password'}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footerSection}>
-          <TouchableOpacity onPress={() => router.push('/(auth)')}>
-            <Text style={styles.footerLink}>Back to Sign In</Text>
+          <TouchableOpacity onPress={() => router.push('/(auth)')} hitSlop={HIT_SLOP} accessibilityRole="button">
+            <Text style={styles.footerLink}>Back to sign in</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -255,117 +264,110 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxxl,
     justifyContent: 'space-between',
   },
   iconContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
   },
   icon: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: radius.pill,
     backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   titleSection: {
-    marginBottom: 48,
+    marginBottom: spacing.xxxl,
     alignItems: 'center',
   },
   title: {
-    fontSize: 32,
-    fontFamily: 'ArchivoNarrow-Bold',
+    ...type.title,
     color: Colors.light.text,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    lineHeight: 24,
+    ...type.body,
+    color: Colors.light.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.lg,
   },
   errorContainer: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: Colors.light.card,
     borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderColor: Colors.light.error,
+    borderRadius: radius.input,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
   },
   errorText: {
-    fontSize: 14,
-    fontFamily: 'Archivo-Medium',
-    color: '#DC2626',
+    ...type.label,
+    color: Colors.light.error,
   },
   formSection: {
     flex: 1,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   inputLabel: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 8,
+    ...type.eyebrow,
+    color: Colors.light.textTertiary,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.xs,
+  },
+  helperText: {
+    ...type.label,
+    color: Colors.light.textTertiary,
+    marginTop: spacing.sm,
+    marginLeft: spacing.xs,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.card,
-    borderRadius: 12,
+    borderRadius: radius.input,
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
   passwordInput: {
+    ...type.body,
     flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    fontFamily: 'Archivo-Medium',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md + spacing.xs / 2,
     color: Colors.light.text,
   },
   eyeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
   },
   inputError: {
-    borderColor: '#DC2626',
-    borderWidth: 2,
+    borderColor: Colors.light.error,
   },
   updateButton: {
     backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
+    borderRadius: radius.input,
+    paddingVertical: spacing.base,
     alignItems: 'center',
-    marginTop: 16,
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    marginTop: spacing.base,
   },
   updateButtonDisabled: {
     opacity: 0.6,
   },
   updateButtonText: {
-    fontSize: 18,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
+    ...type.bodyMedium,
+    color: Colors.light.card,
   },
   footerSection: {
-    paddingBottom: 32,
+    paddingBottom: spacing.xxl,
     alignItems: 'center',
   },
   footerLink: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
+    ...type.bodyMedium,
     color: Colors.light.primary,
   },
 });
