@@ -31,7 +31,20 @@ export default function ProgramDetailScreen() {
   };
 
   if (!currentProgram) {
-    return null;
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
+            <X size={24} color={Colors.light.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.emptyState}>
+          <Dumbbell size={32} color={Colors.light.textTertiary} />
+          <Text style={styles.emptyTitle}>No program selected</Text>
+          <Text style={styles.emptyBody}>Pick a program in the Programs tab to see its workouts here.</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   const sortedWorkouts = [...currentProgram.workouts].sort((a, b) => a.order - b.order);
@@ -150,6 +163,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingHorizontal: spacing.xl },
+  emptyTitle: { ...type.section, color: Colors.light.text, textAlign: 'center' },
+  emptyBody: { ...type.body, color: Colors.light.textSecondary, textAlign: 'center' },
   programBanner: {
     width: '100%',
     height: 120,

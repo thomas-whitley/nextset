@@ -16,6 +16,7 @@ export default function UpdatePasswordScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<'password' | 'confirm' | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionError, setSessionError] = useState(false);
   const params = useLocalSearchParams();
@@ -91,14 +92,17 @@ export default function UpdatePasswordScreen() {
   const validateForm = () => {
     if (!password) {
       setError('Please enter a new password');
+      setErrorField('password');
       return false;
     }
     if (password.length < 6) {
       setError('Password must be at least 6 characters long');
+      setErrorField('password');
       return false;
     }
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      setErrorField('confirm');
       return false;
     }
     return true;
@@ -129,7 +133,7 @@ export default function UpdatePasswordScreen() {
           [
             {
               text: 'OK',
-              onPress: () => router.push('/(auth)'),
+              onPress: () => router.replace('/(auth)'),
             },
           ]
         );
@@ -169,13 +173,16 @@ export default function UpdatePasswordScreen() {
         <View style={styles.formSection}>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>New password</Text>
-            <View style={[styles.passwordContainer, error && error.includes('Password') && styles.inputError]}>
+            <View style={[styles.passwordContainer, errorField === 'password' && styles.inputError]}>
               <TextInput
                 style={styles.passwordInput}
                 value={password}
                 onChangeText={(value) => {
                   setPassword(value);
-                  if (error) setError(null);
+                  if (error) {
+                    setError(null);
+                    setErrorField(null);
+                  }
                 }}
                 placeholder="Enter new password"
                 placeholderTextColor={Colors.light.textTertiary}
@@ -203,13 +210,16 @@ export default function UpdatePasswordScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Confirm new password</Text>
-            <View style={[styles.passwordContainer, error && error.includes('match') && styles.inputError]}>
+            <View style={[styles.passwordContainer, errorField === 'confirm' && styles.inputError]}>
               <TextInput
                 style={styles.passwordInput}
                 value={confirmPassword}
                 onChangeText={(value) => {
                   setConfirmPassword(value);
-                  if (error) setError(null);
+                  if (error) {
+                    setError(null);
+                    setErrorField(null);
+                  }
                 }}
                 placeholder="Confirm new password"
                 placeholderTextColor={Colors.light.textTertiary}
@@ -248,7 +258,7 @@ export default function UpdatePasswordScreen() {
         </View>
 
         <View style={styles.footerSection}>
-          <TouchableOpacity onPress={() => router.push('/(auth)')} hitSlop={HIT_SLOP} accessibilityRole="button">
+          <TouchableOpacity onPress={() => router.replace('/(auth)')} hitSlop={HIT_SLOP} accessibilityRole="button">
             <Text style={styles.footerLink}>Back to log in</Text>
           </TouchableOpacity>
         </View>

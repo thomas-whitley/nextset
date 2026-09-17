@@ -11,10 +11,7 @@ import Wordmark from '@/components/Wordmark';
 
 export default function SignUpScreen() {
   const [formData, setFormData] = useState({
-    fullName: '',
-    username: '',
     email: '',
-    phone: '',
     password: '',
     confirmPassword: '',
   });
@@ -22,8 +19,17 @@ export default function SignUpScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<'email' | 'password' | 'confirm' | null>(null);
   const [success, setSuccess] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendSent, setResendSent] = useState(false);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1)), 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
 
   // Animation values
   const successScale = useSharedValue(0);
@@ -61,16 +67,8 @@ export default function SignUpScreen() {
       animateDots();
       const interval = setInterval(animateDots, 1000);
 
-      // Auto-navigate to main app after 3 seconds
-      const navigationTimeout = setTimeout(() => {
-        // The AuthProvider should handle navigation automatically
-        // But if it doesn't, we can force navigation to the main app
-        console.log('Auto-navigating to main app...');
-      }, 3000);
-
       return () => {
         clearInterval(interval);
-        clearTimeout(navigationTimeout);
       };
     }
   }, [success, emailSent]);
@@ -78,41 +76,37 @@ export default function SignUpScreen() {
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
-    if (error) setError(null);
+    if (error) {
+      setError(null);
+      setErrorField(null);
+    }
   };
 
   const validateForm = () => {
-    // if (!formData.fullName.trim()) {
-    //   setError('Please enter your full name');
-    //   return false;
-    // }
-    // if (!formData.username.trim()) {
-    //   setError('Please enter a username');
-    //   return false;
-    // }
-    // if (formData.username.trim().length < 3) {
-    //   setError('Username must be at least 3 characters long');
-    //   return false;
-    // }
     if (!formData.email.trim()) {
       setError('Please enter your email address');
+      setErrorField('email');
       return false;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
       setError('Please enter a valid email address');
+      setErrorField('email');
       return false;
     }
     if (!formData.password) {
       setError('Please enter a password');
+      setErrorField('password');
       return false;
     }
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
+      setErrorField('password');
       return false;
     }
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      setErrorField('confirm');
       return false;
     }
     return true;
@@ -131,11 +125,6 @@ export default function SignUpScreen() {
         email: formData.email.trim(),
         password: formData.password,
         options: {
-          // data: {
-          //   full_name: formData.fullName.trim(),
-          //   username: formData.username.trim(),
-          //   phone: formData.phone.trim(),
-          // },
           emailRedirectTo: 'momentum://confirm',
         },
       });
@@ -148,21 +137,25 @@ export default function SignUpScreen() {
             signUpError.message.includes('already registered') ||
             signUpError.message.includes('already exists')) {
           setError('An account with this email already exists. Log in instead.');
+          setErrorField('email');
           return;
         }
 
         if (signUpError.message.includes('Invalid email')) {
           setError('Please enter a valid email address');
+          setErrorField('email');
           return;
         }
 
         if (signUpError.message.includes('Password')) {
           setError('Password must be at least 6 characters long');
+          setErrorField('password');
           return;
         }
 
         // Generic error handling
         setError(signUpError.message || 'Failed to create account. Please try again.');
+        setErrorField(null);
         return;
       }
 
@@ -190,33 +183,37 @@ export default function SignUpScreen() {
   };
 
   const navigateToLogin = () => {
-    router.push('/(auth)');
+    router.replace('/(auth)');
   };
 
   const handleResendEmail = async () => {
-    if (!formData.email) return;
+    if (!formData.email || resendCooldown > 0 || loading) return;
 
     setLoading(true);
+    setResendSent(false);
     try {
-      const { error } = await supabase.auth.resend({
+      const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
         email: formData.email.trim(),
-        options: {
-          emailRedirectTo: 'momentum://confirm',
-        },
+        options: { emailRedirectTo: 'momentum://confirm' },
       });
 
-      if (error) {
-        console.error('Resend email error:', error);
-        setError('Failed to resend email. Please try again.');
+      if (resendError) {
+        const msg = resendError.message.toLowerCase();
+        if (msg.includes('rate limit') || msg.includes('too many')) {
+          setError('Too many attempts. Wait two minutes and try again.');
+          setResendCooldown(120);
+        } else {
+          setError('Could not resend the email. Try again.');
+        }
       } else {
-        // Show success message briefly
         setError(null);
-        // You could add a toast or temporary success message here
+        setResendSent(true);
+        setResendCooldown(60);
       }
-    } catch (error) {
-      console.error('Unexpected resend error:', error);
-      setError('Failed to resend email. Please try again.');
+    } catch (resendException) {
+      console.error('Unexpected resend error:', resendException);
+      setError('Could not resend the email. Try again.');
     } finally {
       setLoading(false);
     }
@@ -259,10 +256,14 @@ export default function SignUpScreen() {
           <TouchableOpacity
             style={styles.secondaryButton}
             onPress={handleResendEmail}
+            disabled={resendCooldown > 0 || loading}
             accessibilityRole="button"
           >
-            <Text style={styles.secondaryButtonText}>Resend verification email</Text>
+            <Text style={styles.secondaryButtonText}>
+              {resendCooldown > 0 ? `Resend in ${resendCooldown} s` : 'Resend email'}
+            </Text>
           </TouchableOpacity>
+          {resendSent && <Text style={styles.inputHelper}>Email sent. Check your inbox.</Text>}
 
           <TouchableOpacity
             style={styles.primaryButton}
@@ -347,7 +348,7 @@ export default function SignUpScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email address</Text>
               <TextInput
-                style={[styles.textInput, error && error.includes('email') && styles.inputError]}
+                style={[styles.textInput, errorField === 'email' && styles.inputError]}
                 value={formData.email}
                 onChangeText={(value) => updateFormData('email', value)}
                 placeholder="Enter your email"
@@ -364,7 +365,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Password</Text>
-              <View style={[styles.passwordContainer, error && error.includes('Password') && styles.inputError]}>
+              <View style={[styles.passwordContainer, errorField === 'password' && styles.inputError]}>
                 <TextInput
                   style={styles.passwordInput}
                   value={formData.password}
@@ -398,7 +399,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Confirm password</Text>
-              <View style={[styles.passwordContainer, error && error.includes('match') && styles.inputError]}>
+              <View style={[styles.passwordContainer, errorField === 'confirm' && styles.inputError]}>
                 <TextInput
                   style={styles.passwordInput}
                   value={formData.confirmPassword}
