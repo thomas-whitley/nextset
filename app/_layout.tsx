@@ -14,7 +14,6 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { TimerProvider } from '@/contexts/TimerContext';
 import { WorkoutProvider } from '@/contexts/WorkoutContext';
 import LoadingScreenComponent from '@/components/loadingscreen';
 import { AuthProvider, useAuth } from '@/data/AuthContext';
@@ -37,31 +36,28 @@ function AppNavigator() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <TimerProvider>
-        <WorkoutProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            {session ? (
-              // User is authenticated - show main app
-              <>
-                <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-                <Stack.Screen name="timer-main" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
-                <Stack.Screen name="program-detail" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="workout" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="aboutus" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="help-faq" options={{ presentation: 'modal' }} />
-              </>
-            ) : (
-              // User is not authenticated - show auth flow
-              <>
-                <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-              </>
-            )}
-          </Stack>
-          <StatusBar style="auto" />
-        </WorkoutProvider>
-      </TimerProvider>
+      <WorkoutProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          {session ? (
+            // User is authenticated - show main app
+            <>
+              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="program-detail" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="workout" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="aboutus" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="help-faq" options={{ presentation: 'modal' }} />
+            </>
+          ) : (
+            // User is not authenticated - show auth flow
+            <>
+              <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+            </>
+          )}
+        </Stack>
+        <StatusBar style="auto" />
+      </WorkoutProvider>
     </GestureHandlerRootView>
   );
 }

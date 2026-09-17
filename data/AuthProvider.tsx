@@ -1,7 +1,7 @@
 // App.tsx or a dedicated AuthProvider.tsx
 import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
-import { supabase } from './supabase'; // Corrected path
+import { supabase } from './supabase-client';
 
 export interface AuthContextType {
   session: Session | null;
