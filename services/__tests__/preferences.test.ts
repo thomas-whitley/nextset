@@ -62,3 +62,10 @@ test('sync: out-of-range server values fall back to defaults', async () => {
   expect(await getDefaultRestSeconds()).toBe(15);
   expect(await getBarWeightKg()).toBe(20);
 });
+
+test('a failed profile read skips the write instead of overwriting preferences', async () => {
+  mocked.__single.mockResolvedValue({ data: null, error: { message: 'boom' } });
+  await setDefaultRestSeconds(120, 'user-1');
+  expect(await getDefaultRestSeconds()).toBe(120);
+  expect(mocked.__update).not.toHaveBeenCalled();
+});

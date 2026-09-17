@@ -55,7 +55,12 @@ export async function getBarWeightKg(): Promise<number> {
 async function pushPreferences(userId: string, patch: Preferences): Promise<void> {
   try {
     const result = await supabase.from('profile').select('preferences').eq('id', userId).maybeSingle();
-    const current = ((result?.data as { preferences?: Preferences } | null)?.preferences ?? {}) as Preferences;
+    const { data, error: readError } = result ?? {};
+    if (readError) {
+      console.error('Preference read failed; skipping sync:', readError.message);
+      return;
+    }
+    const current = ((data as { preferences?: Preferences } | null)?.preferences ?? {}) as Preferences;
     const { error } = await supabase.from('profile').update({ preferences: { ...current, ...patch } }).eq('id', userId);
     if (error) console.error('Preference sync failed:', error.message);
   } catch (error) {
