@@ -1,5 +1,16 @@
 import { supabase } from '../data/supabase-client';
+import type { Database, Json } from '../data/supabase.types';
 import { Program, UserActiveProgram } from './exercise.types';
+
+type ActiveProgramRow = Database['public']['Tables']['user_active_programs']['Row'];
+
+/** The DB stores program_data as jsonb; the app trusts it to be a Program. Cast once, here. */
+const toActive = (row: ActiveProgramRow): UserActiveProgram => ({
+  ...row,
+  program_data: row.program_data as unknown as Program,
+  created_at: row.created_at ?? '',
+  updated_at: row.updated_at ?? '',
+});
 
 export class UserActiveProgramService {
   /**
@@ -19,7 +30,7 @@ export class UserActiveProgramService {
       .insert({
         user_id: userId,
         program_template_id: templateProgram.id,
-        program_data: activeProgramData,
+        program_data: activeProgramData as unknown as Json,
       })
       .select()
       .single();
@@ -33,7 +44,7 @@ export class UserActiveProgramService {
       throw new Error(`Failed to create active program: ${error.message}`);
     }
 
-    return data;
+    return toActive(data);
   }
 
   /**
@@ -56,7 +67,7 @@ export class UserActiveProgramService {
     if (data && data.length > 1) {
       console.error(`Duplicate active programs for template ${templateId}; using the newest`);
     }
-    return data?.[0] ?? null;
+    return data?.[0] ? toActive(data[0]) : null;
   }
 
   /**
@@ -73,7 +84,7 @@ export class UserActiveProgramService {
       throw new Error(`Failed to get user active programs: ${error.message}`);
     }
 
-    return data || [];
+    return (data || []).map(toActive);
   }
 
   /**
@@ -83,7 +94,7 @@ export class UserActiveProgramService {
     const { data, error } = await supabase
       .from('user_active_programs')
       .update({
-        program_data: programData,
+        program_data: programData as unknown as Json,
         updated_at: new Date().toISOString(),
       })
       .eq('id', activeProgramId)
@@ -94,7 +105,7 @@ export class UserActiveProgramService {
       throw new Error(`Failed to update active program: ${error.message}`);
     }
 
-    return data;
+    return toActive(data);
   }
 
   /**
@@ -126,7 +137,7 @@ export class UserActiveProgramService {
       throw new Error(`Failed to fetch program for reordering: ${fetchError.message}`);
     }
 
-    const programData = currentProgram.program_data as Program;
+    const programData = currentProgram.program_data as unknown as Program;
     
     // Reorder workouts based on the provided order
     const reorderedWorkouts = workoutIds.map((workoutId, index) => {
@@ -164,7 +175,7 @@ export class UserActiveProgramService {
       throw new Error(`Failed to fetch program: ${fetchError.message}`);
     }
 
-    const programData = currentProgram.program_data as Program;
+    const programData = currentProgram.program_data as unknown as Program;
     
     // Find the workout and add the exercise
     const updatedWorkouts = programData.workouts.map(workout => {
@@ -218,7 +229,7 @@ export class UserActiveProgramService {
       throw new Error(`Failed to fetch program: ${fetchError.message}`);
     }
 
-    const programData = currentProgram.program_data as Program;
+    const programData = currentProgram.program_data as unknown as Program;
     
     // Update the exercise sets
     const updatedWorkouts = programData.workouts.map(workout => {
@@ -278,7 +289,7 @@ export class UserActiveProgramService {
       throw new Error(`Failed to fetch program: ${fetchError.message}`);
     }
 
-    const programData = currentProgram.program_data as Program;
+    const programData = currentProgram.program_data as unknown as Program;
     const updatedWorkouts = programData.workouts.map((workout) => {
       if (workout.id !== workoutId) return workout;
       const remaining = workout.exercises
@@ -319,6 +330,6 @@ export class UserActiveProgramService {
       throw new Error(`Failed to get most recent active program: ${error.message}`);
     }
 
-    return data?.[0] ?? null;
+    return data?.[0] ? toActive(data[0]) : null;
   }
 }

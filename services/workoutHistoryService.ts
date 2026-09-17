@@ -1,4 +1,5 @@
 import { supabase } from '../data/supabase-client';
+import type { Database, Json } from '../data/supabase.types';
 import { Workout } from './exercise.types';
 import { computeStreaks, toDateKey } from './stats';
 
@@ -57,6 +58,20 @@ export interface ProgressStats {
   workoutNotes: { date: string; notes: string; workoutName: string }[];
 }
 
+type HistoryRow = Database['public']['Tables']['workout_history']['Row'];
+
+/** jsonb columns arrive as Json; the app owns their shape. Cast once, at the boundary. */
+const toEntry = (row: Partial<HistoryRow>): WorkoutHistoryEntry => ({
+  id: row.id ?? '',
+  user_id: row.user_id ?? '',
+  completed_at: row.completed_at ?? row.created_at ?? new Date(0).toISOString(),
+  workout_data: row.workout_data as unknown as WorkoutHistoryEntry['workout_data'],
+  health_stats: (row.health_stats ?? {}) as WorkoutHistoryEntry['health_stats'],
+  total_volume: row.total_volume ?? 0,
+  duration_minutes: row.duration_minutes ?? 0,
+  created_at: row.created_at ?? '',
+});
+
 export class WorkoutHistoryService {
   /**
    * Save a completed workout to history
@@ -85,8 +100,8 @@ export class WorkoutHistoryService {
       .from('workout_history')
       .insert({
         user_id: userId,
-        workout_data: workout,
-        health_stats: healthStats || {},
+        workout_data: workout as unknown as Json,
+        health_stats: (healthStats || {}) as Json,
         total_volume: totalVolume,
         duration_minutes: durationMinutes,
       })
@@ -97,7 +112,7 @@ export class WorkoutHistoryService {
       throw new Error(`Failed to save workout history: ${error.message}`);
     }
 
-    return data;
+    return toEntry(data);
   }
 
   /**
@@ -128,7 +143,7 @@ export class WorkoutHistoryService {
       throw new Error(`Failed to get workout history: ${error.message}`);
     }
 
-    return data || [];
+    return (data || []).map(toEntry);
   }
 
   /**
@@ -149,7 +164,7 @@ export class WorkoutHistoryService {
       throw new Error(`Failed to get progress stats: ${error.message}`);
     }
 
-    const workouts = data || [];
+    const workouts = (data || []).map(toEntry);
 
     // Calculate statistics
     const totalWorkouts = workouts.length;
@@ -214,7 +229,7 @@ export class WorkoutHistoryService {
       .filter(workout => workout.workout_data.metadata?.bodyweight)
       .map(workout => ({
         date: new Date(workout.completed_at).toISOString().split('T')[0],
-        bodyweight: parseFloat(workout.workout_data.metadata.bodyweight) || 0,
+        bodyweight: parseFloat(workout.workout_data.metadata?.bodyweight ?? '') || 0,
       }))
       .filter(entry => entry.bodyweight > 0);
 
@@ -223,7 +238,7 @@ export class WorkoutHistoryService {
       .filter(workout => workout.workout_data.metadata?.notes)
       .map(workout => ({
         date: new Date(workout.completed_at).toISOString().split('T')[0],
-        notes: workout.workout_data.metadata.notes,
+        notes: workout.workout_data.metadata?.notes ?? '',
         workoutName: workout.workout_data.name,
       }));
 
@@ -253,7 +268,7 @@ export class WorkoutHistoryService {
       throw new Error(`Failed to get workout streak: ${error.message}`);
     }
 
-    const keys = (data ?? []).map((w) => toDateKey(new Date(w.completed_at)));
+    const keys = (data ?? []).map(toEntry).map((w) => toDateKey(new Date(w.completed_at)));
     return computeStreaks(keys, new Date());
   }
 
@@ -271,13 +286,13 @@ export class WorkoutHistoryService {
       throw new Error(`Failed to get bodyweight history: ${error.message}`);
     }
 
-    const workouts = data || [];
+    const workouts = (data || []).map(toEntry);
     
     return workouts
       .filter(workout => workout.workout_data.metadata?.bodyweight)
       .map(workout => ({
         date: new Date(workout.completed_at).toISOString().split('T')[0],
-        bodyweight: parseFloat(workout.workout_data.metadata.bodyweight) || 0,
+        bodyweight: parseFloat(workout.workout_data.metadata?.bodyweight ?? '') || 0,
       }))
       .filter(entry => entry.bodyweight > 0);
   }
@@ -296,13 +311,13 @@ export class WorkoutHistoryService {
       throw new Error(`Failed to get workout notes history: ${error.message}`);
     }
 
-    const workouts = data || [];
+    const workouts = (data || []).map(toEntry);
     
     return workouts
       .filter(workout => workout.workout_data.metadata?.notes)
       .map(workout => ({
         date: new Date(workout.completed_at).toISOString().split('T')[0],
-        notes: workout.workout_data.metadata.notes,
+        notes: workout.workout_data.metadata?.notes ?? '',
         workoutName: workout.workout_data.name,
       }));
   }
@@ -320,7 +335,7 @@ export class WorkoutHistoryService {
       throw new Error(`Failed to get workout history: ${error.message}`);
     }
 
-    return data || [];
+    return (data || []).map(toEntry);
   }
 
   /**
@@ -380,7 +395,7 @@ export class WorkoutHistoryService {
     const wanted = new Set(exerciseNames);
     const result: Record<string, { weight: string; reps: string }[]> = {};
 
-    for (const row of data || []) {
+    for (const row of (data || []).map(toEntry)) {
       const workoutData = row.workout_data as Workout;
       for (const exercise of workoutData?.exercises ?? []) {
         if (!wanted.has(exercise.name) || result[exercise.name]) continue;
