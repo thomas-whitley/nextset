@@ -90,7 +90,9 @@ export default function WorkoutScreen() {
   const [restTime, setRestTime] = useState(0);
   const [defaultRestSeconds, setDefaultRestSecondsState] = useState(DEFAULT_REST_SECONDS);
   const [saving, setSaving] = useState(false);
-  const [saveAttempts, setSaveAttempts] = useState(0);
+  // A ref, not state: the retry button in the alert calls saveWorkout from the render
+  // that built it, so state would read the old count and the cap would never trip.
+  const saveAttemptsRef = useRef(0);
   const [restTimerInterval, setRestTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [workoutDuration, setWorkoutDuration] = useState(0);
@@ -340,7 +342,7 @@ export default function WorkoutScreen() {
       ]);
       return;
     }
-    setSaveAttempts(0);
+    saveAttemptsRef.current = 0;
     setShowMetadataModal(true);
   };
 
@@ -382,8 +384,8 @@ export default function WorkoutScreen() {
       router.back();
     } catch (error) {
       console.error('Failed to save workout:', error);
-      const attempts = saveAttempts + 1;
-      setSaveAttempts(attempts);
+      const attempts = saveAttemptsRef.current + 1;
+      saveAttemptsRef.current = attempts;
       const buttons: { text: string; style: 'cancel' | 'default'; onPress?: () => void }[] = [
         { text: 'Keep editing', style: 'cancel' },
       ];
