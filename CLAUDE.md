@@ -8,13 +8,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev          # Start Expo dev server (telemetry disabled)
 npm run start        # Start Expo dev server
 npm run lint         # Run Expo linter
+npm test             # jest (jest-expo preset); suites under **/__tests__/
+npx supabase db push --dry-run   # preview pending migrations (user-only; then without --dry-run)
 npm run build:web    # Export for web
 eas build --profile development   # Dev client build (iOS/Android)
 eas build --profile preview       # Internal preview build
 eas build --profile production    # Production build (auto-increments version)
 ```
 
-There is no test suite configured.
+Tests: jest via `jest-expo` (`npm test`). CI (`.github/workflows/ci.yml`) runs lint, tsc and jest on push to main and on PRs. Test files: `services/__tests__/*.test.ts`, `contexts/__tests__/*.test.tsx`; `jest.setup.ts` mocks AsyncStorage and NetInfo.
 
 ## Architecture
 
@@ -48,28 +50,26 @@ Supabase is the only persistence tier. Reads and writes go through the services 
 | Finished workouts + progress stats | `services/workoutHistoryService.ts` |
 | Active program | `services/userActiveProgramService.ts` |
 | Exercise library (bundled, local) | `services/exerciseService.ts` |
-| Timer presets | `services/timerPresetService.ts` |
-| Rest-time preference (AsyncStorage) | `services/preferences.ts` |
+| Preferences: rest time + bar weight (AsyncStorage cache, mirrored to `profile.preferences`; server wins on sign-in) | `services/preferences.ts` |
+| Debounced program sync (≈800 ms, flushed on set complete / blur / finish / app background) | `services/programSync.ts` |
+| Streak maths (pure, tested) | `services/stats.ts` |
 
 **Volume is computed from completed sets only** — both in the finish sheet and in `saveWorkoutHistory`. These two must never diverge; when they did, a single 60 kg × 6 session stored 1,245,613,856 kg.
 
-**Supabase tables** (defined in `supabase/migrations/0001_initial_schema.sql`):
-- `profile` — mirrors `auth.users`; auto-created by DB trigger on signup; `role` enum: `user | admin | super_admin`
-- `user_active_programs` — user's chosen program stored as JSONB (`program_data`)
-- `workout_history` — completed workout records as JSONB
-- `exercise_log` — per-session exercise log as JSONB (legacy; not written by the current app)
-- `timer_presets` — interval timer configs, public or user-private
+**Supabase tables** (defined by the sum of `supabase/migrations/*.sql`, CLI timestamp-named; three tables after migration `20260917100100`):
+- `profile` — mirrors `auth.users`; auto-created by DB trigger on signup; `role` enum: `user | admin | super_admin`; `preferences jsonb` (`{ defaultRestSeconds, barWeightKg }`); authenticated may UPDATE only `full_name, username, phone, avatar_url, updated_at, preferences`
+- `user_active_programs` — user's editable copy of a template as JSONB (`program_data`); **unique per `(user_id, program_template_id)`**; `updated_at` set by trigger
+- `workout_history` — completed workout records as JSONB; `total_volume` must be `0 ≤ v < 10,000,000` (check constraint); index on `(user_id, completed_at desc)`
 
-All tables have RLS; users can only access their own rows. `timer_presets` also allows SELECT of `is_public = true` rows.
+`exercise_log` and `timer_presets` were dropped in `20260917100100`. All tables have RLS; policies are `to authenticated` and use `(select auth.uid())`; `anon` has no table grants.
 
 **Exercise library** is bundled and local: `services/exerciseLibrary.data.json` (887 rows, built by `scripts/exercises/build-library.mjs` from free-exercise-db, Unlicense). `ExerciseService` reads it directly — there is no Supabase `exercises` table in play, and user-custom exercises are parked until after 1.0.
 
 ### Context providers
 
-Nested in `_layout.tsx` as: `AuthProvider > TimerProvider > WorkoutProvider`
+Nested in `_layout.tsx` as: `AuthProvider > WorkoutProvider`
 
 - `data/AuthContext.tsx` — `session`, `user`, `loading`, `signOut`, `refreshUser`; use `useAuth()`
-- `contexts/TimerContext.tsx` — stopwatch/countdown/interval timer state; use `useTimer()`
 - `contexts/WorkoutContext.tsx` — active program, current workout, exercise/set mutations; persists program state to `user_active_programs` via Supabase; use `useWorkout()`
 
 ### Path alias
@@ -94,4 +94,7 @@ Supabase client is initialized in `data/supabase-client.ts` and throws if either
 - **Never use `{someNumber && <View/>}` in JSX.** When the value is `0` the expression evaluates to `0` and React renders a literal "0"; on native this can throw *"Text strings must be rendered within a `<Text>` component"*. Compare explicitly: `{(x ?? 0) > 0 && …}`.
 - **Set weight and reps are bounded** (`sanitiseSetValue` in `app/workout.tsx`, 1000 kg / 100 reps). Out-of-range keystrokes are rejected, not truncated.
 - **`npx expo start` fails on the dev VM** with `TypeError: fetch failed`; use `--offline`. A cold web bundle takes ~200s.
-- **Use `hooks/useLocalDatabase.ts` in components**, not the service functions directly. The hook manages initialization state, auth binding, and sync triggers.
+- **A migration in git is not a migration in production.** `0005` sat committed but unapplied for three weeks. After adding one, run `npx supabase migration list` and check the Remote column, or the repo lies about the live schema.
+- **The Supabase Free project auto-pauses.** Symptom: the hostname stops resolving, the app shows the loading spinner ~30 s, then "Failed to fetch". Unpause in the dashboard; nothing in the code is wrong.
+- **Auth is implicit flow on purpose** (Plan B, 2026-09-17). Don't set `flowType: 'pkce'` without redoing the confirm / update-password link handling.
+- **Set edits are debounced to the cloud, checkpointed locally at once.** `contexts/WorkoutContext.tsx` mutations read `currentWorkoutRef`, never the render closure; cloud writes go through `services/programSync.ts`. Call `flushProgramSync()` before anything that must see the latest program on the server.
