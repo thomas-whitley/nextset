@@ -25,6 +25,11 @@ export class UserActiveProgramService {
       .single();
 
     if (error) {
+      // 23505 = unique_violation: another device created the copy first. Use it.
+      if (error.code === '23505') {
+        const existing = await UserActiveProgramService.getActiveProgram(userId, templateProgram.id);
+        if (existing) return existing;
+      }
       throw new Error(`Failed to create active program: ${error.message}`);
     }
 
@@ -32,7 +37,9 @@ export class UserActiveProgramService {
   }
 
   /**
-   * Gets the user's active program for a specific template
+   * The user's copy of a template. After migration 20260917100000 the pair is
+   * unique; before it, duplicates existed and `.single()` reported them as
+   * "not found", which made the app insert yet another copy. Read the newest.
    */
   static async getActiveProgram(userId: string, templateId: string): Promise<UserActiveProgram | null> {
     const { data, error } = await supabase
@@ -40,13 +47,16 @@ export class UserActiveProgramService {
       .select('*')
       .eq('user_id', userId)
       .eq('program_template_id', templateId)
-      .single();
+      .order('updated_at', { ascending: false })
+      .limit(2);
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+    if (error) {
       throw new Error(`Failed to get active program: ${error.message}`);
     }
-
-    return data || null;
+    if (data && data.length > 1) {
+      console.error(`Duplicate active programs for template ${templateId}; using the newest`);
+    }
+    return data?.[0] ?? null;
   }
 
   /**
