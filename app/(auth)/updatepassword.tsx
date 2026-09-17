@@ -125,7 +125,7 @@ export default function UpdatePasswordScreen() {
       } else {
         Alert.alert(
           'Password Updated',
-          'Your password has been successfully updated. You can now sign in with your new password.',
+          'Your password has been successfully updated. You can now log in with your new password.',
           [
             {
               text: 'OK',
@@ -249,7 +249,7 @@ export default function UpdatePasswordScreen() {
 
         <View style={styles.footerSection}>
           <TouchableOpacity onPress={() => router.push('/(auth)')} hitSlop={HIT_SLOP} accessibilityRole="button">
-            <Text style={styles.footerLink}>Back to sign in</Text>
+            <Text style={styles.footerLink}>Back to log in</Text>
           </TouchableOpacity>
         </View>
       </View>

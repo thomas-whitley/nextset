@@ -492,8 +492,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     paddingHorizontal: spacing.md,
   },
-  modalCustomInput: { ...type.numeric, flex: 1, color: Colors.light.text, paddingVertical: spacing.sm, textAlign: 'right' },
-  modalCustomUnit: { ...type.label, color: Colors.light.textTertiary, marginLeft: spacing.xs },
+  modalCustomInput: { ...type.numeric, flex: 1, minWidth: 0, color: Colors.light.text, paddingVertical: spacing.sm, textAlign: 'right' },
+  modalCustomUnit: { ...type.label, color: Colors.light.textTertiary, marginLeft: spacing.xs, flexShrink: 0 },
   modalCustomSet: {
     backgroundColor: Colors.light.primary,
     borderRadius: radius.input,

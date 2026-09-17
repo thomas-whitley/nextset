@@ -148,14 +148,14 @@ export default function PresetTimerScreen() {
         >
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Workout Timers</Text>
+        <Text style={styles.headerTitle}>Workout timers</Text>
         <View style={{ width: 44 }} />
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.sectionEyebrow}>Preset timers</Text>
         <Text style={styles.sectionDescription}>
-          Choose from our collection of pre-configured workout timers
+          Pick a preset or build your own
         </Text>
 
         <View style={styles.presetGrid}>
@@ -186,7 +186,7 @@ export default function PresetTimerScreen() {
           accessibilityLabel="Create custom timer"
         >
           <Clock size={24} color={Colors.light.primary} />
-          <Text style={styles.customButtonText}>Create Custom Timer</Text>
+          <Text style={styles.customButtonText}>Create custom timer</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

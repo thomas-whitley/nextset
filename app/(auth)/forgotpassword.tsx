@@ -81,7 +81,7 @@ export default function ForgotPasswordScreen() {
               onPress={() => router.push('/(auth)')}
               accessibilityRole="button"
             >
-              <Text style={styles.backToLoginText}>Back to sign in</Text>
+              <Text style={styles.backToLoginText}>Back to log in</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -156,7 +156,7 @@ export default function ForgotPasswordScreen() {
               style={styles.footerLink}
               onPress={() => router.push('/(auth)')}
             >
-              Sign in
+              Log in
             </Text>
           </Text>
         </View>

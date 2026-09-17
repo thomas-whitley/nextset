@@ -10,7 +10,7 @@ import Colors from '@/constants/Colors';
 import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 
 const DEFAULT_ERROR =
-  'This confirmation link is invalid or has already been used. Please sign in, or request a new confirmation email.';
+  'This confirmation link is invalid or has already been used. Log in, or request a new confirmation email.';
 
 export default function ConfirmEmailScreen() {
   const [sessionError, setSessionError] = useState(false);
@@ -106,7 +106,7 @@ export default function ConfirmEmailScreen() {
               onPress={() => router.replace('/(auth)')}
               accessibilityRole="button"
             >
-              <Text style={styles.buttonText}>Back to sign in</Text>
+              <Text style={styles.buttonText}>Back to log in</Text>
             </TouchableOpacity>
           </View>
         </View>

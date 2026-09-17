@@ -37,7 +37,7 @@ export default function CustomTimerConfigScreen() {
       pathname: '/timer/execution',
       params: { 
         preset: JSON.stringify(timerConfig),
-        presetName: 'Custom Timer'
+        presetName: 'Custom timer'
       }
     });
   };
@@ -54,7 +54,7 @@ export default function CustomTimerConfigScreen() {
         >
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Custom Timer</Text>
+        <Text style={styles.headerTitle}>Custom timer</Text>
         <View style={{ width: 44 }} />
       </View>
 
