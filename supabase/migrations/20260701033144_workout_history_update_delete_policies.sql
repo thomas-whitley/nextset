@@ -1,5 +1,5 @@
 -- ============================================================
--- 0003_workout_history_update_delete_policies.sql
+-- 20260701033144_workout_history_update_delete_policies.sql
 -- workout_history only had SELECT + INSERT policies; users had no way to
 -- correct or delete their own workout records. Add UPDATE/DELETE own-row
 -- policies. Includes WITH CHECK on UPDATE so a user can't reassign

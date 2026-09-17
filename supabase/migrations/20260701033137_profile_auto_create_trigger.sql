@@ -1,5 +1,5 @@
 -- ============================================================
--- 0002_profile_auto_create_trigger.sql
+-- 20260701033137_profile_auto_create_trigger.sql
 -- Auto-create a `profile` row whenever a new `auth.users` row is inserted.
 -- CLAUDE.md has documented this trigger as existing since the initial
 -- schema, but it was never actually created — this migration adds it.

@@ -1,5 +1,5 @@
 -- ============================================================
--- 0005_lock_profile_columns_and_timer_presets_check.sql
+-- 20260829000000_lock_profile_columns_and_timer_presets_check.sql
 -- Two gaps found in a review before the repo went public (2026-08-29).
 --
 -- 1. profile_update_own (0001) checks only auth.uid() = id, so a user could

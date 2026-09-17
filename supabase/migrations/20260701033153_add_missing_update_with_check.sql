@@ -1,5 +1,5 @@
 -- ============================================================
--- 0004_add_missing_update_with_check.sql
+-- 20260701033153_add_missing_update_with_check.sql
 -- exercise_log_update_own and user_active_programs_update_own (from
 -- 0001_initial_schema.sql) have USING but no WITH CHECK, so a user could
 -- UPDATE their own row and reassign user_id to someone else's account.
