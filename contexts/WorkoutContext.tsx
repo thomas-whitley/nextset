@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserActiveProgramService } from '../services/userActiveProgramService';
 import { WorkoutHistoryService } from '../services/workoutHistoryService';
+import { createProgramSync } from '../services/programSync';
 import { Exercise as DetailedExercise, Program, Workout, WorkoutExercise, UserActiveProgram } from '../services/exercise.types';
 import { programTemplates } from '../data/programTemplates';
 import { useAuth } from '../data/AuthContext';
@@ -31,6 +33,8 @@ interface WorkoutContextType {
   reorderWorkouts: (workoutIds: string[]) => Promise<void>;
   /** Reorders the exercises within the current workout (drag-reorder on the workout screen). */
   reorderExercises: (orderedExerciseIds: string[]) => Promise<void>;
+  /** Write any pending program edits to Supabase now (blur, before save, app background). */
+  flushProgramSync: () => Promise<void>;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -44,6 +48,34 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingProgram, setIsLoadingProgram] = useState(true);
   const { user } = useAuth();
 
+  // Refs mirror state so async code (the debounced program sync, effects that
+  // fire after further edits) never reads a stale render-closure value.
+  const currentWorkoutRef = useRef<Workout | null>(null);
+  const currentProgramRef = useRef<Program | null>(null);
+  const currentActiveProgramRef = useRef<UserActiveProgram | null>(null);
+  currentProgramRef.current = currentProgram;
+  currentActiveProgramRef.current = currentActiveProgram;
+
+  const programSync = useRef(
+    createProgramSync(async (program) => {
+      const activeProgram = currentActiveProgramRef.current;
+      if (!activeProgram) return;
+      const updated = await UserActiveProgramService.updateActiveProgram(activeProgram.id, program);
+      setCurrentActiveProgram(updated);
+    })
+  ).current;
+
+  // Flush on background so a killed app never loses more than the debounce window.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') void programSync.flush();
+    });
+    return () => {
+      sub.remove();
+      void programSync.flush();
+    };
+  }, [programSync]);
+
   // Clear in-memory workout state on sign-out or account switch so a
   // previous user's program/workout data isn't visible to the next
   // signed-in user on a shared device.
@@ -54,6 +86,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       setCurrentProgramState(null);
       setCurrentActiveProgram(null);
       setCurrentWorkout(null);
+      currentWorkoutRef.current = null;
       setIsWorkoutActive(false);
     }
     previousUserId.current = currentUserId;
@@ -94,7 +127,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       try {
         const stored = await AsyncStorage.getItem(workoutCheckpointKey(user.id));
         if (stored) {
-          setCurrentWorkout(JSON.parse(stored) as Workout);
+          const restored = JSON.parse(stored) as Workout;
+          currentWorkoutRef.current = restored;
+          setCurrentWorkout(restored);
           setIsWorkoutActive(true);
         }
       } catch (error) {
@@ -156,6 +191,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         sets: exercise.sets.map((set) => ({ ...set, isComplete: false, previousWeight: undefined, previousReps: undefined })),
       })),
     };
+    currentWorkoutRef.current = fresh;
     setCurrentWorkout(fresh);
     setIsWorkoutActive(true);
     persistWorkoutCheckpoint(fresh);
@@ -167,7 +203,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       .then((last) => {
         setCurrentWorkout((current) => {
           if (!current || current.id !== fresh.id) return current;
-          return {
+          const filled: Workout = {
             ...current,
             exercises: current.exercises.map((exercise) => {
               const prev = last[exercise.name];
@@ -181,106 +217,117 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
               };
             }),
           };
+          currentWorkoutRef.current = filled;
+          return filled;
         });
       })
       .catch((error) => console.error('Failed to load last performance:', error));
   };
 
-  /** Applies a workout edit to local state and, when a cloud copy exists, persists the whole program. */
-  const applyWorkoutUpdate = async (updatedWorkout: Workout, label: string) => {
-    setCurrentWorkout(updatedWorkout);
-    persistWorkoutCheckpoint(updatedWorkout);
+  /**
+   * Applies an edit to the running workout using the *latest* workout (the
+   * ref, not the render closure), then checkpoints locally at once and
+   * schedules (or flushes) the cloud write. `edit` must be pure: it receives
+   * the current workout and returns the next one, or null to make no change.
+   * A ref (not a state updater) is the source of truth here so rapid
+   * same-tick calls chain correctly without depending on React running
+   * updaters synchronously.
+   */
+  const applyWorkoutUpdate = (edit: (current: Workout) => Workout | null, immediate: boolean) => {
+    const current = currentWorkoutRef.current;
+    if (!current) return;
+    const next = edit(current);
+    if (!next) return;
+    currentWorkoutRef.current = next;
+    setCurrentWorkout(next);
+    persistWorkoutCheckpoint(next);
 
-    if (!currentActiveProgram || !currentProgram) return;
-
-    try {
-      const updatedProgram: Program = {
-        ...currentProgram,
-        workouts: currentProgram.workouts.map((w) => (w.id === updatedWorkout.id ? updatedWorkout : w)),
-      };
-      await UserActiveProgramService.updateActiveProgram(currentActiveProgram.id, updatedProgram);
-      setCurrentProgramState(updatedProgram);
-    } catch (error) {
-      console.error(`Failed to ${label} in database:`, error);
-    }
+    const program = currentProgramRef.current;
+    if (!program || !currentActiveProgramRef.current) return;
+    const updatedProgram: Program = {
+      ...program,
+      workouts: program.workouts.map((w) => (w.id === next.id ? next : w)),
+    };
+    currentProgramRef.current = updatedProgram;
+    setCurrentProgramState(updatedProgram);
+    programSync.schedule(updatedProgram);
+    if (immediate) void programSync.flush();
   };
 
   const updateSet = async (exerciseId: string, setId: string, field: 'weight' | 'reps', value: string) => {
-    if (!currentWorkout) return;
-
-    const updatedWorkout: Workout = {
-      ...currentWorkout,
-      exercises: currentWorkout.exercises.map((exercise) =>
-        exercise.id === exerciseId
-          ? { ...exercise, sets: exercise.sets.map((set) => (set.id === setId ? { ...set, [field]: value } : set)) }
-          : exercise
-      ),
-    };
-
-    await applyWorkoutUpdate(updatedWorkout, 'update set');
+    applyWorkoutUpdate(
+      (current) => ({
+        ...current,
+        exercises: current.exercises.map((exercise) =>
+          exercise.id === exerciseId
+            ? { ...exercise, sets: exercise.sets.map((set) => (set.id === setId ? { ...set, [field]: value } : set)) }
+            : exercise
+        ),
+      }),
+      false
+    );
   };
 
   const completeSet = async (exerciseId: string, setId: string) => {
-    if (!currentWorkout) return;
-
-    const updatedWorkout: Workout = {
-      ...currentWorkout,
-      exercises: currentWorkout.exercises.map((exercise) =>
-        exercise.id === exerciseId
-          ? { ...exercise, sets: exercise.sets.map((set) => (set.id === setId ? { ...set, isComplete: !set.isComplete } : set)) }
-          : exercise
-      ),
-    };
-
-    await applyWorkoutUpdate(updatedWorkout, 'complete set');
+    applyWorkoutUpdate(
+      (current) => ({
+        ...current,
+        exercises: current.exercises.map((exercise) =>
+          exercise.id === exerciseId
+            ? { ...exercise, sets: exercise.sets.map((set) => (set.id === setId ? { ...set, isComplete: !set.isComplete } : set)) }
+            : exercise
+        ),
+      }),
+      true
+    );
+    await programSync.flush();
   };
 
   const reorderExercises = async (orderedExerciseIds: string[]) => {
-    if (!currentWorkout) return;
-
-    const byId = new Map(currentWorkout.exercises.map((exercise) => [exercise.id, exercise]));
-    const reordered = orderedExerciseIds
-      .map((id, index) => {
-        const exercise = byId.get(id);
-        return exercise ? { ...exercise, order: index } : undefined;
-      })
-      .filter((exercise): exercise is WorkoutExercise => exercise !== undefined);
-
-    // An ordering that doesn't account for every exercise (a stale id, one
-    // dropped mid-drag) is worse than doing nothing — never silently shrink
-    // the exercise list.
-    if (reordered.length !== currentWorkout.exercises.length) return;
-
-    const updatedWorkout: Workout = { ...currentWorkout, exercises: reordered };
-
-    await applyWorkoutUpdate(updatedWorkout, 'reorder exercises');
+    applyWorkoutUpdate((current) => {
+      const byId = new Map(current.exercises.map((exercise) => [exercise.id, exercise]));
+      const reordered = orderedExerciseIds
+        .map((id, index) => {
+          const exercise = byId.get(id);
+          return exercise ? { ...exercise, order: index } : undefined;
+        })
+        .filter((exercise): exercise is WorkoutExercise => exercise !== undefined);
+      // Never silently shrink the list on a stale or partial ordering.
+      if (reordered.length !== current.exercises.length) return null;
+      return { ...current, exercises: reordered };
+    }, true);
+    await programSync.flush();
   };
+
+  const flushProgramSync = () => programSync.flush();
 
   /** After the service rewrites the program, mirror it into state (and the running workout if affected). */
   const adoptActiveProgram = (updated: UserActiveProgram, workoutId: string) => {
     setCurrentActiveProgram(updated);
     const updatedProgram = updated.program_data as Program;
+    currentProgramRef.current = updatedProgram;
     setCurrentProgramState(updatedProgram);
 
-    if (currentWorkout && currentWorkout.id === workoutId) {
-      const updatedWorkout = updatedProgram.workouts.find((w) => w.id === workoutId);
-      if (updatedWorkout) {
-        // Keep the sets the user has already logged this session.
-        const merged: Workout = {
-          ...updatedWorkout,
-          exercises: updatedWorkout.exercises.map((exercise) => {
-            const live = currentWorkout.exercises.find((e) => e.id === exercise.id);
-            if (!live) return exercise;
-            return {
-              ...exercise,
-              sets: exercise.sets.map((set) => live.sets.find((s) => s.id === set.id) ?? set),
-            };
-          }),
+    const live = currentWorkoutRef.current;
+    if (!live || live.id !== workoutId) return;
+    const updatedWorkout = updatedProgram.workouts.find((w) => w.id === workoutId);
+    if (!updatedWorkout) return;
+
+    // Keep the sets the user has already logged this session.
+    const merged: Workout = {
+      ...updatedWorkout,
+      exercises: updatedWorkout.exercises.map((exercise) => {
+        const liveExercise = live.exercises.find((e) => e.id === exercise.id);
+        if (!liveExercise) return exercise;
+        return {
+          ...exercise,
+          sets: exercise.sets.map((set) => liveExercise.sets.find((s) => s.id === set.id) ?? set),
         };
-        setCurrentWorkout(merged);
-        persistWorkoutCheckpoint(merged);
-      }
-    }
+      }),
+    };
+    currentWorkoutRef.current = merged;
+    setCurrentWorkout(merged);
+    persistWorkoutCheckpoint(merged);
   };
 
   const addExerciseToWorkout = async (workoutId: string, exercise: DetailedExercise) => {
@@ -337,6 +384,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   const finishWorkout = () => {
+    programSync.cancel(); // the finished workout is saved to history, not to the program
+    currentWorkoutRef.current = null;
     setCurrentWorkout(null);
     setIsWorkoutActive(false);
     persistWorkoutCheckpoint(null);
@@ -362,6 +411,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         updateExerciseSets,
         reorderWorkouts,
         reorderExercises,
+        flushProgramSync,
       }}
     >
       {children}
