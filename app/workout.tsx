@@ -12,7 +12,8 @@ import { getDefaultRestSeconds, DEFAULT_REST_SECONDS } from '@/services/preferen
 import { formatKg, formatMinutes, formatSet } from '@/utils/format';
 import BarLoadingStrip from '@/components/BarLoadingStrip';
 import * as Haptics from 'expo-haptics';
-import { radius, elevation, spacing, motion, HIT_SLOP } from '@/constants/theme';
+import { radius, elevation, spacing, motion, type, HIT_SLOP } from '@/constants/theme';
+import { useConnectivity } from '@/hooks/useConnectivity';
 import { isTimedExercise } from '@/data/timedExercises';
 import SwipeToRemove from '@/components/gestures/SwipeToRemove';
 import DragDismissSheet from '@/components/gestures/DragDismissSheet';
@@ -74,10 +75,12 @@ export default function WorkoutScreen() {
     removeExerciseFromWorkout,
     updateExerciseSets,
     reorderExercises,
-    finishWorkout
+    finishWorkout,
+    flushProgramSync
   } = useWorkout();
   const { user } = useAuth();
   const { height: windowHeight } = useWindowDimensions();
+  const { isOnline } = useConnectivity();
 
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [showMetadataModal, setShowMetadataModal] = useState(false);
@@ -87,6 +90,7 @@ export default function WorkoutScreen() {
   const [restTime, setRestTime] = useState(0);
   const [defaultRestSeconds, setDefaultRestSecondsState] = useState(DEFAULT_REST_SECONDS);
   const [saving, setSaving] = useState(false);
+  const [saveAttempts, setSaveAttempts] = useState(0);
   const [restTimerInterval, setRestTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [workoutDuration, setWorkoutDuration] = useState(0);
@@ -336,6 +340,7 @@ export default function WorkoutScreen() {
       ]);
       return;
     }
+    setSaveAttempts(0);
     setShowMetadataModal(true);
   };
 
@@ -349,7 +354,8 @@ export default function WorkoutScreen() {
 
     setSaving(true);
     const endTime = new Date();
-    const durationMinutes = Math.max(1, Math.round(workoutDuration / 60));
+    const startedAt = metadata.startTime ?? workoutStartTime ?? endTime;
+    const durationMinutes = Math.max(1, Math.round((endTime.getTime() - startedAt.getTime()) / 60000));
 
     // Match whatever the summary above showed: if a swipe is still inside
     // its undo window when the user saves, its sets must not be banked —
@@ -360,6 +366,7 @@ export default function WorkoutScreen() {
     };
 
     try {
+      await flushProgramSync();
       await WorkoutHistoryService.saveWorkoutHistory(
         user.id,
         {
@@ -373,16 +380,22 @@ export default function WorkoutScreen() {
       setShowMetadataModal(false);
       finishWorkout();
       router.back();
-      Alert.alert('Workout saved', `${formatMinutes(durationMinutes)} · ${completedSetCount} ${completedSetCount === 1 ? 'set' : 'sets'} · ${formatKg(sessionVolume)}`);
     } catch (error) {
       console.error('Failed to save workout:', error);
+      const attempts = saveAttempts + 1;
+      setSaveAttempts(attempts);
+      const buttons: { text: string; style: 'cancel' | 'default'; onPress?: () => void }[] = [
+        { text: 'Keep editing', style: 'cancel' },
+      ];
+      if (attempts < 3) {
+        buttons.unshift({ text: 'Try again', style: 'default', onPress: () => { void saveWorkout(); } });
+      }
       Alert.alert(
         'Could not save',
-        'The workout is still here. Check your connection and try again.',
-        [
-          { text: 'Try again', onPress: () => { setSaving(false); saveWorkout(); } },
-          { text: 'Keep editing', style: 'cancel' },
-        ]
+        attempts < 3
+          ? 'The workout is still here. Check your connection and try again.'
+          : 'Still no connection. The workout is kept on this phone; finish it once you are back online.',
+        buttons
       );
     } finally {
       setSaving(false);
@@ -436,6 +449,7 @@ export default function WorkoutScreen() {
             const next = sanitiseSetValue('weight', value);
             if (next !== null) updateSet(exerciseId, set.id, 'weight', next);
           }}
+          onBlur={() => { void flushProgramSync(); }}
           keyboardType="numeric"
           placeholder="kg"
           placeholderTextColor={Colors.light.textTertiary}
@@ -451,6 +465,7 @@ export default function WorkoutScreen() {
             const next = sanitiseSetValue('reps', value);
             if (next !== null) updateSet(exerciseId, set.id, 'reps', next);
           }}
+          onBlur={() => { void flushProgramSync(); }}
           keyboardType="numeric"
           placeholder="reps"
           placeholderTextColor={Colors.light.textTertiary}
@@ -528,15 +543,21 @@ export default function WorkoutScreen() {
           >
             <Watch size={20} color={Colors.light.text} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.finishButton} 
-            onPress={handleFinishWorkout}
-            accessibilityRole="button"
-            accessibilityLabel="Finish workout"
-            accessibilityHint="Complete and save your workout session"
-          >
-            <Text style={styles.finishButtonText}>Finish</Text>
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              style={styles.finishButton}
+              onPress={handleFinishWorkout}
+              disabled={!isOnline || saving}
+              accessibilityRole="button"
+              accessibilityLabel="Finish workout"
+              accessibilityHint="Complete and save your workout session"
+            >
+              <Text style={styles.finishButtonText}>Finish</Text>
+            </TouchableOpacity>
+            {!isOnline && (
+              <Text style={styles.finishHelper}>Waiting for connection</Text>
+            )}
+          </View>
         </View>
       </View>
 
@@ -546,6 +567,11 @@ export default function WorkoutScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {!isOnline && (
+          <View style={styles.offlineBanner} accessibilityRole="alert">
+            <Text style={styles.offlineText}>Offline — your sets are saved on this phone</Text>
+          </View>
+        )}
         {/* Warmup Section */}
         <TouchableOpacity 
           style={styles.warmupCard} 
@@ -904,6 +930,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12
   },
+  offlineBanner: { backgroundColor: Colors.light.warning, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.input, marginBottom: spacing.md },
+  offlineText: { ...type.label, color: Colors.light.rubber, textAlign: 'center' },
+  finishHelper: { ...type.label, color: Colors.light.textSecondary, textAlign: 'center', marginTop: spacing.xs },
   warmupCard: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
