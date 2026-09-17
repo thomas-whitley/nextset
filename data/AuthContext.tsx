@@ -1,6 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from './supabase-client';
+import { syncPreferencesFromProfile } from '../services/preferences';
 
 export interface AuthContextType {
   session: Session | null;
@@ -35,6 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (isMounted) {
           setSession(session);
           setUser(session?.user ?? null);
+          if (session?.user) void syncPreferencesFromProfile(session.user.id);
           setLoading(false);
           console.log('AuthProvider: Initial session state set');
         }
@@ -57,11 +59,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (isMounted) {
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
-          
+
           // Handle user profile creation/update for all sign-in events
           // Profile creation is now handled by database trigger
           // No need to manually create profiles
-          
+
+          if (event === 'SIGNED_IN' && currentSession?.user) void syncPreferencesFromProfile(currentSession.user.id);
+
           if (loading) {
             console.log('AuthProvider: Setting loading to false after auth state change');
             setLoading(false);

@@ -37,6 +37,7 @@ import {
   setDefaultRestSeconds,
   getBarWeightKg,
   setBarWeightKg,
+  clampBarKg,
   DEFAULT_REST_SECONDS,
   DEFAULT_BAR_WEIGHT_KG,
 } from '@/services/preferences';
@@ -158,7 +159,6 @@ const REST_OPTIONS = [30, 45, 60, 75, 90, 105, 120, 150, 180, 240];
 
 // Men's Olympic, women's Olympic, technique bar. Anything else is custom.
 const BAR_OPTIONS = [20, 15, 10];
-const MAX_BAR_KG = 50;
 
 const formatRestTime = (seconds: number) => {
   if (seconds < 60) return `${seconds} s`;
@@ -170,12 +170,7 @@ const formatRestTime = (seconds: number) => {
 const formatKg = (kg: number) => `${Number.isInteger(kg) ? kg : kg.toFixed(1)} kg`;
 
 /** Accepts 0 < kg <= 50 in 0.5 kg steps; rejects the rest as a bar weight. */
-const parseBarKg = (text: string): number | null => {
-  const n = parseFloat(text.replace(',', '.'));
-  if (!Number.isFinite(n) || n <= 0 || n > MAX_BAR_KG) return null;
-  if (Math.round(n * 2) !== n * 2) return null;
-  return n;
-};
+const parseBarKg = (text: string): number | null => clampBarKg(parseFloat(text.replace(',', '.')));
 
 const openUrl = async (url: string) => {
   try {
@@ -214,7 +209,7 @@ export default function SettingsScreen() {
     setDefaultRestTime(seconds);
     setShowRestTimeModal(false);
     try {
-      await setDefaultRestSeconds(seconds);
+      await setDefaultRestSeconds(seconds, user?.id);
     } catch (error) {
       console.error('Error saving rest time preference:', error);
     }
@@ -224,7 +219,7 @@ export default function SettingsScreen() {
     setBarWeight(kg);
     setShowBarWeightModal(false);
     try {
-      await setBarWeightKg(kg);
+      await setBarWeightKg(kg, user?.id);
     } catch (error) {
       console.error('Error saving bar weight preference:', error);
     }
