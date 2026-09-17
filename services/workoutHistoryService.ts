@@ -1,5 +1,6 @@
 import { supabase } from '../data/supabase-client';
 import { Workout } from './exercise.types';
+import { computeStreaks, toDateKey } from './stats';
 
 export interface WorkoutHistoryEntry {
   id: string;
@@ -42,13 +43,8 @@ export interface LifetimeStats {
   lastWorkout: WorkoutHistoryEntry | null;
 }
 
-/** Local-calendar YYYY-MM-DD key (history is grouped by the user's day, not UTC). */
-export const toDateKey = (d: Date): string => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
+// Re-export toDateKey from stats for backward compatibility
+export { toDateKey } from './stats';
 
 export interface ProgressStats {
   totalWorkouts: number;
@@ -257,58 +253,8 @@ export class WorkoutHistoryService {
       throw new Error(`Failed to get workout streak: ${error.message}`);
     }
 
-    const workouts = data || [];
-    if (workouts.length === 0) {
-      return { currentStreak: 0, longestStreak: 0 };
-    }
-
-    // Group workouts by date
-    const workoutDates = new Set(
-      workouts.map(w => toDateKey(new Date(w.completed_at)))
-    );
-
-    const sortedDates = Array.from(workoutDates).sort().reverse();
-
-    // Current streak: consecutive days ending today or yesterday.
-    // (A workout five days ago with nothing since is not a streak of 1.)
-    let currentStreak = 0;
-    const dateSet = new Set(sortedDates);
-    const checkDate = new Date();
-    checkDate.setHours(0, 0, 0, 0);
-    if (!dateSet.has(toDateKey(checkDate))) {
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-    for (let i = 0; i < 365 && dateSet.has(toDateKey(checkDate)); i++) {
-      currentStreak++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-
-    // Calculate longest streak
-    let longestStreak = 0;
-    let tempStreak = 0;
-    let prevDate: Date | null = null;
-
-    for (const dateStr of sortedDates.reverse()) {
-      const currentDate = new Date(dateStr);
-      
-      if (prevDate === null) {
-        tempStreak = 1;
-      } else {
-        const dayDiff = Math.abs(currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
-        if (dayDiff === 1) {
-          tempStreak++;
-        } else {
-          longestStreak = Math.max(longestStreak, tempStreak);
-          tempStreak = 1;
-        }
-      }
-      
-      prevDate = currentDate;
-    }
-    
-    longestStreak = Math.max(longestStreak, tempStreak);
-
-    return { currentStreak, longestStreak };
+    const keys = (data ?? []).map((w) => toDateKey(new Date(w.completed_at)));
+    return computeStreaks(keys, new Date());
   }
 
   /**
