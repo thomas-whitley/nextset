@@ -97,7 +97,7 @@ Supabase client is initialized in `data/supabase-client.ts` and throws if either
 - **Auth links arrive in the URL *fragment***, not the query string — `momentum://confirm#access_token=…`. `useLocalSearchParams` cannot see a fragment; use `useURL()` from `expo-linking` with `parseAuthFragment` (`data/authLink.ts`). Getting this wrong makes every valid confirmation link report "expired".
 - **`(auth)` is a route group**, so its screens live at `/confirm`, `/updatepassword` — *not* `/auth/confirm`. Deep links must not include the group name.
 - **Never use `{someNumber && <View/>}` in JSX.** When the value is `0` the expression evaluates to `0` and React renders a literal "0"; on native this can throw *"Text strings must be rendered within a `<Text>` component"*. Compare explicitly: `{(x ?? 0) > 0 && …}`.
-- **Set weight and reps are bounded** (`sanitiseSetValue` in `app/workout.tsx`, 1000 kg / 100 reps). Out-of-range keystrokes are rejected, not truncated.
+- **Set weight and reps are bounded** (`sanitiseSetValue` in `services/setSteps.ts`, alongside `stepValue`; 1000 kg / 100 reps). Out-of-range keystrokes are rejected, not truncated.
 - **`npx expo start` fails on the dev VM** with `TypeError: fetch failed`; use `--offline`. A cold web bundle takes ~200s.
 - **A migration in git is not a migration in production.** `0005` sat committed but unapplied for three weeks. After adding one, run `npx supabase migration list` and check the Remote column, or the repo lies about the live schema.
 - **The Supabase Free project auto-pauses.** Symptom: the hostname stops resolving, the app shows the loading spinner ~30 s, then "Failed to fetch". Unpause in the dashboard; nothing in the code is wrong.
