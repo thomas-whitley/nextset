@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useReducer } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -19,12 +19,13 @@ import SwipeToRemove from '@/components/gestures/SwipeToRemove';
 import DragDismissSheet from '@/components/gestures/DragDismissSheet';
 import DraggableList from '@/components/gestures/DraggableList';
 import type { WorkoutExercise } from '@/services/exercise.types';
-import { sanitiseSetValue } from '@/services/setSteps';
+import { sanitiseSetValue, stepValue } from '@/services/setSteps';
 import SetRow from '@/components/SetRow';
 import { formatRepsTarget } from '@/services/repsTarget';
 import { restReducer, remainingSeconds, IDLE_REST } from '@/services/restTimer';
 import { ensureRestPermission, hasAskedRestPermission, scheduleRestNotification, cancelRestNotification } from '@/services/restNotifications';
 import RestBanner from '@/components/RestBanner';
+import SetKeyboardBar from '@/components/SetKeyboardBar';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -83,6 +84,17 @@ export default function WorkoutScreen() {
   const [isWarmupCollapsed, setIsWarmupCollapsed] = useState(false);
   const [selectedWarmup, setSelectedWarmup] = useState<WarmupOption | null>(null);
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
+
+  type Focused = { exerciseId: string; setId: string; field: 'weight' | 'reps' } | null;
+  const [focused, setFocused] = useState<Focused>(null);
+  const inputRefs = useRef<Map<string, TextInput | null>>(new Map()); // key `${setId}:${field}`
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const s = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const h = Keyboard.addListener('keyboardDidHide', () => { setKeyboardOpen(false); setFocused(null); });
+    return () => { s.remove(); h.remove(); };
+  }, []);
+
   const [metadata, setMetadata] = useState<WorkoutMetadata>({
     startTime: null,
     endTime: null,
@@ -422,7 +434,9 @@ export default function WorkoutScreen() {
             if (next !== null) updateSet(exercise.id, set.id, field, next);
           }}
           onBlur={() => { void flushProgramSync(); }}
-          onFocus={() => {}}
+          onFocus={(field) => setFocused({ exerciseId: exercise.id, setId: set.id, field })}
+          weightRef={(r) => { inputRefs.current.set(`${set.id}:weight`, r); }}
+          repsRef={(r) => { inputRefs.current.set(`${set.id}:reps`, r); }}
         />
 
         {showStrip ? (
@@ -430,6 +444,31 @@ export default function WorkoutScreen() {
         ) : null}
       </View>
     );
+  };
+
+  const currentSet = () => {
+    if (!focused || !currentWorkout) return null;
+    const ex = currentWorkout.exercises.find((e) => e.id === focused.exerciseId);
+    const set = ex?.sets.find((s) => s.id === focused.setId);
+    return ex && set ? { ex, set, index: ex.sets.indexOf(set) } : null;
+  };
+  const handleStep = (direction: 1 | -1) => {
+    const cur = currentSet();
+    if (!cur || !focused) return;
+    const next = stepValue(focused.field, cur.set[focused.field], direction);
+    void updateSet(cur.ex.id, cur.set.id, focused.field, next);
+  };
+  const handleNext = () => {
+    const cur = currentSet();
+    if (!cur || !focused) return;
+    if (focused.field === 'weight') {
+      inputRefs.current.get(`${cur.set.id}:reps`)?.focus();
+      return;
+    }
+    if (!cur.set.isComplete) void handleSetComplete(cur.ex, cur.set.id, cur.index);
+    const nextSet = cur.ex.sets[cur.index + 1] ?? currentWorkout!.exercises[currentWorkout!.exercises.indexOf(cur.ex) + 1]?.sets[0];
+    if (nextSet) inputRefs.current.get(`${nextSet.id}:weight`)?.focus();
+    else Keyboard.dismiss();
   };
 
   if (!isWorkoutActive || !currentWorkout) {
@@ -682,6 +721,8 @@ export default function WorkoutScreen() {
       {rest.endsAt !== null && (
         <RestBanner remaining={restRemaining} exerciseName={rest.exerciseName} setNumber={rest.setNumber} onSkip={skipRest} onAdjust={adjustRest} />
       )}
+
+      <SetKeyboardBar field={focused?.field ?? 'weight'} onStep={handleStep} onNext={handleNext} visible={keyboardOpen && focused !== null} />
 
       {/* Undo snackbar for an optimistically-removed exercise */}
       {pendingRemoval && (

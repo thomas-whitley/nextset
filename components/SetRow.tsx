@@ -7,6 +7,7 @@ import type { ExerciseSet, RepsTarget } from '@/services/exercise.types';
 import { formatRepsTarget } from '@/services/repsTarget';
 import { detectPr, type ExerciseBests } from '@/services/prMath';
 import { formatSet } from '@/utils/format';
+import { SET_ACCESSORY_ID } from '@/components/SetKeyboardBar';
 
 export interface SetRowProps {
   set: ExerciseSet;
@@ -90,6 +91,7 @@ export default function SetRow({
           keyboardType="numeric"
           placeholder="kg"
           placeholderTextColor={Colors.light.textTertiary}
+          inputAccessoryViewID={SET_ACCESSORY_ID}
           accessibilityLabel={`Weight for set ${index + 1}`}
           accessibilityHint="Enter the weight used for this set"
         />
@@ -104,6 +106,7 @@ export default function SetRow({
           keyboardType="numeric"
           placeholder={repsTarget ? `×${formatRepsTarget(repsTarget)}` : 'reps'}
           placeholderTextColor={Colors.light.textTertiary}
+          inputAccessoryViewID={SET_ACCESSORY_ID}
           accessibilityLabel={`Repetitions for set ${index + 1}`}
           accessibilityHint="Enter the number of repetitions completed"
         />
