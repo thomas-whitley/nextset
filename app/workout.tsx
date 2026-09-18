@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useReducer } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2 } from 'lucide-react-native';
@@ -22,6 +22,9 @@ import type { WorkoutExercise } from '@/services/exercise.types';
 import { sanitiseSetValue } from '@/services/setSteps';
 import SetRow from '@/components/SetRow';
 import { formatRepsTarget } from '@/services/repsTarget';
+import { restReducer, remainingSeconds, IDLE_REST } from '@/services/restTimer';
+import { ensureRestPermission, hasAskedRestPermission, scheduleRestNotification, cancelRestNotification } from '@/services/restNotifications';
+import RestBanner from '@/components/RestBanner';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -65,15 +68,15 @@ export default function WorkoutScreen() {
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [showMetadataModal, setShowMetadataModal] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
-  const [completedSets, setCompletedSets] = useState<Set<string>>(new Set());
-  const [activeRestTimer, setActiveRestTimer] = useState<string | null>(null);
-  const [restTime, setRestTime] = useState(0);
+  const [rest, dispatchRest] = useReducer(restReducer, IDLE_REST);
+  const [now, setNow] = useState(() => Date.now());
+  const restRemaining = remainingSeconds(rest, now);
+  const firedRef = useRef(false);
   const [defaultRestSeconds, setDefaultRestSecondsState] = useState(DEFAULT_REST_SECONDS);
   const [saving, setSaving] = useState(false);
   // A ref, not state: the retry button in the alert calls saveWorkout from the render
   // that built it, so state would read the old count and the cap would never trip.
   const saveAttemptsRef = useRef(0);
-  const [restTimerInterval, setRestTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [workoutTimerInterval, setWorkoutTimerInterval] = useState<NodeJS.Timeout | null>(null);
@@ -139,30 +142,24 @@ export default function WorkoutScreen() {
     };
   }, [isWorkoutActive]);
 
-  // Rest timer effect
+  // Rest timer: a plain interval just re-renders so `restRemaining` (derived
+  // from the reducer's absolute `endsAt`) ticks; the reducer holds no clock.
   useEffect(() => {
-    if (activeRestTimer && restTime > 0) {
-      const interval = setInterval(() => {
-        setRestTime(prev => {
-          if (prev <= 1) {
-            setActiveRestTimer(null);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      setRestTimerInterval(interval as unknown as NodeJS.Timeout);
-    } else if (restTimerInterval) {
-      clearInterval(restTimerInterval);
-      setRestTimerInterval(null);
-    }
+    if (rest.endsAt === null) return;
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [rest.endsAt]);
 
-    return () => {
-      if (restTimerInterval) {
-        clearInterval(restTimerInterval);
-      }
-    };
-  }, [activeRestTimer, restTime]);
+  // Fires once, right when the countdown reaches zero: haptic in the
+  // foreground, the scheduled OS notification covers the backgrounded case.
+  useEffect(() => {
+    if (rest.endsAt === null) { firedRef.current = false; return; }
+    if (restRemaining === 0 && !firedRef.current) {
+      firedRef.current = true;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      dispatchRest({ type: 'expire' });
+    }
+  }, [restRemaining, rest.endsAt]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -171,27 +168,24 @@ export default function WorkoutScreen() {
   };
 
   const handleSetComplete = async (exercise: WorkoutExercise, setId: string, setIndex: number) => {
-    const exerciseId = exercise.id;
-    await completeSet(exerciseId, setId);
+    const wasComplete = exercise.sets.find((s) => s.id === setId)?.isComplete ?? false;
+    await completeSet(exercise.id, setId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    
-    const newCompletedSets = new Set(completedSets);
-    if (!completedSets.has(setId)) {
-      newCompletedSets.add(setId);
-      setCompletedSets(newCompletedSets);
-      
-      // Start the rest timer using the length chosen in Settings
-      setActiveRestTimer(setId);
-      setRestTime(defaultRestSeconds);
-    } else {
-      newCompletedSets.delete(setId);
-      setCompletedSets(newCompletedSets);
-      
-      // Stop rest timer if uncompleting a set
-      if (activeRestTimer === setId) {
-        setActiveRestTimer(null);
-        setRestTime(0);
+
+    const nowComplete = !wasComplete;
+    if (nowComplete) {
+      if (!(await hasAskedRestPermission())) {
+        Alert.alert('Rest alerts', 'NextSet can buzz your phone when rest is over, even when it is locked.', [
+          { text: 'Not now', style: 'cancel', onPress: () => void ensureRestPermission().then(() => {}) },
+          { text: 'Allow', onPress: () => void ensureRestPermission() },
+        ]);
       }
+      const t = Date.now();
+      dispatchRest({ type: 'start', setId, seconds: defaultRestSeconds, now: t, exerciseName: exercise.name, setNumber: setIndex + 1 });
+      void scheduleRestNotification(t + defaultRestSeconds * 1000, exercise.name, setIndex + 1);
+    } else if (rest.setId === setId) {
+      dispatchRest({ type: 'skip' });
+      void cancelRestNotification();
     }
   };
 
@@ -296,9 +290,17 @@ export default function WorkoutScreen() {
     }
   };
 
+  const skipRest = () => { dispatchRest({ type: 'skip' }); void cancelRestNotification(); };
+  const adjustRest = (delta: 15 | -15) => {
+    const t = Date.now();
+    dispatchRest({ type: 'adjust', deltaSeconds: delta, now: t });
+    const endsAt = Math.max(t, (rest.endsAt ?? t) + delta * 1000);
+    void scheduleRestNotification(endsAt, rest.exerciseName, rest.setNumber);
+  };
+
   const stopTimers = () => {
     if (workoutTimerInterval) clearInterval(workoutTimerInterval);
-    if (restTimerInterval) clearInterval(restTimerInterval);
+    skipRest();
   };
 
   // Excludes whichever exercise is mid-swipe: once removed from view it
@@ -401,7 +403,7 @@ export default function WorkoutScreen() {
     showStrip = false,
     onSlab = false
   ) => {
-    const isActiveRest = activeRestTimer === set.id;
+    const isActiveRest = rest.setId === set.id;
 
     return (
       <View key={set.id}>
@@ -493,9 +495,9 @@ export default function WorkoutScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -676,6 +678,10 @@ export default function WorkoutScreen() {
         </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {rest.endsAt !== null && (
+        <RestBanner remaining={restRemaining} exerciseName={rest.exerciseName} setNumber={rest.setNumber} onSkip={skipRest} onAdjust={adjustRest} />
+      )}
 
       {/* Undo snackbar for an optimistically-removed exercise */}
       {pendingRemoval && (
