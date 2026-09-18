@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, Timer, Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Watch, Trash2 } from 'lucide-react-native';
+import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -9,7 +9,7 @@ import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
 import { getDefaultRestSeconds, DEFAULT_REST_SECONDS } from '@/services/preferences';
-import { formatKg, formatMinutes, formatSet } from '@/utils/format';
+import { formatKg, formatMinutes } from '@/utils/format';
 import BarLoadingStrip from '@/components/BarLoadingStrip';
 import * as Haptics from 'expo-haptics';
 import { radius, elevation, spacing, motion, type, HIT_SLOP } from '@/constants/theme';
@@ -19,6 +19,14 @@ import SwipeToRemove from '@/components/gestures/SwipeToRemove';
 import DragDismissSheet from '@/components/gestures/DragDismissSheet';
 import DraggableList from '@/components/gestures/DraggableList';
 import type { WorkoutExercise } from '@/services/exercise.types';
+import { sanitiseSetValue, stepValue } from '@/services/setSteps';
+import SetRow from '@/components/SetRow';
+import { formatRepsTarget } from '@/services/repsTarget';
+import { remainingSeconds } from '@/services/restTimer';
+import { ensureRestPermission, hasAskedRestPermission, markRestPermissionAsked, scheduleRestNotification, cancelRestNotification } from '@/services/restNotifications';
+import RestBanner from '@/components/RestBanner';
+import SetKeyboardBar from '@/components/SetKeyboardBar';
+import { summariseWorkout } from '@/services/finishSummary';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -41,30 +49,6 @@ const warmupOptions: WarmupOption[] = [
   { id: '4', name: 'Joint Mobility', duration: '6 min', description: 'Targeted joint activation exercises' },
 ];
 
-// Guard rails on the two free-text numeric fields. Without them a slip on the
-// keypad is persisted silently and then poisons lifetime volume, the PR list
-// and the CSV export — a stray "17897 kg × 69592 reps" once banked a workout
-// at 1,245,613,856 kg. Bounds are deliberately generous: the heaviest lift
-// ever recorded is well under 1000 kg, and 100 reps covers any real set.
-const MAX_WEIGHT_KG = 1000;
-const MAX_REPS = 100;
-
-/** The value to store, or null to reject the keystroke and keep the old one. */
-function sanitiseSetValue(field: 'weight' | 'reps', raw: string): string | null {
-  if (raw === '') return '';
-
-  if (field === 'reps') {
-    if (!/^\d{1,3}$/.test(raw)) return null;
-    return Number(raw) <= MAX_REPS ? raw : null;
-  }
-
-  // Weight takes one decimal place or two (82.5), with either separator.
-  // A trailing "." is allowed so the field can be typed through.
-  const normalised = raw.replace(',', '.');
-  if (!/^\d{1,4}(\.\d{0,2})?$/.test(normalised)) return null;
-  return Number(normalised) <= MAX_WEIGHT_KG ? normalised : null;
-}
-
 export default function WorkoutScreen() {
   const { 
     currentWorkout, 
@@ -75,31 +59,53 @@ export default function WorkoutScreen() {
     removeExerciseFromWorkout,
     updateExerciseSets,
     reorderExercises,
+    replaceExercise,
     finishWorkout,
-    flushProgramSync
+    flushProgramSync,
+    rest,
+    dispatchRest,
+    workoutStartedAt
   } = useWorkout();
   const { user } = useAuth();
   const { height: windowHeight } = useWindowDimensions();
   const { isOnline } = useConnectivity();
 
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [pickerMode, setPickerMode] = useState<{ kind: 'add' } | { kind: 'replace'; exerciseId: string }>({ kind: 'add' });
   const [showMetadataModal, setShowMetadataModal] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
-  const [completedSets, setCompletedSets] = useState<Set<string>>(new Set());
-  const [activeRestTimer, setActiveRestTimer] = useState<string | null>(null);
-  const [restTime, setRestTime] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const restRemaining = remainingSeconds(rest, now);
+  const firedRef = useRef(false);
+  // Mirrors context `rest` so adjustRest's scheduling math always reads the
+  // latest endsAt rather than the render-closure value (item 8).
+  const restRef = useRef(rest);
+  useEffect(() => {
+    restRef.current = rest;
+  }, [rest]);
   const [defaultRestSeconds, setDefaultRestSecondsState] = useState(DEFAULT_REST_SECONDS);
   const [saving, setSaving] = useState(false);
   // A ref, not state: the retry button in the alert calls saveWorkout from the render
   // that built it, so state would read the old count and the cap would never trip.
   const saveAttemptsRef = useRef(0);
-  const [restTimerInterval, setRestTimerInterval] = useState<NodeJS.Timeout | null>(null);
-  const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
-  const [workoutDuration, setWorkoutDuration] = useState(0);
-  const [workoutTimerInterval, setWorkoutTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  // Duration is derived from WorkoutContext's workoutStartedAt (survives a
+  // minimise/resume remount, unlike a locally-owned start Date would).
+  const [workoutNow, setWorkoutNow] = useState(() => Date.now());
+  const workoutDuration = workoutStartedAt ? Math.max(0, Math.floor((workoutNow - workoutStartedAt) / 1000)) : 0;
   const [isWarmupCollapsed, setIsWarmupCollapsed] = useState(false);
   const [selectedWarmup, setSelectedWarmup] = useState<WarmupOption | null>(null);
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
+
+  type Focused = { exerciseId: string; setId: string; field: 'weight' | 'reps' } | null;
+  const [focused, setFocused] = useState<Focused>(null);
+  const inputRefs = useRef<Map<string, TextInput | null>>(new Map()); // key `${setId}:${field}`
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const s = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const h = Keyboard.addListener('keyboardDidHide', () => { setKeyboardOpen(false); setFocused(null); });
+    return () => { s.remove(); h.remove(); };
+  }, []);
+
   const [metadata, setMetadata] = useState<WorkoutMetadata>({
     startTime: null,
     endTime: null,
@@ -138,51 +144,43 @@ export default function WorkoutScreen() {
     }
   }, [pendingRemoval?.exercise.id]);
 
-  // Start workout timer when workout becomes active
+  // Tick the display clock while a workout is active; the duration itself is
+  // derived from workoutStartedAt, so this survives a minimise/resume remount.
   useEffect(() => {
-    if (isWorkoutActive && !workoutStartTime) {
-      const startTime = new Date();
-      setWorkoutStartTime(startTime);
-      setMetadata(prev => ({ ...prev, startTime }));
-      
-      // Start the workout duration timer
-      const interval = setInterval(() => {
-        setWorkoutDuration(prev => prev + 1);
-      }, 1000);
-      setWorkoutTimerInterval(interval as unknown as NodeJS.Timeout);
-    }
-
-    return () => {
-      if (workoutTimerInterval) {
-        clearInterval(workoutTimerInterval);
-      }
-    };
+    if (!isWorkoutActive) return;
+    const id = setInterval(() => setWorkoutNow(Date.now()), 1000);
+    return () => clearInterval(id);
   }, [isWorkoutActive]);
 
-  // Rest timer effect
+  // Seed metadata.startTime (saved with the workout history record) once from
+  // context. Deliberately keyed only on workoutStartedAt — including
+  // metadata.startTime would refire this every time it becomes set, which is
+  // harmless (the guard below no-ops) but pointless.
   useEffect(() => {
-    if (activeRestTimer && restTime > 0) {
-      const interval = setInterval(() => {
-        setRestTime(prev => {
-          if (prev <= 1) {
-            setActiveRestTimer(null);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      setRestTimerInterval(interval as unknown as NodeJS.Timeout);
-    } else if (restTimerInterval) {
-      clearInterval(restTimerInterval);
-      setRestTimerInterval(null);
+    if (workoutStartedAt && !metadata.startTime) {
+      setMetadata((prev) => ({ ...prev, startTime: new Date(workoutStartedAt) }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workoutStartedAt]);
 
-    return () => {
-      if (restTimerInterval) {
-        clearInterval(restTimerInterval);
-      }
-    };
-  }, [activeRestTimer, restTime]);
+  // Rest timer: a plain interval just re-renders so `restRemaining` (derived
+  // from the reducer's absolute `endsAt`) ticks; the reducer holds no clock.
+  useEffect(() => {
+    if (rest.endsAt === null) return;
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [rest.endsAt]);
+
+  // Fires once, right when the countdown reaches zero: haptic in the
+  // foreground, the scheduled OS notification covers the backgrounded case.
+  useEffect(() => {
+    if (rest.endsAt === null) { firedRef.current = false; return; }
+    if (restRemaining === 0 && !firedRef.current) {
+      firedRef.current = true;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      dispatchRest({ type: 'expire' });
+    }
+  }, [restRemaining, rest.endsAt, dispatchRest]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -190,38 +188,54 @@ export default function WorkoutScreen() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSetComplete = async (exerciseId: string, setId: string) => {
-    await completeSet(exerciseId, setId);
+  const handleSetComplete = async (exercise: WorkoutExercise, setId: string, setIndex: number) => {
+    const wasComplete = exercise.sets.find((s) => s.id === setId)?.isComplete ?? false;
+    await completeSet(exercise.id, setId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    
-    const newCompletedSets = new Set(completedSets);
-    if (!completedSets.has(setId)) {
-      newCompletedSets.add(setId);
-      setCompletedSets(newCompletedSets);
-      
-      // Start the rest timer using the length chosen in Settings
-      setActiveRestTimer(setId);
-      setRestTime(defaultRestSeconds);
-    } else {
-      newCompletedSets.delete(setId);
-      setCompletedSets(newCompletedSets);
-      
-      // Stop rest timer if uncompleting a set
-      if (activeRestTimer === setId) {
-        setActiveRestTimer(null);
-        setRestTime(0);
+
+    const nowComplete = !wasComplete;
+    if (nowComplete) {
+      const t = Date.now();
+      const endsAt = t + defaultRestSeconds * 1000;
+      // The banner works regardless of notification permission, so the
+      // reducer starts immediately; the notification itself is scheduled
+      // separately below once permission is actually settled (item 4) —
+      // scheduling it here while permission is still 'undetermined' would
+      // silently no-op on the very first set of a user's first workout.
+      dispatchRest({ type: 'start', setId, seconds: defaultRestSeconds, now: t, exerciseName: exercise.name, setNumber: setIndex + 1 });
+
+      if (await hasAskedRestPermission()) {
+        void scheduleRestNotification(endsAt, exercise.name, setIndex + 1);
+      } else {
+        Alert.alert('Rest alerts', 'NextSet can buzz your phone when rest is over, even when it is locked.', [
+          // "Not now" only records that the explainer was shown — it must
+          // never fire the real OS permission prompt (item 3).
+          { text: 'Not now', style: 'cancel', onPress: () => void markRestPermissionAsked() },
+          {
+            text: 'Allow',
+            onPress: () => {
+              void ensureRestPermission().then((status) => {
+                if (status === 'granted') void scheduleRestNotification(endsAt, exercise.name, setIndex + 1);
+              });
+            },
+          },
+        ]);
       }
+    } else if (rest.setId === setId) {
+      dispatchRest({ type: 'skip' });
+      void cancelRestNotification();
     }
   };
 
-  const handleAddExercise = async (exercise: any) => {
+  const handlePickExercise = async (exercise: any) => {
     if (!currentWorkout) return;
-    
+
     try {
-      await addExerciseToWorkout(currentWorkout.id, exercise);
+      if (pickerMode.kind === 'replace') await replaceExercise(pickerMode.exerciseId, exercise);
+      else await addExerciseToWorkout(currentWorkout.id, exercise);
       setShowExerciseModal(false);
     } catch {
-      Alert.alert('Could not add exercise', 'Check your connection and try again.');
+      Alert.alert(pickerMode.kind === 'replace' ? 'Could not replace exercise' : 'Could not add exercise', 'Check your connection and try again.');
     }
   };
 
@@ -315,9 +329,31 @@ export default function WorkoutScreen() {
     }
   };
 
+  const skipRest = () => { dispatchRest({ type: 'skip' }); void cancelRestNotification(); };
+  const adjustRest = (delta: 15 | -15) => {
+    const t = Date.now();
+    dispatchRest({ type: 'adjust', deltaSeconds: delta, now: t });
+    // Read the latest endsAt via the ref, not the render-closure `rest` —
+    // two rapid taps before a re-render would otherwise both adjust from the
+    // same stale value (item 8).
+    const nextEndsAt = Math.max(t, (restRef.current.endsAt ?? t) + delta * 1000);
+    void scheduleRestNotification(nextEndsAt, rest.exerciseName, rest.setNumber);
+  };
+
   const stopTimers = () => {
-    if (workoutTimerInterval) clearInterval(workoutTimerInterval);
-    if (restTimerInterval) clearInterval(restTimerInterval);
+    skipRest();
+  };
+
+  const handleClosePress = () => {
+    Alert.alert(currentWorkout?.name ?? 'Workout', undefined, [
+      { text: 'Minimise', onPress: () => router.back() },
+      { text: 'Discard workout', style: 'destructive', onPress: () =>
+        Alert.alert('Discard this workout?', 'Nothing from this session will be saved.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => { stopTimers(); finishWorkout(); router.back(); } },
+        ]) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   // Excludes whichever exercise is mid-swipe: once removed from view it
@@ -356,7 +392,7 @@ export default function WorkoutScreen() {
 
     setSaving(true);
     const endTime = new Date();
-    const startedAt = metadata.startTime ?? workoutStartTime ?? endTime;
+    const startedAt = metadata.startTime ?? (workoutStartedAt ? new Date(workoutStartedAt) : endTime);
     const durationMinutes = Math.max(1, Math.round((endTime.getTime() - startedAt.getTime()) / 60000));
 
     // Match whatever the summary above showed: if a swipe is still inside
@@ -413,82 +449,68 @@ export default function WorkoutScreen() {
   const nextSetIdFor = (exercise: any): string | null =>
     exercise.sets.find((s: any) => !s.isComplete)?.id ?? null;
 
-  const renderSetRow = (set: any, setIndex: number, exerciseId: string, libraryExerciseId?: number, showStrip = false, onSlab = false) => {
-    const isCompleted = set.isComplete;
-    const isActiveRest = activeRestTimer === set.id;
+  const renderSetRow = (
+    set: WorkoutExercise['sets'][number],
+    setIndex: number,
+    exercise: WorkoutExercise,
+    showStrip = false,
+    onSlab = false
+  ) => {
+    const isActiveRest = rest.setId === set.id;
 
     return (
-      <View key={set.id} style={styles.setBlock}>
-      <View style={styles.setRow}>
-        <TouchableOpacity
-          style={[
-            styles.setIndicator,
-            onSlab && styles.setIndicatorOnSlab,
-            isCompleted && styles.completedIndicator,
-            isActiveRest && styles.activeRestIndicator
-          ]}
-          onPress={() => handleSetComplete(exerciseId, set.id)}
-          accessibilityRole="checkbox"
-          accessibilityLabel={`Set ${setIndex + 1} ${isCompleted ? 'completed' : 'incomplete'}`}
-          accessibilityHint="Tap to mark this set as complete or incomplete"
-          accessibilityState={{ checked: isCompleted }}
-        >
-          {isCompleted ? (
-            <Check size={12} color="#FFFFFF" />
-          ) : (
-            <Text style={[styles.setNumber, onSlab && styles.onSlabText]}>{setIndex + 1}</Text>
-          )}
-        </TouchableOpacity>
-        
-        <Text style={[styles.previousData, onSlab && styles.onSlabMuted]}>
-          {formatSet(set.previousWeight, set.previousReps)}
-        </Text>
-        
-        <TextInput
-          style={[styles.input, isCompleted && styles.inputComplete]}
-          value={set.weight}
-          onChangeText={(value) => {
-            const next = sanitiseSetValue('weight', value);
-            if (next !== null) updateSet(exerciseId, set.id, 'weight', next);
+      <View key={set.id}>
+        <SetRow
+          set={set}
+          index={setIndex}
+          exerciseId={exercise.id}
+          libraryExerciseId={exercise.exerciseId}
+          repsTarget={exercise.repsTarget}
+          isActiveRest={isActiveRest}
+          onSlab={onSlab}
+          onToggleComplete={() => handleSetComplete(exercise, set.id, setIndex)}
+          onChange={(field, value) => {
+            const next = sanitiseSetValue(field, value);
+            if (next !== null) updateSet(exercise.id, set.id, field, next);
           }}
           onBlur={() => { void flushProgramSync(); }}
-          keyboardType="numeric"
-          placeholder="kg"
-          placeholderTextColor={Colors.light.textTertiary}
-          editable={!isCompleted}
-          accessibilityLabel={`Weight for set ${setIndex + 1}`}
-          accessibilityHint="Enter the weight used for this set"
-        />
-        
-        <TextInput
-          style={[styles.input, isCompleted && styles.inputComplete]}
-          value={set.reps}
-          onChangeText={(value) => {
-            const next = sanitiseSetValue('reps', value);
-            if (next !== null) updateSet(exerciseId, set.id, 'reps', next);
-          }}
-          onBlur={() => { void flushProgramSync(); }}
-          keyboardType="numeric"
-          placeholder="reps"
-          placeholderTextColor={Colors.light.textTertiary}
-          editable={!isCompleted}
-          accessibilityLabel={`Repetitions for set ${setIndex + 1}`}
-          accessibilityHint="Enter the number of repetitions completed"
+          onFocus={(field) => setFocused({ exerciseId: exercise.id, setId: set.id, field })}
+          weightRef={(r) => { inputRefs.current.set(`${set.id}:weight`, r); }}
+          repsRef={(r) => { inputRefs.current.set(`${set.id}:reps`, r); }}
         />
 
-        {isActiveRest && (
-          <View style={styles.restTimerBadge}>
-            <Timer size={10} color={Colors.light.primary} />
-            <Text style={styles.restTimerText}>{formatTime(restTime)}</Text>
-          </View>
-        )}
-      </View>
-
-      {showStrip ? (
-        <BarLoadingStrip totalKg={parseFloat(set.weight)} exerciseId={libraryExerciseId} onRubber={onSlab} />
-      ) : null}
+        {showStrip ? (
+          <BarLoadingStrip totalKg={parseFloat(set.weight)} exerciseId={exercise.exerciseId} onRubber={onSlab} />
+        ) : null}
       </View>
     );
+  };
+
+  const currentSet = () => {
+    if (!focused || !currentWorkout) return null;
+    const ex = currentWorkout.exercises.find((e) => e.id === focused.exerciseId);
+    const set = ex?.sets.find((s) => s.id === focused.setId);
+    return ex && set ? { ex, set, index: ex.sets.indexOf(set) } : null;
+  };
+  const handleStep = (direction: 1 | -1) => {
+    const cur = currentSet();
+    if (!cur || !focused) return;
+    const next = stepValue(focused.field, cur.set[focused.field], direction);
+    void updateSet(cur.ex.id, cur.set.id, focused.field, next);
+  };
+  const handleNext = () => {
+    const cur = currentSet();
+    if (!cur || !focused) return;
+    if (focused.field === 'weight') {
+      inputRefs.current.get(`${cur.set.id}:reps`)?.focus();
+      return;
+    }
+    if (!cur.set.isComplete) void handleSetComplete(cur.ex, cur.set.id, cur.index);
+    // visibleExercises, not currentWorkout.exercises: the latter still
+    // includes an exercise mid-swipe inside its undo window (item 10).
+    const nextSet = cur.ex.sets[cur.index + 1] ?? visibleExercises[visibleExercises.indexOf(cur.ex) + 1]?.sets[0];
+    if (nextSet) inputRefs.current.get(`${nextSet.id}:weight`)?.focus();
+    else Keyboard.dismiss();
   };
 
   if (!isWorkoutActive || !currentWorkout) {
@@ -496,7 +518,7 @@ export default function WorkoutScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
-            <Timer size={48} color={Colors.light.primary} />
+            <Dumbbell size={48} color={Colors.light.primary} />
           </View>
           <Text style={styles.emptyTitle}>No workout running</Text>
           <Text style={styles.emptySubtitle}>
@@ -518,10 +540,10 @@ export default function WorkoutScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header with Workout Timer */}
       <View style={[styles.header, { height: 60 }]}>
-        <TouchableOpacity 
-          onPress={() => router.back()}
+        <TouchableOpacity
+          onPress={handleClosePress}
           accessibilityRole="button"
-          accessibilityLabel="Close workout"
+          accessibilityLabel="Close or discard workout"
           accessibilityHint="Exit current workout session"
         >
           <X size={20} color={Colors.light.text} />
@@ -536,15 +558,6 @@ export default function WorkoutScreen() {
         </View>
         
         <View style={styles.headerButtons}>
-          <TouchableOpacity 
-            style={styles.timerButton} 
-            onPress={() => router.push('/timer')}
-            accessibilityRole="button"
-            accessibilityLabel="Open timer"
-            accessibilityHint="Access workout timers and intervals"
-          >
-            <Watch size={20} color={Colors.light.text} />
-          </TouchableOpacity>
           <View>
             <TouchableOpacity
               style={styles.finishButton}
@@ -563,9 +576,9 @@ export default function WorkoutScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -646,6 +659,25 @@ export default function WorkoutScreen() {
                     >
                       {exercise.name}
                     </Text>
+                    <Text style={[styles.planText, exercise.id === activeExerciseId && styles.onSlabMuted]}>
+                      {exercise.sets.length} × {formatRepsTarget(exercise.repsTarget) || '—'}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => { setPickerMode({ kind: 'replace', exerciseId: exercise.id }); setShowExerciseModal(true); }}
+                      hitSlop={HIT_SLOP}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Replace ${exercise.name}`}
+                    >
+                      <RefreshCw
+                        size={16}
+                        color={
+                          exercise.id === activeExerciseId
+                            ? Colors.light.onRubberSecondary
+                            : Colors.light.textTertiary
+                        }
+                      />
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.removeButton}
                       onPress={() => handleRemoveExercise(exercise)}
@@ -719,8 +751,7 @@ export default function WorkoutScreen() {
                       renderSetRow(
                         set,
                         setIndex,
-                        exercise.id,
-                        exercise.exerciseId,
+                        exercise,
                         set.id === nextSetIdFor(exercise),
                         exercise.id === activeExerciseId
                       )
@@ -732,9 +763,9 @@ export default function WorkoutScreen() {
           )}
         />
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addExerciseButton}
-          onPress={() => setShowExerciseModal(true)}
+          onPress={() => { setPickerMode({ kind: 'add' }); setShowExerciseModal(true); }}
           accessibilityRole="button"
           accessibilityLabel="Add exercise to workout"
           accessibilityHint="Browse and add new exercises to your current workout"
@@ -744,6 +775,12 @@ export default function WorkoutScreen() {
         </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {rest.endsAt !== null && (
+        <RestBanner remaining={restRemaining} exerciseName={rest.exerciseName} setNumber={rest.setNumber} onSkip={skipRest} onAdjust={adjustRest} />
+      )}
+
+      <SetKeyboardBar field={focused?.field ?? 'weight'} onStep={handleStep} onNext={handleNext} visible={keyboardOpen && focused !== null} />
 
       {/* Undo snackbar for an optimistically-removed exercise */}
       {pendingRemoval && (
@@ -814,6 +851,25 @@ export default function WorkoutScreen() {
               {formatMinutes(Math.max(1, Math.round(workoutDuration / 60)))} · {completedSetCount} {completedSetCount === 1 ? 'set' : 'sets'} · {formatKg(sessionVolume)}
             </Text>
 
+            {(() => {
+              // Summarise visibleExercises, not currentWorkout: an exercise
+              // mid-swipe inside its undo window must not appear in the
+              // recap (item 9) — it matches sessionVolume/completedSetCount
+              // above, which already exclude it.
+              const { lines, prs } = summariseWorkout({ ...currentWorkout, exercises: visibleExercises });
+              return (
+                <>
+                  {prs.length > 0 && (
+                    <View style={styles.prBlock}>
+                      <Text style={styles.sheetLabel}>Personal records</Text>
+                      {prs.map((p) => <Text key={p.id} style={styles.prLine}>🏅 {p.name} — {p.weight} kg × {p.reps}{p.kind === 'weight' ? ' (heaviest)' : p.kind === 'e1rm' ? ' (best est. 1RM)' : ''}</Text>)}
+                    </View>
+                  )}
+                  {lines.map((l) => <Text key={l.id} style={styles.recapLine}>{l.name} · {l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'} · {l.detail}</Text>)}
+                </>
+              );
+            })()}
+
             <Text style={styles.sheetLabel}>Bodyweight (kg, optional)</Text>
             <TextInput
               style={styles.sheetInput}
@@ -853,13 +909,13 @@ export default function WorkoutScreen() {
       <DragDismissSheet visible={showExerciseModal} onDismiss={() => setShowExerciseModal(false)}>
         <View style={[styles.sheetPickerBody, { height: windowHeight * 0.85 }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Exercise</Text>
+            <Text style={styles.modalTitle}>{pickerMode.kind === 'replace' ? 'Replace exercise' : 'Add Exercise'}</Text>
             <TouchableOpacity onPress={() => setShowExerciseModal(false)} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
               <X size={24} color={Colors.light.text} />
             </TouchableOpacity>
           </View>
           <BrowseExercisesScreen
-            onExerciseSelect={handleAddExercise}
+            onExerciseSelect={handlePickExercise}
             autoFocusSearch={false}
           />
         </View>
@@ -890,15 +946,6 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  timerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
   },
   workoutTitle: {
     fontSize: 16,
@@ -1020,6 +1067,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   exerciseName: { fontSize: 16, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, flex: 1 },
+  planText: { fontSize: 12, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginLeft: spacing.sm },
   removeButton: { padding: 6, marginRight: 4 },
   undoSnackbar: {
     position: 'absolute',
@@ -1064,6 +1112,9 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: 20, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
   sheetSummary: { fontSize: 15, fontFamily: 'Archivo-Medium', color: Colors.light.textSecondary, marginBottom: 20 },
   sheetLabel: { fontSize: 13, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginBottom: 6 },
+  prBlock: { marginBottom: spacing.md },
+  prLine: { fontFamily: 'Archivo-Medium', fontSize: 14, color: Colors.light.text, marginTop: 4 },
+  recapLine: { fontFamily: 'Archivo-Regular', fontSize: 13, color: Colors.light.textSecondary, marginTop: 2 },
   sheetInput: {
     backgroundColor: Colors.light.background,
     borderRadius: 12,
@@ -1129,9 +1180,6 @@ const styles = StyleSheet.create({
   setsContainer: {
     marginBottom: 4
   },
-  setBlock: {
-    marginBottom: 2,
-  },
   exerciseCardActive: {
     backgroundColor: Colors.light.rubber,
     borderRadius: radius.slab,
@@ -1142,74 +1190,11 @@ const styles = StyleSheet.create({
   onSlabMuted: {
     color: Colors.light.onRubberSecondary,
   },
-  // A white disc on a near-black slab swallowed its own number, so a pending
-  // set becomes an outline instead of a fill.
-  setIndicatorOnSlab: {
-    backgroundColor: 'transparent',
-    borderColor: Colors.light.onRubberSecondary,
-  },
   notesInputOnSlab: {
     backgroundColor: Colors.light.slabField,
     color: Colors.light.onRubber,
     borderColor: Colors.light.borderOnRubber,
   },
-  setRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    position: 'relative',
-  },
-  setIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 4
-  },
-  completedIndicator: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary
-  },
-  activeRestIndicator: {
-    borderColor: Colors.light.accent,
-    backgroundColor: Colors.light.accentLight
-  },
-  setNumber: { fontSize: 10, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.primary },
-  previousData: { fontSize: 10, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, width: 50, textAlign: 'center' },
-  input: {
-    width: 50,
-    backgroundColor: Colors.light.background,
-    borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    fontSize: 12,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    textAlign: 'center',
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: Colors.light.border
-  },
-  inputComplete: {
-    backgroundColor: Colors.light.primaryLight,
-    borderColor: Colors.light.primary
-  },
-  restTimerBadge: {
-    position: 'absolute',
-    top: -6,
-    right: 6,
-    backgroundColor: Colors.light.primary,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  restTimerText: { fontSize: 10, fontFamily: 'ArchivoNarrow-Bold', color: '#FFFFFF', marginLeft: 2 },
   addExerciseButton: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,

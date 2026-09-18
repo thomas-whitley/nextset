@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Timer, X, Calendar, Play, ChevronRight, Flame } from 'lucide-react-native';
+import { X, Calendar, Play, ChevronRight, Flame } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { spacing, radius, elevation, type, HIT_SLOP } from '@/constants/theme';
@@ -207,20 +207,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={styles.quickTimer}
-          onPress={() => router.push('/timer')}
-          accessibilityRole="button"
-          accessibilityLabel="Timer"
-          accessibilityHint="Interval and rest timers"
-        >
-          <Timer size={24} color={Colors.light.primary} />
-          <View style={styles.quickTimerTextGroup}>
-            <Text style={styles.quickTimerText}>Timer</Text>
-            <Text style={styles.quickTimerSubtext}>Intervals and rest between sets</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.light.textTertiary} />
-        </TouchableOpacity>
       </ScrollView>
 
       {/* Recent workouts */}
@@ -346,18 +332,6 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, backgroundColor: Colors.light.card, borderRadius: radius.card, padding: spacing.base, alignItems: 'center', ...shadow },
   statValue: { ...type.numeric, color: Colors.light.text, marginTop: spacing.sm, marginBottom: spacing.xs },
   statLabel: { ...type.label, color: Colors.light.textTertiary, textAlign: 'center' },
-
-  quickTimer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.light.primaryLight,
-    borderRadius: radius.card,
-    padding: spacing.lg,
-    marginBottom: spacing.xxxl,
-  },
-  quickTimerTextGroup: { flex: 1, marginLeft: spacing.md },
-  quickTimerText: { ...type.section, color: Colors.light.text },
-  quickTimerSubtext: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.xs / 2 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg },
   modalContent: { backgroundColor: Colors.light.card, borderRadius: radius.slab, padding: spacing.xl, width: '100%', maxWidth: 400 },

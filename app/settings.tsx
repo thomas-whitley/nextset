@@ -16,6 +16,7 @@ import {
   X,
   Dumbbell,
   Timer,
+  Bell,
   CircleHelp as HelpCircle,
   LogOut,
   Info,
@@ -305,6 +306,12 @@ export default function SettingsScreen() {
               title="Barbell weight"
               subtitle={`${formatKg(barWeight)} bar assumed when loading plates`}
               onPress={() => setShowBarWeightModal(true)}
+            />
+            <SettingItem
+              icon={<Bell size={20} color={Colors.light.primary} />}
+              title="Rest alerts"
+              subtitle="Buzz when rest is over, even when locked. Managed in system settings."
+              onPress={() => Linking.openSettings()}
               showBorder={false}
             />
           </View>

@@ -2,6 +2,7 @@ import { supabase } from '../data/supabase-client';
 import type { Database, Json } from '../data/supabase.types';
 import { Workout } from './exercise.types';
 import { computeStreaks, toDateKey } from './stats';
+import { bestsFromWorkouts, type ExerciseBests } from './prMath';
 
 export interface WorkoutHistoryEntry {
   id: string;
@@ -408,5 +409,18 @@ export class WorkoutHistoryService {
     }
 
     return result;
+  }
+
+  /** Best weight / e1RM per exerciseId over the user's whole history (client-side, JSONB). */
+  static async getExerciseBests(userId: string): Promise<ExerciseBests> {
+    const { data, error } = await supabase
+      .from('workout_history')
+      .select('workout_data')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    const workouts = (data ?? []).map((row) => row.workout_data as unknown as Workout);
+    return bestsFromWorkouts(workouts);
   }
 }
