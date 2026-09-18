@@ -26,6 +26,8 @@ import { restReducer, remainingSeconds, IDLE_REST } from '@/services/restTimer';
 import { ensureRestPermission, hasAskedRestPermission, scheduleRestNotification, cancelRestNotification } from '@/services/restNotifications';
 import RestBanner from '@/components/RestBanner';
 import SetKeyboardBar from '@/components/SetKeyboardBar';
+import { summariseWorkout } from '@/services/finishSummary';
+import type { ExerciseBests } from '@/services/prMath';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -88,6 +90,16 @@ export default function WorkoutScreen() {
   const [isWarmupCollapsed, setIsWarmupCollapsed] = useState(false);
   const [selectedWarmup, setSelectedWarmup] = useState<WarmupOption | null>(null);
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
+
+  // Snapshot exerciseBests the first time it's non-empty after a workout
+  // starts, so session PRs are judged against pre-session records rather
+  // than records this same session just raised.
+  const startBestsRef = useRef<ExerciseBests | null>(null);
+  useEffect(() => {
+    if (startBestsRef.current === null && Object.keys(exerciseBests).length > 0) {
+      startBestsRef.current = exerciseBests;
+    }
+  }, [exerciseBests]);
 
   type Focused = { exerciseId: string; setId: string; field: 'weight' | 'reps' } | null;
   const [focused, setFocused] = useState<Focused>(null);
@@ -311,6 +323,7 @@ export default function WorkoutScreen() {
 
   const stopTimers = () => {
     skipRest();
+    startBestsRef.current = null;
   };
 
   const handleClosePress = () => {
@@ -819,6 +832,18 @@ export default function WorkoutScreen() {
               {formatMinutes(Math.max(1, Math.round(workoutDuration / 60)))} · {completedSetCount} {completedSetCount === 1 ? 'set' : 'sets'} · {formatKg(sessionVolume)}
             </Text>
 
+            {(() => { const { lines, prs } = summariseWorkout(currentWorkout, startBestsRef.current ?? {}); return (
+              <>
+                {prs.length > 0 && (
+                  <View style={styles.prBlock}>
+                    <Text style={styles.sheetLabel}>Personal records</Text>
+                    {prs.map((p) => <Text key={p.name} style={styles.prLine}>🏅 {p.name} — {p.weight} kg × {p.reps}{p.kind === 'weight' ? ' (heaviest)' : p.kind === 'e1rm' ? ' (best est. 1RM)' : ''}</Text>)}
+                  </View>
+                )}
+                {lines.map((l) => <Text key={l.name} style={styles.recapLine}>{l.name} · {l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'} · {l.detail}</Text>)}
+              </>
+            ); })()}
+
             <Text style={styles.sheetLabel}>Bodyweight (kg, optional)</Text>
             <TextInput
               style={styles.sheetInput}
@@ -1061,6 +1086,9 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: 20, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
   sheetSummary: { fontSize: 15, fontFamily: 'Archivo-Medium', color: Colors.light.textSecondary, marginBottom: 20 },
   sheetLabel: { fontSize: 13, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginBottom: 6 },
+  prBlock: { marginBottom: spacing.md },
+  prLine: { fontFamily: 'Archivo-Medium', fontSize: 14, color: Colors.light.text, marginTop: 4 },
+  recapLine: { fontFamily: 'Archivo-Regular', fontSize: 13, color: Colors.light.textSecondary, marginTop: 2 },
   sheetInput: {
     backgroundColor: Colors.light.background,
     borderRadius: 12,
