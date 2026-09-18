@@ -111,12 +111,16 @@ export interface ExerciseSet {
   restTime?: number; // in seconds
 }
 
+/** Planned reps for an exercise; min === max for a fixed count. Absent = no target. */
+export interface RepsTarget { min: number; max: number }
+
 export interface WorkoutExercise {
   id: string;
   exerciseId: number; // References Exercise.id
   name: string;
   sets: ExerciseSet[];
   notes?: string;
+  repsTarget?: RepsTarget;
   order: number; // For reordering exercises within a workout
 }
 
