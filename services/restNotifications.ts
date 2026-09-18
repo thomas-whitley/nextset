@@ -10,6 +10,11 @@ export async function hasAskedRestPermission(): Promise<boolean> {
   return (await AsyncStorage.getItem(ASKED_KEY)) === '1';
 }
 
+/** Records that the explainer was shown and dismissed with "Not now" — never fires the OS prompt. */
+export async function markRestPermissionAsked(): Promise<void> {
+  await AsyncStorage.setItem(ASKED_KEY, '1');
+}
+
 /** Ask the OS at most once (spec §5.1). Callers show their own one-line explanation first. */
 export async function ensureRestPermission(): Promise<'granted' | 'denied' | 'undetermined'> {
   const current = await Notifications.getPermissionsAsync();

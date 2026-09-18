@@ -1,8 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import { ensureRestPermission, scheduleRestNotification, cancelRestNotification, hasAskedRestPermission } from '../restNotifications';
+import { ensureRestPermission, scheduleRestNotification, cancelRestNotification, hasAskedRestPermission, markRestPermissionAsked } from '../restNotifications';
 
 beforeEach(async () => { await AsyncStorage.clear(); jest.clearAllMocks(); });
+
+describe('markRestPermissionAsked', () => {
+  it('records that the explainer was asked without calling the OS prompt', async () => {
+    expect(await hasAskedRestPermission()).toBe(false);
+    await markRestPermissionAsked();
+    expect(await hasAskedRestPermission()).toBe(true);
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+});
 
 describe('ensureRestPermission', () => {
   it('asks once and records that it asked', async () => {

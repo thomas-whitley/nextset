@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useReducer } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react-native';
@@ -22,12 +22,11 @@ import type { WorkoutExercise } from '@/services/exercise.types';
 import { sanitiseSetValue, stepValue } from '@/services/setSteps';
 import SetRow from '@/components/SetRow';
 import { formatRepsTarget } from '@/services/repsTarget';
-import { restReducer, remainingSeconds, IDLE_REST } from '@/services/restTimer';
-import { ensureRestPermission, hasAskedRestPermission, scheduleRestNotification, cancelRestNotification } from '@/services/restNotifications';
+import { remainingSeconds } from '@/services/restTimer';
+import { ensureRestPermission, hasAskedRestPermission, markRestPermissionAsked, scheduleRestNotification, cancelRestNotification } from '@/services/restNotifications';
 import RestBanner from '@/components/RestBanner';
 import SetKeyboardBar from '@/components/SetKeyboardBar';
 import { summariseWorkout } from '@/services/finishSummary';
-import type { ExerciseBests } from '@/services/prMath';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -63,7 +62,8 @@ export default function WorkoutScreen() {
     replaceExercise,
     finishWorkout,
     flushProgramSync,
-    exerciseBests,
+    rest,
+    dispatchRest,
     workoutStartedAt
   } = useWorkout();
   const { user } = useAuth();
@@ -74,10 +74,15 @@ export default function WorkoutScreen() {
   const [pickerMode, setPickerMode] = useState<{ kind: 'add' } | { kind: 'replace'; exerciseId: string }>({ kind: 'add' });
   const [showMetadataModal, setShowMetadataModal] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
-  const [rest, dispatchRest] = useReducer(restReducer, IDLE_REST);
   const [now, setNow] = useState(() => Date.now());
   const restRemaining = remainingSeconds(rest, now);
   const firedRef = useRef(false);
+  // Mirrors context `rest` so adjustRest's scheduling math always reads the
+  // latest endsAt rather than the render-closure value (item 8).
+  const restRef = useRef(rest);
+  useEffect(() => {
+    restRef.current = rest;
+  }, [rest]);
   const [defaultRestSeconds, setDefaultRestSecondsState] = useState(DEFAULT_REST_SECONDS);
   const [saving, setSaving] = useState(false);
   // A ref, not state: the retry button in the alert calls saveWorkout from the render
@@ -90,16 +95,6 @@ export default function WorkoutScreen() {
   const [isWarmupCollapsed, setIsWarmupCollapsed] = useState(false);
   const [selectedWarmup, setSelectedWarmup] = useState<WarmupOption | null>(null);
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
-
-  // Snapshot exerciseBests the first time it's non-empty after a workout
-  // starts, so session PRs are judged against pre-session records rather
-  // than records this same session just raised.
-  const startBestsRef = useRef<ExerciseBests | null>(null);
-  useEffect(() => {
-    if (startBestsRef.current === null && Object.keys(exerciseBests).length > 0) {
-      startBestsRef.current = exerciseBests;
-    }
-  }, [exerciseBests]);
 
   type Focused = { exerciseId: string; setId: string; field: 'weight' | 'reps' } | null;
   const [focused, setFocused] = useState<Focused>(null);
@@ -185,7 +180,7 @@ export default function WorkoutScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       dispatchRest({ type: 'expire' });
     }
-  }, [restRemaining, rest.endsAt]);
+  }, [restRemaining, rest.endsAt, dispatchRest]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -200,15 +195,32 @@ export default function WorkoutScreen() {
 
     const nowComplete = !wasComplete;
     if (nowComplete) {
-      if (!(await hasAskedRestPermission())) {
+      const t = Date.now();
+      const endsAt = t + defaultRestSeconds * 1000;
+      // The banner works regardless of notification permission, so the
+      // reducer starts immediately; the notification itself is scheduled
+      // separately below once permission is actually settled (item 4) —
+      // scheduling it here while permission is still 'undetermined' would
+      // silently no-op on the very first set of a user's first workout.
+      dispatchRest({ type: 'start', setId, seconds: defaultRestSeconds, now: t, exerciseName: exercise.name, setNumber: setIndex + 1 });
+
+      if (await hasAskedRestPermission()) {
+        void scheduleRestNotification(endsAt, exercise.name, setIndex + 1);
+      } else {
         Alert.alert('Rest alerts', 'NextSet can buzz your phone when rest is over, even when it is locked.', [
-          { text: 'Not now', style: 'cancel', onPress: () => void ensureRestPermission().then(() => {}) },
-          { text: 'Allow', onPress: () => void ensureRestPermission() },
+          // "Not now" only records that the explainer was shown — it must
+          // never fire the real OS permission prompt (item 3).
+          { text: 'Not now', style: 'cancel', onPress: () => void markRestPermissionAsked() },
+          {
+            text: 'Allow',
+            onPress: () => {
+              void ensureRestPermission().then((status) => {
+                if (status === 'granted') void scheduleRestNotification(endsAt, exercise.name, setIndex + 1);
+              });
+            },
+          },
         ]);
       }
-      const t = Date.now();
-      dispatchRest({ type: 'start', setId, seconds: defaultRestSeconds, now: t, exerciseName: exercise.name, setNumber: setIndex + 1 });
-      void scheduleRestNotification(t + defaultRestSeconds * 1000, exercise.name, setIndex + 1);
     } else if (rest.setId === setId) {
       dispatchRest({ type: 'skip' });
       void cancelRestNotification();
@@ -321,13 +333,15 @@ export default function WorkoutScreen() {
   const adjustRest = (delta: 15 | -15) => {
     const t = Date.now();
     dispatchRest({ type: 'adjust', deltaSeconds: delta, now: t });
-    const endsAt = Math.max(t, (rest.endsAt ?? t) + delta * 1000);
-    void scheduleRestNotification(endsAt, rest.exerciseName, rest.setNumber);
+    // Read the latest endsAt via the ref, not the render-closure `rest` —
+    // two rapid taps before a re-render would otherwise both adjust from the
+    // same stale value (item 8).
+    const nextEndsAt = Math.max(t, (restRef.current.endsAt ?? t) + delta * 1000);
+    void scheduleRestNotification(nextEndsAt, rest.exerciseName, rest.setNumber);
   };
 
   const stopTimers = () => {
     skipRest();
-    startBestsRef.current = null;
   };
 
   const handleClosePress = () => {
@@ -452,7 +466,6 @@ export default function WorkoutScreen() {
           exerciseId={exercise.id}
           libraryExerciseId={exercise.exerciseId}
           repsTarget={exercise.repsTarget}
-          bests={exerciseBests}
           isActiveRest={isActiveRest}
           onSlab={onSlab}
           onToggleComplete={() => handleSetComplete(exercise, set.id, setIndex)}
@@ -493,7 +506,9 @@ export default function WorkoutScreen() {
       return;
     }
     if (!cur.set.isComplete) void handleSetComplete(cur.ex, cur.set.id, cur.index);
-    const nextSet = cur.ex.sets[cur.index + 1] ?? currentWorkout!.exercises[currentWorkout!.exercises.indexOf(cur.ex) + 1]?.sets[0];
+    // visibleExercises, not currentWorkout.exercises: the latter still
+    // includes an exercise mid-swipe inside its undo window (item 10).
+    const nextSet = cur.ex.sets[cur.index + 1] ?? visibleExercises[visibleExercises.indexOf(cur.ex) + 1]?.sets[0];
     if (nextSet) inputRefs.current.get(`${nextSet.id}:weight`)?.focus();
     else Keyboard.dismiss();
   };
@@ -836,17 +851,24 @@ export default function WorkoutScreen() {
               {formatMinutes(Math.max(1, Math.round(workoutDuration / 60)))} · {completedSetCount} {completedSetCount === 1 ? 'set' : 'sets'} · {formatKg(sessionVolume)}
             </Text>
 
-            {(() => { const { lines, prs } = summariseWorkout(currentWorkout, startBestsRef.current ?? {}); return (
-              <>
-                {prs.length > 0 && (
-                  <View style={styles.prBlock}>
-                    <Text style={styles.sheetLabel}>Personal records</Text>
-                    {prs.map((p) => <Text key={p.name} style={styles.prLine}>🏅 {p.name} — {p.weight} kg × {p.reps}{p.kind === 'weight' ? ' (heaviest)' : p.kind === 'e1rm' ? ' (best est. 1RM)' : ''}</Text>)}
-                  </View>
-                )}
-                {lines.map((l) => <Text key={l.name} style={styles.recapLine}>{l.name} · {l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'} · {l.detail}</Text>)}
-              </>
-            ); })()}
+            {(() => {
+              // Summarise visibleExercises, not currentWorkout: an exercise
+              // mid-swipe inside its undo window must not appear in the
+              // recap (item 9) — it matches sessionVolume/completedSetCount
+              // above, which already exclude it.
+              const { lines, prs } = summariseWorkout({ ...currentWorkout, exercises: visibleExercises });
+              return (
+                <>
+                  {prs.length > 0 && (
+                    <View style={styles.prBlock}>
+                      <Text style={styles.sheetLabel}>Personal records</Text>
+                      {prs.map((p) => <Text key={p.id} style={styles.prLine}>🏅 {p.name} — {p.weight} kg × {p.reps}{p.kind === 'weight' ? ' (heaviest)' : p.kind === 'e1rm' ? ' (best est. 1RM)' : ''}</Text>)}
+                    </View>
+                  )}
+                  {lines.map((l) => <Text key={l.id} style={styles.recapLine}>{l.name} · {l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'} · {l.detail}</Text>)}
+                </>
+              );
+            })()}
 
             <Text style={styles.sheetLabel}>Bodyweight (kg, optional)</Text>
             <TextInput
