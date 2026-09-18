@@ -1,4 +1,4 @@
-import { epley1rm, bestsFromWorkouts, detectPr, mergeBest } from '../prMath';
+import { epley1rm, bestsFromWorkouts, detectPr, mergeBest, mergeBests } from '../prMath';
 import type { Workout } from '../exercise.types';
 
 const w = (sets: [string, string, boolean][]): Workout => ({
@@ -36,5 +36,20 @@ describe('mergeBest', () => {
     const next = mergeBest({ 1: { maxWeight: 100, maxE1rm: 110 } }, 1, '105', '1');
     expect(next[1].maxWeight).toBe(105);
     expect(detectPr(next, 1, '105', '1')).toEqual({ weight: false, e1rm: false });
+  });
+});
+
+describe('mergeBests', () => {
+  it('keeps the max of each field per exerciseId', () => {
+    const a = { 1: { maxWeight: 100, maxE1rm: 110 }, 2: { maxWeight: 50, maxE1rm: 55 } };
+    const b = { 1: { maxWeight: 90, maxE1rm: 120 } };
+    expect(mergeBests(a, b)).toEqual({ 1: { maxWeight: 100, maxE1rm: 120 }, 2: { maxWeight: 50, maxE1rm: 55 } });
+  });
+  it('adds an exerciseId only present on the other side', () => {
+    expect(mergeBests({}, { 3: { maxWeight: 60, maxE1rm: 65 } })).toEqual({ 3: { maxWeight: 60, maxE1rm: 65 } });
+  });
+  it('returns the same reference when nothing changes', () => {
+    const a = { 1: { maxWeight: 100, maxE1rm: 110 } };
+    expect(mergeBests(a, { 1: { maxWeight: 50, maxE1rm: 50 } })).toBe(a);
   });
 });

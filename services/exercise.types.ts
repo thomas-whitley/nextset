@@ -109,6 +109,8 @@ export interface ExerciseSet {
   previousWeight?: string;
   previousReps?: string;
   restTime?: number; // in seconds
+  /** Set at tick time, against bests recorded before this tick; cleared when the set is un-ticked. */
+  pr?: 'weight' | 'e1rm' | 'both';
 }
 
 /** Planned reps for an exercise; min === max for a fixed count. Absent = no target. */

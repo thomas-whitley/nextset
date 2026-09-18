@@ -5,7 +5,6 @@ import Colors from '@/constants/Colors';
 import { spacing, radius } from '@/constants/theme';
 import type { ExerciseSet, RepsTarget } from '@/services/exercise.types';
 import { formatRepsTarget } from '@/services/repsTarget';
-import { detectPr, type ExerciseBests } from '@/services/prMath';
 import { formatSet } from '@/utils/format';
 import { SET_ACCESSORY_ID } from '@/components/SetKeyboardBar';
 
@@ -15,7 +14,6 @@ export interface SetRowProps {
   exerciseId: string;
   libraryExerciseId: number;
   repsTarget?: RepsTarget;
-  bests: ExerciseBests;
   isActiveRest: boolean;
   onSlab: boolean;
   onToggleComplete: () => void;
@@ -29,9 +27,7 @@ export interface SetRowProps {
 export default function SetRow({
   set,
   index,
-  libraryExerciseId,
   repsTarget,
-  bests,
   isActiveRest,
   onSlab,
   onToggleComplete,
@@ -43,7 +39,6 @@ export default function SetRow({
 }: SetRowProps) {
   const isCompleted = set.isComplete;
   const previousLabel = formatSet(set.previousWeight, set.previousReps);
-  const pr = set.isComplete ? detectPr(bests, libraryExerciseId, set.weight, set.reps) : { weight: false, e1rm: false };
 
   return (
     <View style={styles.setBlock}>
@@ -111,7 +106,7 @@ export default function SetRow({
           accessibilityHint="Enter the number of repetitions completed"
         />
 
-        {(pr.weight || pr.e1rm) && (
+        {set.pr && (
           <View style={styles.prChip}>
             <Text style={styles.prChipText}>PR</Text>
           </View>

@@ -37,6 +37,26 @@ export function bestsFromWorkouts(workouts: Workout[]): ExerciseBests {
   return bests;
 }
 
+/**
+ * Folds `b` into `a`, keeping the max of each field per exerciseId. Used to
+ * merge a fresh `getExerciseBests` fetch with whatever ticks raised the
+ * in-memory bests while that fetch was in flight, so neither side loses.
+ */
+export function mergeBests(a: ExerciseBests, b: ExerciseBests): ExerciseBests {
+  let merged = a;
+  for (const key of Object.keys(b)) {
+    const id = Number(key);
+    const other = b[id];
+    const cur = merged[id] ?? { maxWeight: 0, maxE1rm: 0 };
+    const next = { maxWeight: Math.max(cur.maxWeight, other.maxWeight), maxE1rm: Math.max(cur.maxE1rm, other.maxE1rm) };
+    if (next.maxWeight !== cur.maxWeight || next.maxE1rm !== cur.maxE1rm) {
+      merged = merged === a ? { ...a } : merged;
+      merged[id] = next;
+    }
+  }
+  return merged;
+}
+
 /** A PR needs an existing record to beat; the first-ever set of an exercise is not one. */
 export function detectPr(bests: ExerciseBests, exerciseId: number, weight: string, reps: string) {
   const cur = bests[exerciseId];

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserActiveProgramService } from '../services/userActiveProgramService';
@@ -8,7 +8,9 @@ import { Exercise as DetailedExercise, Program, Workout, WorkoutExercise, UserAc
 import { programTemplates } from '../data/programTemplates';
 import { useAuth } from '../data/AuthContext';
 import { backfillRepsTargets } from '../services/repsTarget';
-import { mergeBest, type ExerciseBests } from '../services/prMath';
+import { mergeBest, mergeBests, detectPr, type ExerciseBests } from '../services/prMath';
+import { restReducer, IDLE_REST, type RestState, type RestAction } from '../services/restTimer';
+import { cancelRestNotification } from '../services/restNotifications';
 
 const workoutCheckpointKey = (userId: string) => `momentum:in_progress_workout:${userId}`;
 
@@ -26,6 +28,9 @@ interface WorkoutContextType {
   isLoadingProgram: boolean;
   /** Best weight / e1RM per exerciseId, loaded when a workout starts and raised as sets complete. */
   exerciseBests: ExerciseBests;
+  /** Rest-timer state, lifted here so it survives Minimise (the screen unmounts, this doesn't). */
+  rest: RestState;
+  dispatchRest: (action: RestAction) => void;
   setCurrentProgram: (program: Program) => Promise<void>;
   /** Forget the active program locally so the picker shows again (edits are kept in the cloud). */
   clearCurrentProgram: () => void;
@@ -55,6 +60,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [isLoadingProgram, setIsLoadingProgram] = useState(true);
   const [exerciseBests, setExerciseBests] = useState<ExerciseBests>({});
+  const [rest, dispatchRest] = useReducer(restReducer, IDLE_REST);
   const { user } = useAuth();
 
   // Refs mirror state so async code (the debounced program sync, effects that
@@ -133,25 +139,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
-  // Restore an in-progress workout that was checkpointed before the app was
-  // backgrounded or killed, so logged sets aren't silently lost.
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const stored = await AsyncStorage.getItem(workoutCheckpointKey(user.id));
-        if (stored) {
-          const restored = JSON.parse(stored) as Workout;
-          currentWorkoutRef.current = restored;
-          setCurrentWorkout(restored);
-          setIsWorkoutActive(true);
-        }
-      } catch (error) {
-        console.error('Failed to restore in-progress workout:', error);
-      }
-    })();
-  }, [user]);
-
   const persistWorkoutCheckpoint = async (workout: Workout | null) => {
     if (!user) return;
     try {
@@ -164,6 +151,45 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to checkpoint in-progress workout:', error);
     }
   };
+
+  /** Fetches lifetime bests and folds them into whatever ticks already raised in-memory (item 5). */
+  const loadBests = async (userId: string) => {
+    try {
+      const fetched = await WorkoutHistoryService.getExerciseBests(userId);
+      const merged = mergeBests(exerciseBestsRef.current, fetched);
+      exerciseBestsRef.current = merged;
+      setExerciseBests(merged);
+    } catch (error) {
+      console.error('Failed to load exercise bests:', error);
+    }
+  };
+
+  // Restore an in-progress workout that was checkpointed before the app was
+  // backgrounded or killed, so logged sets aren't silently lost.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(workoutCheckpointKey(user.id));
+        if (stored) {
+          const restored = JSON.parse(stored) as Workout;
+          // A checkpoint from before startedAt existed (or one that otherwise
+          // lost it) must not show a blank/garbage duration on resume.
+          let repaired = restored;
+          if (repaired.startedAt === undefined) {
+            repaired = { ...repaired, startedAt: Date.now() };
+            await persistWorkoutCheckpoint(repaired);
+          }
+          currentWorkoutRef.current = repaired;
+          setCurrentWorkout(repaired);
+          setIsWorkoutActive(true);
+          void loadBests(user.id);
+        }
+      } catch (error) {
+        console.error('Failed to restore in-progress workout:', error);
+      }
+    })();
+  }, [user]);
 
   const setCurrentProgram = async (program: Program) => {
     if (!user) {
@@ -200,11 +226,14 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     // Start with a clean sheet: nothing ticked, weights as the template/last edit left them.
     const fresh: Workout = {
       ...workout,
-      // Preserve a start time already on the workout (e.g. a restored checkpoint); a brand-new session gets one now.
-      startedAt: workout.startedAt ?? Date.now(),
+      // Always a fresh session start — never the incoming template/program
+      // workout's startedAt, or last week's session start leaks into this one
+      // (item 1). The AsyncStorage checkpoint is the only place startedAt
+      // survives across app restarts (see the restore effect above).
+      startedAt: Date.now(),
       exercises: workout.exercises.map((exercise) => ({
         ...exercise,
-        sets: exercise.sets.map((set) => ({ ...set, isComplete: false, previousWeight: undefined, previousReps: undefined })),
+        sets: exercise.sets.map((set) => ({ ...set, isComplete: false, pr: undefined, previousWeight: undefined, previousReps: undefined })),
       })),
     };
     currentWorkoutRef.current = fresh;
@@ -215,12 +244,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     // Fill in "last time" hints from history once they arrive.
     if (!user) return;
 
-    WorkoutHistoryService.getExerciseBests(user.id)
-      .then((bests) => {
-        exerciseBestsRef.current = bests;
-        setExerciseBests(bests);
-      })
-      .catch((error) => console.error('Failed to load exercise bests:', error));
+    void loadBests(user.id);
 
     const names = fresh.exercises.map((e) => e.name);
     WorkoutHistoryService.getLastPerformance(user.id, names)
@@ -268,9 +292,21 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     const program = currentProgramRef.current;
     if (!program || !currentActiveProgramRef.current) return;
+    // Strip transient session-only fields before this lands in program_data:
+    // startedAt (item 1 — otherwise next week's session inherits this week's
+    // start time) and each set's pr flag (item 2 — a per-session PR badge has
+    // no business surviving into the program template).
+    const { startedAt, ...forProgram } = next;
+    const forProgramWorkout: Workout = {
+      ...forProgram,
+      exercises: forProgram.exercises.map((exercise) => ({
+        ...exercise,
+        sets: exercise.sets.map(({ pr, ...set }) => set),
+      })),
+    };
     const updatedProgram: Program = {
       ...program,
-      workouts: program.workouts.map((w) => (w.id === next.id ? next : w)),
+      workouts: program.workouts.map((w) => (w.id === forProgramWorkout.id ? forProgramWorkout : w)),
     };
     currentProgramRef.current = updatedProgram;
     setCurrentProgramState(updatedProgram);
@@ -298,7 +334,20 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         ...current,
         exercises: current.exercises.map((exercise) =>
           exercise.id === exerciseId
-            ? { ...exercise, sets: exercise.sets.map((set) => (set.id === setId ? { ...set, isComplete: !set.isComplete } : set)) }
+            ? {
+                ...exercise,
+                sets: exercise.sets.map((set) => {
+                  if (set.id !== setId) return set;
+                  if (set.isComplete) return { ...set, isComplete: false, pr: undefined }; // un-ticking clears the flag
+                  // Flag the PR now, against bests as they stood BEFORE this
+                  // tick (item 2) — mergeBest below raises exerciseBests only
+                  // after this flag is computed, so a set never gets compared
+                  // against a record it just set.
+                  const flag = detectPr(exerciseBestsRef.current, exercise.exerciseId, set.weight, set.reps);
+                  const pr = flag.weight && flag.e1rm ? 'both' : flag.weight ? 'weight' : flag.e1rm ? 'e1rm' : undefined;
+                  return { ...set, isComplete: true, pr };
+                }),
+              }
             : exercise
         ),
       }),
@@ -476,6 +525,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     persistWorkoutCheckpoint(null);
     exerciseBestsRef.current = {};
     setExerciseBests({});
+    dispatchRest({ type: 'skip' }); // back to IDLE_REST; a rest banner must not survive into the next workout
+    void cancelRestNotification();
   };
 
   return (
@@ -489,6 +540,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         workoutStartedAt: currentWorkout?.startedAt ?? null,
         isLoadingProgram,
         exerciseBests,
+        rest,
+        dispatchRest,
         setCurrentProgram,
         clearCurrentProgram,
         startWorkout,

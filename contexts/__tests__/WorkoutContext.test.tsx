@@ -140,6 +140,8 @@ describe('bests and replaceExercise', () => {
     await act(async () => { await result.current.updateSet('e1', 's1', 'reps', '1'); });
     await act(async () => { await result.current.completeSet('e1', 's1'); });
     expect(result.current.exerciseBests[1].maxWeight).toBe(105);
+    // 105 beats maxWeight 100 but 105×(1+1/30)≈108.5 < maxE1rm 110, so only weight is a PR.
+    expect(result.current.currentWorkout!.exercises[0].sets[0].pr).toBe('weight');
   });
 
   it('replaceExercise keeps the set count, clears values and swaps identity', async () => {
