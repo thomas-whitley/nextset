@@ -7,6 +7,8 @@ import { createProgramSync } from '../services/programSync';
 import { Exercise as DetailedExercise, Program, Workout, WorkoutExercise, UserActiveProgram } from '../services/exercise.types';
 import { programTemplates } from '../data/programTemplates';
 import { useAuth } from '../data/AuthContext';
+import { backfillRepsTargets } from '../services/repsTarget';
+import { mergeBest, type ExerciseBests } from '../services/prMath';
 
 const workoutCheckpointKey = (userId: string) => `momentum:in_progress_workout:${userId}`;
 
@@ -20,12 +22,16 @@ interface WorkoutContextType {
   isWorkoutActive: boolean;
   /** True until the active program has been looked up for the signed-in user. */
   isLoadingProgram: boolean;
+  /** Best weight / e1RM per exerciseId, loaded when a workout starts and raised as sets complete. */
+  exerciseBests: ExerciseBests;
   setCurrentProgram: (program: Program) => Promise<void>;
   /** Forget the active program locally so the picker shows again (edits are kept in the cloud). */
   clearCurrentProgram: () => void;
   startWorkout: (workout: Workout) => void;
   updateSet: (exerciseId: string, setId: string, field: 'weight' | 'reps', value: string) => Promise<void>;
   completeSet: (exerciseId: string, setId: string) => Promise<void>;
+  /** Swaps an exercise's identity in the running workout, keeping the set count but clearing logged values. */
+  replaceExercise: (exerciseId: string, next: DetailedExercise) => Promise<void>;
   finishWorkout: () => void;
   addExerciseToWorkout: (workoutId: string, exercise: DetailedExercise) => Promise<void>;
   removeExerciseFromWorkout: (workoutId: string, exerciseId: string) => Promise<void>;
@@ -46,6 +52,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null);
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [isLoadingProgram, setIsLoadingProgram] = useState(true);
+  const [exerciseBests, setExerciseBests] = useState<ExerciseBests>({});
   const { user } = useAuth();
 
   // Refs mirror state so async code (the debounced program sync, effects that
@@ -53,6 +60,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const currentWorkoutRef = useRef<Workout | null>(null);
   const currentProgramRef = useRef<Program | null>(null);
   const currentActiveProgramRef = useRef<UserActiveProgram | null>(null);
+  const exerciseBestsRef = useRef<ExerciseBests>({});
   currentProgramRef.current = currentProgram;
   currentActiveProgramRef.current = currentActiveProgram;
 
@@ -106,7 +114,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         const active = await UserActiveProgramService.getMostRecentActiveProgram(user.id);
         if (!cancelled && active) {
           setCurrentActiveProgram(active);
-          setCurrentProgramState(active.program_data as Program);
+          const loaded = active.program_data as Program;
+          const filled = backfillRepsTargets(loaded, programTemplates);
+          currentProgramRef.current = filled;
+          setCurrentProgramState(filled);
+          if (filled !== loaded) programSync.schedule(filled); // lazy persist, spec D13
         }
       } catch (error) {
         console.error('Failed to restore active program:', error);
@@ -198,6 +210,14 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     // Fill in "last time" hints from history once they arrive.
     if (!user) return;
+
+    WorkoutHistoryService.getExerciseBests(user.id)
+      .then((bests) => {
+        exerciseBestsRef.current = bests;
+        setExerciseBests(bests);
+      })
+      .catch((error) => console.error('Failed to load exercise bests:', error));
+
     const names = fresh.exercises.map((e) => e.name);
     WorkoutHistoryService.getLastPerformance(user.id, names)
       .then((last) => {
@@ -280,6 +300,17 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }),
       true
     );
+
+    const live = currentWorkoutRef.current?.exercises.find((e) => e.id === exerciseId);
+    const set = live?.sets.find((s) => s.id === setId);
+    if (live && set?.isComplete) {
+      const next = mergeBest(exerciseBestsRef.current, live.exerciseId, set.weight, set.reps);
+      if (next !== exerciseBestsRef.current) {
+        exerciseBestsRef.current = next;
+        setExerciseBests(next);
+      }
+    }
+
     await programSync.flush();
   };
 
@@ -300,6 +331,56 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   const flushProgramSync = () => programSync.flush();
+
+  const replaceExercise = async (exerciseId: string, next: DetailedExercise) => {
+    applyWorkoutUpdate(
+      (current) => ({
+        ...current,
+        exercises: current.exercises.map((exercise) =>
+          exercise.id === exerciseId
+            ? {
+                ...exercise,
+                exerciseId: next.id,
+                name: next.name,
+                sets: exercise.sets.map((set) => ({
+                  ...set,
+                  weight: '',
+                  reps: '',
+                  isComplete: false,
+                  previousWeight: undefined,
+                  previousReps: undefined,
+                })),
+              }
+            : exercise
+        ),
+      }),
+      true
+    );
+    await programSync.flush();
+    if (!user) return;
+    const last = await WorkoutHistoryService.getLastPerformance(user.id, [next.name]).catch(
+      () => ({} as Record<string, { weight: string; reps: string }[]>)
+    );
+    const prev = last[next.name];
+    if (!prev) return;
+    applyWorkoutUpdate(
+      (current) => ({
+        ...current,
+        exercises: current.exercises.map((exercise) =>
+          exercise.id === exerciseId
+            ? {
+                ...exercise,
+                sets: exercise.sets.map((set, i) => {
+                  const p = prev[Math.min(i, prev.length - 1)];
+                  return { ...set, previousWeight: p.weight, previousReps: p.reps };
+                }),
+              }
+            : exercise
+        ),
+      }),
+      false
+    );
+  };
 
   /** After the service rewrites the program, mirror it into state (and the running workout if affected). */
   const adoptActiveProgram = (updated: UserActiveProgram, workoutId: string) => {
@@ -389,6 +470,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setCurrentWorkout(null);
     setIsWorkoutActive(false);
     persistWorkoutCheckpoint(null);
+    exerciseBestsRef.current = {};
+    setExerciseBests({});
   };
 
   return (
@@ -400,11 +483,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         currentActiveProgram,
         isWorkoutActive,
         isLoadingProgram,
+        exerciseBests,
         setCurrentProgram,
         clearCurrentProgram,
         startWorkout,
         updateSet,
         completeSet,
+        replaceExercise,
         finishWorkout,
         addExerciseToWorkout,
         removeExerciseFromWorkout,
