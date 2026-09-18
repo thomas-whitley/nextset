@@ -19,6 +19,7 @@ import SwipeToRemove from '@/components/gestures/SwipeToRemove';
 import DragDismissSheet from '@/components/gestures/DragDismissSheet';
 import DraggableList from '@/components/gestures/DraggableList';
 import type { WorkoutExercise } from '@/services/exercise.types';
+import { MAX_WEIGHT_KG, MAX_REPS } from '@/services/setSteps';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -46,8 +47,6 @@ const warmupOptions: WarmupOption[] = [
 // and the CSV export — a stray "17897 kg × 69592 reps" once banked a workout
 // at 1,245,613,856 kg. Bounds are deliberately generous: the heaviest lift
 // ever recorded is well under 1000 kg, and 100 reps covers any real set.
-const MAX_WEIGHT_KG = 1000;
-const MAX_REPS = 100;
 
 /** The value to store, or null to reject the keystroke and keep the old one. */
 function sanitiseSetValue(field: 'weight' | 'reps', raw: string): string | null {
