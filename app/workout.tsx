@@ -157,11 +157,15 @@ export default function WorkoutScreen() {
     return () => clearInterval(id);
   }, [isWorkoutActive]);
 
-  // Seed metadata.startTime (saved with the workout history record) once from context.
+  // Seed metadata.startTime (saved with the workout history record) once from
+  // context. Deliberately keyed only on workoutStartedAt — including
+  // metadata.startTime would refire this every time it becomes set, which is
+  // harmless (the guard below no-ops) but pointless.
   useEffect(() => {
     if (workoutStartedAt && !metadata.startTime) {
       setMetadata((prev) => ({ ...prev, startTime: new Date(workoutStartedAt) }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workoutStartedAt]);
 
   // Rest timer: a plain interval just re-renders so `restRemaining` (derived
