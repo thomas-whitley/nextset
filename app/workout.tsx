@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useReducer } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2 } from 'lucide-react-native';
+import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -58,6 +58,7 @@ export default function WorkoutScreen() {
     removeExerciseFromWorkout,
     updateExerciseSets,
     reorderExercises,
+    replaceExercise,
     finishWorkout,
     flushProgramSync,
     exerciseBests
@@ -67,6 +68,7 @@ export default function WorkoutScreen() {
   const { isOnline } = useConnectivity();
 
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [pickerMode, setPickerMode] = useState<{ kind: 'add' } | { kind: 'replace'; exerciseId: string }>({ kind: 'add' });
   const [showMetadataModal, setShowMetadataModal] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
   const [rest, dispatchRest] = useReducer(restReducer, IDLE_REST);
@@ -201,14 +203,15 @@ export default function WorkoutScreen() {
     }
   };
 
-  const handleAddExercise = async (exercise: any) => {
+  const handlePickExercise = async (exercise: any) => {
     if (!currentWorkout) return;
-    
+
     try {
-      await addExerciseToWorkout(currentWorkout.id, exercise);
+      if (pickerMode.kind === 'replace') await replaceExercise(pickerMode.exerciseId, exercise);
+      else await addExerciseToWorkout(currentWorkout.id, exercise);
       setShowExerciseModal(false);
     } catch {
-      Alert.alert('Could not add exercise', 'Check your connection and try again.');
+      Alert.alert(pickerMode.kind === 'replace' ? 'Could not replace exercise' : 'Could not add exercise', 'Check your connection and try again.');
     }
   };
 
@@ -622,6 +625,22 @@ export default function WorkoutScreen() {
                     </Text>
                     <TouchableOpacity
                       style={styles.removeButton}
+                      onPress={() => { setPickerMode({ kind: 'replace', exerciseId: exercise.id }); setShowExerciseModal(true); }}
+                      hitSlop={HIT_SLOP}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Replace ${exercise.name}`}
+                    >
+                      <RefreshCw
+                        size={16}
+                        color={
+                          exercise.id === activeExerciseId
+                            ? Colors.light.onRubberSecondary
+                            : Colors.light.textTertiary
+                        }
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.removeButton}
                       onPress={() => handleRemoveExercise(exercise)}
                       hitSlop={HIT_SLOP}
                       accessibilityRole="button"
@@ -705,9 +724,9 @@ export default function WorkoutScreen() {
           )}
         />
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addExerciseButton}
-          onPress={() => setShowExerciseModal(true)}
+          onPress={() => { setPickerMode({ kind: 'add' }); setShowExerciseModal(true); }}
           accessibilityRole="button"
           accessibilityLabel="Add exercise to workout"
           accessibilityHint="Browse and add new exercises to your current workout"
@@ -832,13 +851,13 @@ export default function WorkoutScreen() {
       <DragDismissSheet visible={showExerciseModal} onDismiss={() => setShowExerciseModal(false)}>
         <View style={[styles.sheetPickerBody, { height: windowHeight * 0.85 }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Exercise</Text>
+            <Text style={styles.modalTitle}>{pickerMode.kind === 'replace' ? 'Replace exercise' : 'Add Exercise'}</Text>
             <TouchableOpacity onPress={() => setShowExerciseModal(false)} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
               <X size={24} color={Colors.light.text} />
             </TouchableOpacity>
           </View>
           <BrowseExercisesScreen
-            onExerciseSelect={handleAddExercise}
+            onExerciseSelect={handlePickExercise}
             autoFocusSearch={false}
           />
         </View>
