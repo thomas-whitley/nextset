@@ -1,9 +1,12 @@
 import React from 'react';
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, act, screen } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WorkoutProvider, useWorkout } from '../WorkoutContext';
+import ResumeWorkoutBar from '../../components/ResumeWorkoutBar';
 import { UserActiveProgramService } from '../../services/userActiveProgramService';
 import type { Program, UserActiveProgram, Workout } from '../../services/exercise.types';
+
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() } }));
 
 // A stable object, not a fresh literal per call: the real useAuth() returns
 // the same `user` reference across renders while signed in, and the
@@ -159,4 +162,26 @@ describe('bests and replaceExercise', () => {
     // program fixture has no repsTarget; test template 't1' is not in programTemplates, so nothing changes
     expect(result.current.currentProgram?.workouts[0].exercises[0].repsTarget).toBeUndefined();
   });
+});
+
+it('ResumeWorkoutBar shows only while a workout is active', async () => {
+  // A prior test in this file may have checkpointed a workout under this
+  // user id; clear it so the restore-on-mount effect doesn't preempt the
+  // "nothing active yet" assertion below.
+  await AsyncStorage.removeItem('momentum:in_progress_workout:user-1');
+  const resumeWrapper = ({ children }: { children: React.ReactNode }) => (
+    <WorkoutProvider>
+      {children}
+      <ResumeWorkoutBar />
+    </WorkoutProvider>
+  );
+  const { result } = await renderHook(() => useWorkout(), { wrapper: resumeWrapper });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(screen.queryByLabelText(/Resume/)).toBeNull();
+  await act(async () => {
+    result.current.startWorkout(workout);
+  });
+  expect(screen.getByLabelText(/Resume Full Body A/)).toBeTruthy();
 });

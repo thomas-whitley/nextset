@@ -20,6 +20,8 @@ interface WorkoutContextType {
   currentWorkout: Workout | null;
   currentActiveProgram: UserActiveProgram | null;
   isWorkoutActive: boolean;
+  /** Wall-clock ms when the current workout started, or null when none is active. */
+  workoutStartedAt: number | null;
   /** True until the active program has been looked up for the signed-in user. */
   isLoadingProgram: boolean;
   /** Best weight / e1RM per exerciseId, loaded when a workout starts and raised as sets complete. */
@@ -198,6 +200,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     // Start with a clean sheet: nothing ticked, weights as the template/last edit left them.
     const fresh: Workout = {
       ...workout,
+      // Preserve a start time already on the workout (e.g. a restored checkpoint); a brand-new session gets one now.
+      startedAt: workout.startedAt ?? Date.now(),
       exercises: workout.exercises.map((exercise) => ({
         ...exercise,
         sets: exercise.sets.map((set) => ({ ...set, isComplete: false, previousWeight: undefined, previousReps: undefined })),
@@ -482,6 +486,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         currentWorkout,
         currentActiveProgram,
         isWorkoutActive,
+        workoutStartedAt: currentWorkout?.startedAt ?? null,
         isLoadingProgram,
         exerciseBests,
         setCurrentProgram,

@@ -1,11 +1,19 @@
 import { Tabs } from 'expo-router';
-import { StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import { Zap, FileText, User, TrendingUp } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
+import ResumeWorkoutBar from '@/components/ResumeWorkoutBar';
 
 export default function TabLayout() {
   return (
     <Tabs
+      tabBar={(props) => (
+        <View>
+          <ResumeWorkoutBar />
+          <BottomTabBar {...props} />
+        </View>
+      )}
       screenOptions={{
         tabBarActiveTintColor: Colors.light.primary,
         tabBarInactiveTintColor: Colors.light.tabIconDefault,

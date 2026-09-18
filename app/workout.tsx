@@ -61,7 +61,8 @@ export default function WorkoutScreen() {
     replaceExercise,
     finishWorkout,
     flushProgramSync,
-    exerciseBests
+    exerciseBests,
+    workoutStartedAt
   } = useWorkout();
   const { user } = useAuth();
   const { height: windowHeight } = useWindowDimensions();
@@ -80,9 +81,10 @@ export default function WorkoutScreen() {
   // A ref, not state: the retry button in the alert calls saveWorkout from the render
   // that built it, so state would read the old count and the cap would never trip.
   const saveAttemptsRef = useRef(0);
-  const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
-  const [workoutDuration, setWorkoutDuration] = useState(0);
-  const [workoutTimerInterval, setWorkoutTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  // Duration is derived from WorkoutContext's workoutStartedAt (survives a
+  // minimise/resume remount, unlike a locally-owned start Date would).
+  const [workoutNow, setWorkoutNow] = useState(() => Date.now());
+  const workoutDuration = workoutStartedAt ? Math.max(0, Math.floor((workoutNow - workoutStartedAt) / 1000)) : 0;
   const [isWarmupCollapsed, setIsWarmupCollapsed] = useState(false);
   const [selectedWarmup, setSelectedWarmup] = useState<WarmupOption | null>(null);
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
@@ -135,26 +137,20 @@ export default function WorkoutScreen() {
     }
   }, [pendingRemoval?.exercise.id]);
 
-  // Start workout timer when workout becomes active
+  // Tick the display clock while a workout is active; the duration itself is
+  // derived from workoutStartedAt, so this survives a minimise/resume remount.
   useEffect(() => {
-    if (isWorkoutActive && !workoutStartTime) {
-      const startTime = new Date();
-      setWorkoutStartTime(startTime);
-      setMetadata(prev => ({ ...prev, startTime }));
-      
-      // Start the workout duration timer
-      const interval = setInterval(() => {
-        setWorkoutDuration(prev => prev + 1);
-      }, 1000);
-      setWorkoutTimerInterval(interval as unknown as NodeJS.Timeout);
-    }
-
-    return () => {
-      if (workoutTimerInterval) {
-        clearInterval(workoutTimerInterval);
-      }
-    };
+    if (!isWorkoutActive) return;
+    const id = setInterval(() => setWorkoutNow(Date.now()), 1000);
+    return () => clearInterval(id);
   }, [isWorkoutActive]);
+
+  // Seed metadata.startTime (saved with the workout history record) once from context.
+  useEffect(() => {
+    if (workoutStartedAt && !metadata.startTime) {
+      setMetadata((prev) => ({ ...prev, startTime: new Date(workoutStartedAt) }));
+    }
+  }, [workoutStartedAt]);
 
   // Rest timer: a plain interval just re-renders so `restRemaining` (derived
   // from the reducer's absolute `endsAt`) ticks; the reducer holds no clock.
@@ -314,8 +310,19 @@ export default function WorkoutScreen() {
   };
 
   const stopTimers = () => {
-    if (workoutTimerInterval) clearInterval(workoutTimerInterval);
     skipRest();
+  };
+
+  const handleClosePress = () => {
+    Alert.alert(currentWorkout?.name ?? 'Workout', undefined, [
+      { text: 'Minimise', onPress: () => router.back() },
+      { text: 'Discard workout', style: 'destructive', onPress: () =>
+        Alert.alert('Discard this workout?', 'Nothing from this session will be saved.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => { stopTimers(); finishWorkout(); router.back(); } },
+        ]) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   // Excludes whichever exercise is mid-swipe: once removed from view it
@@ -354,7 +361,7 @@ export default function WorkoutScreen() {
 
     setSaving(true);
     const endTime = new Date();
-    const startedAt = metadata.startTime ?? workoutStartTime ?? endTime;
+    const startedAt = metadata.startTime ?? (workoutStartedAt ? new Date(workoutStartedAt) : endTime);
     const durationMinutes = Math.max(1, Math.round((endTime.getTime() - startedAt.getTime()) / 60000));
 
     // Match whatever the summary above showed: if a swipe is still inside
@@ -501,10 +508,10 @@ export default function WorkoutScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header with Workout Timer */}
       <View style={[styles.header, { height: 60 }]}>
-        <TouchableOpacity 
-          onPress={() => router.back()}
+        <TouchableOpacity
+          onPress={handleClosePress}
           accessibilityRole="button"
-          accessibilityLabel="Close workout"
+          accessibilityLabel="Close or discard workout"
           accessibilityHint="Exit current workout session"
         >
           <X size={20} color={Colors.light.text} />

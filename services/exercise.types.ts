@@ -131,6 +131,8 @@ export interface Workout {
   exercises: WorkoutExercise[];
   order: number; // For reordering workouts within a program
   estimatedDuration?: number; // in minutes
+  /** Wall-clock ms when this session started; set by startWorkout, survives the AsyncStorage checkpoint. */
+  startedAt?: number;
 }
 
 export interface Program {
