@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, Timer, Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Watch, Trash2 } from 'lucide-react-native';
+import { Check, Timer, Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -495,7 +495,7 @@ export default function WorkoutScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
-            <Timer size={48} color={Colors.light.primary} />
+            <Dumbbell size={48} color={Colors.light.primary} />
           </View>
           <Text style={styles.emptyTitle}>No workout running</Text>
           <Text style={styles.emptySubtitle}>
@@ -535,15 +535,6 @@ export default function WorkoutScreen() {
         </View>
         
         <View style={styles.headerButtons}>
-          <TouchableOpacity 
-            style={styles.timerButton} 
-            onPress={() => router.push('/timer')}
-            accessibilityRole="button"
-            accessibilityLabel="Open timer"
-            accessibilityHint="Access workout timers and intervals"
-          >
-            <Watch size={20} color={Colors.light.text} />
-          </TouchableOpacity>
           <View>
             <TouchableOpacity
               style={styles.finishButton}
@@ -889,15 +880,6 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  timerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
   },
   workoutTitle: {
     fontSize: 16,
