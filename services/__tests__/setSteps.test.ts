@@ -1,4 +1,4 @@
-import { stepValue } from '../setSteps';
+import { stepValue, sanitiseSetValue } from '../setSteps';
 
 describe('stepValue', () => {
   it('weight steps by 2.5', () => {
@@ -19,4 +19,12 @@ describe('stepValue', () => {
     expect(stepValue('reps', '100', 1)).toBe('100');
   });
   it('tolerates comma decimals', () => expect(stepValue('weight', '60,5', 1)).toBe('63'));
+});
+
+describe('sanitiseSetValue', () => {
+  it('sanitiseSetValue still rejects out-of-range', () => {
+    expect(sanitiseSetValue('weight', '1001')).toBeNull();
+    expect(sanitiseSetValue('reps', '101')).toBeNull();
+    expect(sanitiseSetValue('weight', '82,5')).toBe('82.5');
+  });
 });

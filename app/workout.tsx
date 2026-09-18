@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, Timer, Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2 } from 'lucide-react-native';
+import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -9,7 +9,7 @@ import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 import BrowseExercisesScreen from '@/components/browse-exercises';
 import { getDefaultRestSeconds, DEFAULT_REST_SECONDS } from '@/services/preferences';
-import { formatKg, formatMinutes, formatSet } from '@/utils/format';
+import { formatKg, formatMinutes } from '@/utils/format';
 import BarLoadingStrip from '@/components/BarLoadingStrip';
 import * as Haptics from 'expo-haptics';
 import { radius, elevation, spacing, motion, type, HIT_SLOP } from '@/constants/theme';
@@ -19,7 +19,9 @@ import SwipeToRemove from '@/components/gestures/SwipeToRemove';
 import DragDismissSheet from '@/components/gestures/DragDismissSheet';
 import DraggableList from '@/components/gestures/DraggableList';
 import type { WorkoutExercise } from '@/services/exercise.types';
-import { MAX_WEIGHT_KG, MAX_REPS } from '@/services/setSteps';
+import { sanitiseSetValue } from '@/services/setSteps';
+import SetRow from '@/components/SetRow';
+import { formatRepsTarget } from '@/services/repsTarget';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -42,28 +44,6 @@ const warmupOptions: WarmupOption[] = [
   { id: '4', name: 'Joint Mobility', duration: '6 min', description: 'Targeted joint activation exercises' },
 ];
 
-// Guard rails on the two free-text numeric fields. Without them a slip on the
-// keypad is persisted silently and then poisons lifetime volume, the PR list
-// and the CSV export — a stray "17897 kg × 69592 reps" once banked a workout
-// at 1,245,613,856 kg. Bounds are deliberately generous: the heaviest lift
-// ever recorded is well under 1000 kg, and 100 reps covers any real set.
-
-/** The value to store, or null to reject the keystroke and keep the old one. */
-function sanitiseSetValue(field: 'weight' | 'reps', raw: string): string | null {
-  if (raw === '') return '';
-
-  if (field === 'reps') {
-    if (!/^\d{1,3}$/.test(raw)) return null;
-    return Number(raw) <= MAX_REPS ? raw : null;
-  }
-
-  // Weight takes one decimal place or two (82.5), with either separator.
-  // A trailing "." is allowed so the field can be typed through.
-  const normalised = raw.replace(',', '.');
-  if (!/^\d{1,4}(\.\d{0,2})?$/.test(normalised)) return null;
-  return Number(normalised) <= MAX_WEIGHT_KG ? normalised : null;
-}
-
 export default function WorkoutScreen() {
   const { 
     currentWorkout, 
@@ -75,7 +55,8 @@ export default function WorkoutScreen() {
     updateExerciseSets,
     reorderExercises,
     finishWorkout,
-    flushProgramSync
+    flushProgramSync,
+    exerciseBests
   } = useWorkout();
   const { user } = useAuth();
   const { height: windowHeight } = useWindowDimensions();
@@ -189,7 +170,8 @@ export default function WorkoutScreen() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSetComplete = async (exerciseId: string, setId: string) => {
+  const handleSetComplete = async (exercise: WorkoutExercise, setId: string, setIndex: number) => {
+    const exerciseId = exercise.id;
     await completeSet(exerciseId, setId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     
@@ -412,80 +394,38 @@ export default function WorkoutScreen() {
   const nextSetIdFor = (exercise: any): string | null =>
     exercise.sets.find((s: any) => !s.isComplete)?.id ?? null;
 
-  const renderSetRow = (set: any, setIndex: number, exerciseId: string, libraryExerciseId?: number, showStrip = false, onSlab = false) => {
-    const isCompleted = set.isComplete;
+  const renderSetRow = (
+    set: WorkoutExercise['sets'][number],
+    setIndex: number,
+    exercise: WorkoutExercise,
+    showStrip = false,
+    onSlab = false
+  ) => {
     const isActiveRest = activeRestTimer === set.id;
 
     return (
-      <View key={set.id} style={styles.setBlock}>
-      <View style={styles.setRow}>
-        <TouchableOpacity
-          style={[
-            styles.setIndicator,
-            onSlab && styles.setIndicatorOnSlab,
-            isCompleted && styles.completedIndicator,
-            isActiveRest && styles.activeRestIndicator
-          ]}
-          onPress={() => handleSetComplete(exerciseId, set.id)}
-          accessibilityRole="checkbox"
-          accessibilityLabel={`Set ${setIndex + 1} ${isCompleted ? 'completed' : 'incomplete'}`}
-          accessibilityHint="Tap to mark this set as complete or incomplete"
-          accessibilityState={{ checked: isCompleted }}
-        >
-          {isCompleted ? (
-            <Check size={12} color="#FFFFFF" />
-          ) : (
-            <Text style={[styles.setNumber, onSlab && styles.onSlabText]}>{setIndex + 1}</Text>
-          )}
-        </TouchableOpacity>
-        
-        <Text style={[styles.previousData, onSlab && styles.onSlabMuted]}>
-          {formatSet(set.previousWeight, set.previousReps)}
-        </Text>
-        
-        <TextInput
-          style={[styles.input, isCompleted && styles.inputComplete]}
-          value={set.weight}
-          onChangeText={(value) => {
-            const next = sanitiseSetValue('weight', value);
-            if (next !== null) updateSet(exerciseId, set.id, 'weight', next);
+      <View key={set.id}>
+        <SetRow
+          set={set}
+          index={setIndex}
+          exerciseId={exercise.id}
+          libraryExerciseId={exercise.exerciseId}
+          repsTarget={exercise.repsTarget}
+          bests={exerciseBests}
+          isActiveRest={isActiveRest}
+          onSlab={onSlab}
+          onToggleComplete={() => handleSetComplete(exercise, set.id, setIndex)}
+          onChange={(field, value) => {
+            const next = sanitiseSetValue(field, value);
+            if (next !== null) updateSet(exercise.id, set.id, field, next);
           }}
           onBlur={() => { void flushProgramSync(); }}
-          keyboardType="numeric"
-          placeholder="kg"
-          placeholderTextColor={Colors.light.textTertiary}
-          editable={!isCompleted}
-          accessibilityLabel={`Weight for set ${setIndex + 1}`}
-          accessibilityHint="Enter the weight used for this set"
-        />
-        
-        <TextInput
-          style={[styles.input, isCompleted && styles.inputComplete]}
-          value={set.reps}
-          onChangeText={(value) => {
-            const next = sanitiseSetValue('reps', value);
-            if (next !== null) updateSet(exerciseId, set.id, 'reps', next);
-          }}
-          onBlur={() => { void flushProgramSync(); }}
-          keyboardType="numeric"
-          placeholder="reps"
-          placeholderTextColor={Colors.light.textTertiary}
-          editable={!isCompleted}
-          accessibilityLabel={`Repetitions for set ${setIndex + 1}`}
-          accessibilityHint="Enter the number of repetitions completed"
+          onFocus={() => {}}
         />
 
-        {isActiveRest && (
-          <View style={styles.restTimerBadge}>
-            <Timer size={10} color={Colors.light.primary} />
-            <Text style={styles.restTimerText}>{formatTime(restTime)}</Text>
-          </View>
-        )}
-      </View>
-
-      {showStrip ? (
-        <BarLoadingStrip totalKg={parseFloat(set.weight)} exerciseId={libraryExerciseId} onRubber={onSlab} />
-      ) : null}
+        {showStrip ? (
+          <BarLoadingStrip totalKg={parseFloat(set.weight)} exerciseId={exercise.exerciseId} onRubber={onSlab} />
+        ) : null}
       </View>
     );
   };
@@ -636,6 +576,9 @@ export default function WorkoutScreen() {
                     >
                       {exercise.name}
                     </Text>
+                    <Text style={[styles.planText, exercise.id === activeExerciseId && styles.onSlabMuted]}>
+                      {exercise.sets.length} × {formatRepsTarget(exercise.repsTarget) || '—'}
+                    </Text>
                     <TouchableOpacity
                       style={styles.removeButton}
                       onPress={() => handleRemoveExercise(exercise)}
@@ -709,8 +652,7 @@ export default function WorkoutScreen() {
                       renderSetRow(
                         set,
                         setIndex,
-                        exercise.id,
-                        exercise.exerciseId,
+                        exercise,
                         set.id === nextSetIdFor(exercise),
                         exercise.id === activeExerciseId
                       )
@@ -1001,6 +943,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   exerciseName: { fontSize: 16, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, flex: 1 },
+  planText: { fontSize: 12, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginLeft: spacing.sm },
   removeButton: { padding: 6, marginRight: 4 },
   undoSnackbar: {
     position: 'absolute',
@@ -1110,9 +1053,6 @@ const styles = StyleSheet.create({
   setsContainer: {
     marginBottom: 4
   },
-  setBlock: {
-    marginBottom: 2,
-  },
   exerciseCardActive: {
     backgroundColor: Colors.light.rubber,
     borderRadius: radius.slab,
@@ -1123,74 +1063,11 @@ const styles = StyleSheet.create({
   onSlabMuted: {
     color: Colors.light.onRubberSecondary,
   },
-  // A white disc on a near-black slab swallowed its own number, so a pending
-  // set becomes an outline instead of a fill.
-  setIndicatorOnSlab: {
-    backgroundColor: 'transparent',
-    borderColor: Colors.light.onRubberSecondary,
-  },
   notesInputOnSlab: {
     backgroundColor: Colors.light.slabField,
     color: Colors.light.onRubber,
     borderColor: Colors.light.borderOnRubber,
   },
-  setRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    position: 'relative',
-  },
-  setIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 4
-  },
-  completedIndicator: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary
-  },
-  activeRestIndicator: {
-    borderColor: Colors.light.accent,
-    backgroundColor: Colors.light.accentLight
-  },
-  setNumber: { fontSize: 10, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.primary },
-  previousData: { fontSize: 10, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, width: 50, textAlign: 'center' },
-  input: {
-    width: 50,
-    backgroundColor: Colors.light.background,
-    borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    fontSize: 12,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    textAlign: 'center',
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: Colors.light.border
-  },
-  inputComplete: {
-    backgroundColor: Colors.light.primaryLight,
-    borderColor: Colors.light.primary
-  },
-  restTimerBadge: {
-    position: 'absolute',
-    top: -6,
-    right: 6,
-    backgroundColor: Colors.light.primary,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  restTimerText: { fontSize: 10, fontFamily: 'ArchivoNarrow-Bold', color: '#FFFFFF', marginLeft: 2 },
   addExerciseButton: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
