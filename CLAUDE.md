@@ -29,7 +29,7 @@ Tests: jest via `jest-expo` (`npm test`). CI (`.github/workflows/ci.yml`) runs l
 Expo Router file-based routing under `app/`:
 - `app/(auth)/` — unauthenticated flow: login (`index`), signup, confirm, forgot/update password. There is no `welcome` screen; login is the entry point.
 - `app/(tabs)/` — main tab bar: home (`index`), programs, progress, profile
-- Modal screens at root: `workout`, `timer-main`, `program-detail`, `settings`, `edit-profile`, `aboutus`, `help-faq`
+- Modal screens at root: `workout`, `program-detail`, `settings`, `edit-profile`, `aboutus`, `help-faq`. `/timer` (the standalone interval timer) was deleted 2026-09 (spec D2); the rest timer inside `workout.tsx` is the only timer now.
 
 Every file under `app/` becomes a route, so an orphaned screen still ships as a reachable page — `app/-settings.tsx` did exactly that, exposing controls that had been removed elsewhere. Delete dead screens, don't just unlink them.
 
@@ -53,6 +53,11 @@ Supabase is the only persistence tier. Reads and writes go through the services 
 | Preferences: rest time + bar weight (AsyncStorage cache, mirrored to `profile.preferences`; server wins on sign-in) | `services/preferences.ts` |
 | Debounced program sync (≈800 ms, flushed on set complete / blur / finish / app background) | `services/programSync.ts` |
 | Streak maths (pure, tested) | `services/stats.ts` |
+| PR maths: best weight / e1RM per exercise, PR detection (pure, tested) | `services/prMath.ts` |
+| Rest timer state (reducer, pure, tested) | `services/restTimer.ts` |
+| Rest-over local notification (asks permission once) | `services/restNotifications.ts` |
+| Per-exercise reps target (ghost text, backfill from templates) | `services/repsTarget.ts` |
+| Weight/rep keyboard-bar step sizes and bounds | `services/setSteps.ts` |
 
 **Volume is computed from completed sets only** — both in the finish sheet and in `saveWorkoutHistory`. These two must never diverge; when they did, a single 60 kg × 6 session stored 1,245,613,856 kg.
 
@@ -92,9 +97,11 @@ Supabase client is initialized in `data/supabase-client.ts` and throws if either
 - **Auth links arrive in the URL *fragment***, not the query string — `momentum://confirm#access_token=…`. `useLocalSearchParams` cannot see a fragment; use `useURL()` from `expo-linking` with `parseAuthFragment` (`data/authLink.ts`). Getting this wrong makes every valid confirmation link report "expired".
 - **`(auth)` is a route group**, so its screens live at `/confirm`, `/updatepassword` — *not* `/auth/confirm`. Deep links must not include the group name.
 - **Never use `{someNumber && <View/>}` in JSX.** When the value is `0` the expression evaluates to `0` and React renders a literal "0"; on native this can throw *"Text strings must be rendered within a `<Text>` component"*. Compare explicitly: `{(x ?? 0) > 0 && …}`.
-- **Set weight and reps are bounded** (`sanitiseSetValue` in `app/workout.tsx`, 1000 kg / 100 reps). Out-of-range keystrokes are rejected, not truncated.
+- **Set weight and reps are bounded** (`sanitiseSetValue` in `services/setSteps.ts`, alongside `stepValue`; 1000 kg / 100 reps). Out-of-range keystrokes are rejected, not truncated.
 - **`npx expo start` fails on the dev VM** with `TypeError: fetch failed`; use `--offline`. A cold web bundle takes ~200s.
 - **A migration in git is not a migration in production.** `0005` sat committed but unapplied for three weeks. After adding one, run `npx supabase migration list` and check the Remote column, or the repo lies about the live schema.
 - **The Supabase Free project auto-pauses.** Symptom: the hostname stops resolving, the app shows the loading spinner ~30 s, then "Failed to fetch". Unpause in the dashboard; nothing in the code is wrong.
 - **Auth is implicit flow on purpose** (Plan B, 2026-09-17). Don't set `flowType: 'pkce'` without redoing the confirm / update-password link handling.
 - **Set edits are debounced to the cloud, checkpointed locally at once.** `contexts/WorkoutContext.tsx` mutations read `currentWorkoutRef`, never the render closure; cloud writes go through `services/programSync.ts`. Call `flushProgramSync()` before anything that must see the latest program on the server.
+- **Rest notifications need a dev-client build.** `expo-notifications` is not in Expo Go; the banner works everywhere, the lock-screen alert only on a dev/preview build.
+- **Templates no longer prefill reps.** The target is `exercise.repsTarget` shown as ghost text; `set.reps` starts empty.

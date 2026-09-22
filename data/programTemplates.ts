@@ -2,32 +2,31 @@
 //
 // Exercise ids reference the curated rows (1–40) of the bundled library — see
 // services/exercise.database.json for the id → name table. Sets start with an empty
-// weight (the input shows "kg") and a target rep count; there is no fake "previous"
-// data — "last time" hints come from workout_history when a workout starts.
+// weight (the input shows "kg") and empty reps; the target lives on the exercise.
+// There is no fake "previous" data — "last time" hints come from workout_history when a workout starts.
 
 import { ExerciseSet, Program, Workout, WorkoutExercise } from '@/services/exercise.types';
+import { parseRepsTarget } from '@/services/repsTarget';
 
 type Line = [exerciseId: number, name: string, sets: number, reps: string];
 
-const sets = (workoutId: string, exerciseIndex: number, count: number, reps: string): ExerciseSet[] =>
+const sets = (workoutId: string, exerciseIndex: number, count: number): ExerciseSet[] =>
   Array.from({ length: count }, (_, i) => ({
     id: `${workoutId}-e${exerciseIndex}-s${i + 1}`,
     weight: '',
-    reps,
+    reps: '', // the target is shown as ghost text, not typed in for the user
     isComplete: false,
   }));
 
 const workout = (id: string, order: number, name: string, description: string, lines: Line[]): Workout => ({
-  id,
-  name,
-  description,
-  order,
+  id, name, description, order,
   exercises: lines.map<WorkoutExercise>(([exerciseId, exName, count, reps], i) => ({
     id: `${id}-e${i}`,
     exerciseId,
     name: exName,
     order: i,
-    sets: sets(id, i, count, reps),
+    repsTarget: parseRepsTarget(reps),
+    sets: sets(id, i, count),
   })),
 });
 

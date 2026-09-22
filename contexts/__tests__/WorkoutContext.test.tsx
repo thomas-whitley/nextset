@@ -1,9 +1,12 @@
 import React from 'react';
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, act, screen } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WorkoutProvider, useWorkout } from '../WorkoutContext';
+import ResumeWorkoutBar from '../../components/ResumeWorkoutBar';
 import { UserActiveProgramService } from '../../services/userActiveProgramService';
 import type { Program, UserActiveProgram, Workout } from '../../services/exercise.types';
+
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() } }));
 
 // A stable object, not a fresh literal per call: the real useAuth() returns
 // the same `user` reference across renders while signed in, and the
@@ -15,7 +18,10 @@ jest.mock('../../data/AuthContext', () => ({
 }));
 
 jest.mock('../../services/workoutHistoryService', () => ({
-  WorkoutHistoryService: { getLastPerformance: jest.fn().mockResolvedValue({}) },
+  WorkoutHistoryService: {
+    getLastPerformance: jest.fn().mockResolvedValue({}),
+    getExerciseBests: jest.fn().mockResolvedValue({ 1: { maxWeight: 100, maxE1rm: 110 } }),
+  },
 }));
 
 const workout: Workout = {
@@ -123,4 +129,61 @@ test('a failed cloud write leaves the checkpoint intact', async () => {
   });
   const stored = await AsyncStorage.getItem('momentum:in_progress_workout:user-1');
   expect(JSON.parse(stored!).exercises[0].sets[0].weight).toBe('80');
+});
+
+describe('bests and replaceExercise', () => {
+  it('loads exercise bests when a workout starts and raises them when a heavier set is ticked', async () => {
+    const { result } = await setup();
+    await act(async () => { result.current.startWorkout(workout); });
+    expect(result.current.exerciseBests[1].maxWeight).toBe(100);
+    await act(async () => { await result.current.updateSet('e1', 's1', 'weight', '105'); });
+    await act(async () => { await result.current.updateSet('e1', 's1', 'reps', '1'); });
+    await act(async () => { await result.current.completeSet('e1', 's1'); });
+    expect(result.current.exerciseBests[1].maxWeight).toBe(105);
+    // 105 beats maxWeight 100 but 105×(1+1/30)≈108.5 < maxE1rm 110, so only weight is a PR.
+    expect(result.current.currentWorkout!.exercises[0].sets[0].pr).toBe('weight');
+  });
+
+  it('replaceExercise keeps the set count, clears values and swaps identity', async () => {
+    const { result } = await setup();
+    await act(async () => { result.current.startWorkout(workout); });
+    await act(async () => { await result.current.updateSet('e1', 's1', 'weight', '60'); });
+    await act(async () => {
+      await result.current.replaceExercise('e1', { id: 7, name: 'Deadlift', primary_muscle_group: 'back', equipment: 'barbell' } as any);
+    });
+    const ex = result.current.currentWorkout!.exercises[0];
+    expect(ex.exerciseId).toBe(7);
+    expect(ex.name).toBe('Deadlift');
+    expect(ex.sets).toHaveLength(1);
+    expect(ex.sets[0].weight).toBe('');
+    expect(ex.sets[0].isComplete).toBe(false);
+  });
+
+  it('backfills repsTarget on the active program from the template', async () => {
+    const { result } = await setup();
+    // program fixture has no repsTarget; test template 't1' is not in programTemplates, so nothing changes
+    expect(result.current.currentProgram?.workouts[0].exercises[0].repsTarget).toBeUndefined();
+  });
+});
+
+it('ResumeWorkoutBar shows only while a workout is active', async () => {
+  // A prior test in this file may have checkpointed a workout under this
+  // user id; clear it so the restore-on-mount effect doesn't preempt the
+  // "nothing active yet" assertion below.
+  await AsyncStorage.removeItem('momentum:in_progress_workout:user-1');
+  const resumeWrapper = ({ children }: { children: React.ReactNode }) => (
+    <WorkoutProvider>
+      {children}
+      <ResumeWorkoutBar />
+    </WorkoutProvider>
+  );
+  const { result } = await renderHook(() => useWorkout(), { wrapper: resumeWrapper });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(screen.queryByLabelText(/Resume/)).toBeNull();
+  await act(async () => {
+    result.current.startWorkout(workout);
+  });
+  expect(screen.getByLabelText(/Resume Full Body A/)).toBeTruthy();
 });

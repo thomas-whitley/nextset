@@ -17,9 +17,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { WorkoutProvider } from '@/contexts/WorkoutContext';
 import LoadingScreenComponent from '@/components/loadingscreen';
 import { AuthProvider, useAuth } from '@/data/AuthContext';
+import { installForegroundHandler } from '@/services/restNotifications';
 
 // Keep the splash screen visible until fonts are loaded
 SplashScreen.preventAutoHideAsync();
+
+// Suppresses the OS alert while the app is foregrounded (the rest banner
+// covers that case) and creates the Android notification channel once.
+installForegroundHandler();
 
 function AppNavigator() {
   const { session, loading } = useAuth();
