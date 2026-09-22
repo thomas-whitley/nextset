@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
-import { BottomTabBar } from '@react-navigation/bottom-tabs';
+import { BottomTabBar } from 'expo-router/js-tabs';
 import { Zap, FileText, User, TrendingUp } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 import ResumeWorkoutBar from '@/components/ResumeWorkoutBar';
