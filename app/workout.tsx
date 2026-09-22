@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react-native';
+import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2, RefreshCw, Trophy } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -880,7 +880,12 @@ export default function WorkoutScreen() {
                   {prs.length > 0 && (
                     <View style={styles.prBlock}>
                       <Text style={styles.sheetLabel}>Personal records</Text>
-                      {prs.map((p) => <Text key={p.id} style={styles.prLine}>🏅 {p.name} — {p.weight} kg × {p.reps}{p.kind === 'weight' ? ' (heaviest)' : p.kind === 'e1rm' ? ' (best est. 1RM)' : ''}</Text>)}
+                      {prs.map((p) => (
+                        <View key={p.id} style={styles.prLineRow}>
+                          <Trophy size={16} color={Colors.light.accent} />
+                          <Text style={styles.prLine}>{p.name} — {p.weight} kg × {p.reps}{p.kind === 'weight' ? ' (heaviest)' : p.kind === 'e1rm' ? ' (best est. 1RM)' : ''}</Text>
+                        </View>
+                      ))}
                     </View>
                   )}
                   {lines.map((l) => <Text key={l.id} style={styles.recapLine}>{l.name} · {l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'} · {l.detail}</Text>)}
@@ -1130,7 +1135,8 @@ const styles = StyleSheet.create({
   sheetSummary: { fontSize: 15, fontFamily: 'Archivo-Medium', color: Colors.light.textSecondary, marginBottom: 20 },
   sheetLabel: { fontSize: 13, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginBottom: 6 },
   prBlock: { marginBottom: spacing.md },
-  prLine: { fontFamily: 'Archivo-Medium', fontSize: 14, color: Colors.light.text, marginTop: 4 },
+  prLineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  prLine: { fontFamily: 'Archivo-Medium', fontSize: 14, color: Colors.light.text },
   recapLine: { fontFamily: 'Archivo-Regular', fontSize: 13, color: Colors.light.textSecondary, marginTop: 2 },
   sheetInput: {
     backgroundColor: Colors.light.background,
