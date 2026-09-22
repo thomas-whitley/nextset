@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
   Dumbbell,
@@ -183,6 +183,7 @@ const openUrl = async (url: string) => {
 };
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const [defaultRestTime, setDefaultRestTime] = useState(DEFAULT_REST_SECONDS);
   const [barWeight, setBarWeight] = useState(DEFAULT_BAR_WEIGHT_KG);
   const [showRestTimeModal, setShowRestTimeModal] = useState(false);
@@ -271,7 +272,11 @@ export default function SettingsScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+      >
         {user && (
           <View style={styles.profileSection}>
             <TouchableOpacity

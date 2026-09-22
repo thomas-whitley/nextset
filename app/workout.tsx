@@ -582,7 +582,11 @@ export default function WorkoutScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+        >
         {!isOnline && (
           <View style={styles.offlineBanner} accessibilityRole="alert">
             <Text style={styles.offlineText}>Offline — your sets are saved on this phone</Text>
@@ -778,7 +782,14 @@ export default function WorkoutScreen() {
       </KeyboardAvoidingView>
 
       {rest.endsAt !== null && (
-        <RestBanner remaining={restRemaining} exerciseName={rest.exerciseName} setNumber={rest.setNumber} onSkip={skipRest} onAdjust={adjustRest} />
+        <RestBanner
+          remaining={restRemaining}
+          exerciseName={rest.exerciseName}
+          setNumber={rest.setNumber}
+          onSkip={skipRest}
+          onAdjust={adjustRest}
+          keyboardBarVisible={keyboardOpen && focused !== null}
+        />
       )}
 
       <SetKeyboardBar field={focused?.field ?? 'weight'} onStep={handleStep} onNext={handleNext} visible={keyboardOpen && focused !== null} />
