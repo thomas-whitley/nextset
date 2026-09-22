@@ -26,7 +26,7 @@ import { remainingSeconds } from '@/services/restTimer';
 import { ensureRestPermission, hasAskedRestPermission, markRestPermissionAsked, scheduleRestNotification, cancelRestNotification, openExactAlarmSettingsOnce } from '@/services/restNotifications';
 import RestBanner from '@/components/RestBanner';
 import SetKeyboardBar from '@/components/SetKeyboardBar';
-import { summariseWorkout } from '@/services/finishSummary';
+import { summariseWorkout, countLoggedSets } from '@/services/finishSummary';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -369,7 +369,7 @@ export default function WorkoutScreen() {
     ? currentWorkout.exercises.filter((e) => e.id !== pendingRemoval?.exercise.id)
     : [];
 
-  const completedSetCount = visibleExercises.reduce((n, e) => n + e.sets.filter((st) => st.isComplete).length, 0);
+  const completedSetCount = countLoggedSets(visibleExercises);
   const sessionVolume = visibleExercises.reduce(
     (total, e) => total + e.sets.filter((st) => st.isComplete).reduce((t, st) => t + (parseFloat(st.weight) || 0) * (parseFloat(st.reps) || 0), 0),
     0
