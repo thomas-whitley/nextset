@@ -784,20 +784,23 @@ export default function WorkoutScreen() {
           <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
         </TouchableOpacity>
         </ScrollView>
+
+        {/* Both bars live INSIDE the KeyboardAvoidingView: it is what lifts them
+            clear of the on-screen keyboard. As siblings after it they sat at the
+            bottom of the (unresized, edge-to-edge) screen, i.e. behind the keys. */}
+        {rest.endsAt !== null && (
+          <RestBanner
+            remaining={restRemaining}
+            exerciseName={rest.exerciseName}
+            setNumber={rest.setNumber}
+            onSkip={skipRest}
+            onAdjust={adjustRest}
+            keyboardBarVisible={keyboardOpen && focused !== null}
+          />
+        )}
+
+        <SetKeyboardBar field={focused?.field ?? 'weight'} onStep={handleStep} onNext={handleNext} visible={keyboardOpen && focused !== null} />
       </KeyboardAvoidingView>
-
-      {rest.endsAt !== null && (
-        <RestBanner
-          remaining={restRemaining}
-          exerciseName={rest.exerciseName}
-          setNumber={rest.setNumber}
-          onSkip={skipRest}
-          onAdjust={adjustRest}
-          keyboardBarVisible={keyboardOpen && focused !== null}
-        />
-      )}
-
-      <SetKeyboardBar field={focused?.field ?? 'weight'} onStep={handleStep} onNext={handleNext} visible={keyboardOpen && focused !== null} />
 
       {/* Undo snackbar for an optimistically-removed exercise */}
       {pendingRemoval && (
