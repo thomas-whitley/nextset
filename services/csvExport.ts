@@ -1,7 +1,7 @@
 // CSV export of workout history (spec F8). One row per set; kg only.
 
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { WorkoutHistoryEntry } from './workoutHistoryService';
 
@@ -58,10 +58,9 @@ export async function shareHistoryCsv(rows: WorkoutHistoryEntry[]): Promise<stri
     return fileName;
   }
 
-  const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
-  if (!dir) throw new Error('No writable directory available');
-  const uri = dir + fileName;
-  await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+  const file = new File(Paths.cache, fileName);
+  file.write(csv);
+  const uri = file.uri;
 
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: 'Export workouts', UTI: 'public.comma-separated-values-text' });
