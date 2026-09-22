@@ -1,11 +1,13 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
 import { BottomTabBar } from 'expo-router/js-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Zap, FileText, User, TrendingUp } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 import ResumeWorkoutBar from '@/components/ResumeWorkoutBar';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       tabBar={(props) => (
@@ -17,7 +19,7 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: Colors.light.primary,
         tabBarInactiveTintColor: Colors.light.tabIconDefault,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar, { height: 58 + insets.bottom, paddingBottom: insets.bottom + 4 }],
         // A lightning bolt for Home and a page icon for Programs are not
         // self-evident; the labels were styled but never switched on.
         tabBarShowLabel: true,
@@ -75,8 +77,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.backgroundSecondary,
     borderTopWidth: 1,
     borderTopColor: Colors.light.border,
-    height: 68,
-    paddingBottom: 10,
     paddingTop: 8,
     ...Platform.select({
       web: {
