@@ -57,7 +57,8 @@ function AppNavigator() {
             <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
           </Stack.Protected>
         </Stack>
-        <StatusBar style="auto" />
+        {/* The app is light-only (no dark palette wired up); "auto" follows the OS theme and drew light icons on Concrete when the phone was in dark mode. */}
+        <StatusBar style="dark" />
       </WorkoutProvider>
     </GestureHandlerRootView>
   );
