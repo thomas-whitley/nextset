@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { View, StyleSheet, Modal, Pressable, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -40,6 +41,7 @@ export default function DragDismissSheet({
   dismissOnBackdropPress = true,
 }: Props) {
   const { height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const translateY = useSharedValue(0);
   const sheetHeight = useSharedValue(screenHeight * 0.5);
 
@@ -96,7 +98,7 @@ export default function DragDismissSheet({
 
         <GestureDetector gesture={pan}>
           <Animated.View
-            style={[styles.sheet, sheetStyle]}
+            style={[styles.sheet, { paddingBottom: spacing.xxl + insets.bottom }, sheetStyle]}
             onLayout={(e) => {
               sheetHeight.value = e.nativeEvent.layout.height;
             }}
@@ -123,7 +125,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.card,
     borderTopLeftRadius: radius.slab,
     borderTopRightRadius: radius.slab,
-    paddingBottom: spacing.xxl,
   },
   handle: {
     alignSelf: 'center',

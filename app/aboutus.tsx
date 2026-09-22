@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Mail, Shield, LifeBuoy, ExternalLink } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
@@ -12,6 +12,7 @@ import { ExerciseService } from '@/services/exerciseService';
 const open = (url: string) => Linking.openURL(url).catch((e) => console.error('Failed to open URL:', e));
 
 export default function AboutScreen() {
+  const insets = useSafeAreaInsets();
   const version = Constants.expoConfig?.version ?? '1.0.1';
 
   return (
@@ -24,7 +25,11 @@ export default function AboutScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+      >
         <View style={styles.hero}>
           <View style={styles.ring}>
             <View style={styles.hub} />

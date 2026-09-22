@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Play, Dumbbell } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
@@ -10,6 +10,7 @@ import { Workout } from '@/services/exercise.types';
 import DraggableList from '@/components/gestures/DraggableList';
 
 export default function ProgramDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { currentProgram, startWorkout, reorderWorkouts } = useWorkout();
 
   const handleStartWorkout = (workout: Workout) => {
@@ -65,7 +66,11 @@ export default function ProgramDetailScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+      >
         <View style={styles.programBanner}>
           <Dumbbell size={40} color={Colors.light.onRubber} />
         </View>

@@ -20,7 +20,7 @@ Tests: jest via `jest-expo` (`npm test`). CI (`.github/workflows/ci.yml`) runs l
 
 ## Architecture
 
-**NextSet** (package/slug still `momentum-gym-tracker`) is a React Native gym-logging app built with Expo Router v5, React 19, TypeScript and Supabase (auth + persistence).
+**NextSet** (package/slug still `momentum-gym-tracker`) is a React Native gym-logging app built with Expo SDK 57 (React Native 0.86, React 19.2, Expo Router 57), TypeScript and Supabase (auth + persistence).
 
 **It is online-only.** There is no local SQLite tier — `expo-sqlite`, `services/localDatabase.ts`, `services/syncService.ts` and `hooks/useLocalDatabase.ts` were all removed in commit `70ff718` ("Remove non-functional offline-first layer, go online-only"). Do not write code against them. The one piece of offline behaviour that does exist is an **in-progress workout checkpoint in AsyncStorage** (`contexts/WorkoutContext.tsx`), keyed per user and restored on launch, so a session survives an app restart. Finishing a workout requires a connection; on failure the checkpoint is deliberately kept so the user can retry.
 
@@ -105,3 +105,7 @@ Supabase client is initialized in `data/supabase-client.ts` and throws if either
 - **Set edits are debounced to the cloud, checkpointed locally at once.** `contexts/WorkoutContext.tsx` mutations read `currentWorkoutRef`, never the render closure; cloud writes go through `services/programSync.ts`. Call `flushProgramSync()` before anything that must see the latest program on the server.
 - **Rest notifications need a dev-client build.** `expo-notifications` is not in Expo Go; the banner works everywhere, the lock-screen alert only on a dev/preview build.
 - **Templates no longer prefill reps.** The target is `exercise.repsTarget` shown as ghost text; `set.reps` starts empty.
+- **Do not import `@react-navigation/*` in app code.** expo-router 56+ removed the dependency; use `expo-router/js-tabs` (bottom tabs, `BottomTabBar`) or `expo-router/react-navigation`. The Android bundle fails to export otherwise.
+- **Android is edge-to-edge and cannot be disabled (SDK 54+).** Anything anchored to the bottom must add `useSafeAreaInsets().bottom`; every `SafeAreaView` in the app is `edges={['top']}` on purpose. Pattern: `app/(tabs)/_layout.tsx`, `components/gestures/DragDismissSheet.tsx`, the undo snackbar in `app/workout.tsx`.
+- **`expo-file-system` is on the `File`/`Paths` API (SDK 54+).** The old functions live at `expo-file-system/legacy`; don't add new callers. Only `services/csvExport.ts` writes files.
+- **eslint-config-expo 57 ships the React Compiler hook rules.** They are switched off in `eslint.config.js` because they flag Reanimated `.value` writes and existing effects; the two classic hooks rules still run. Re-enable one at a time if wanted.

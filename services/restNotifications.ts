@@ -46,7 +46,9 @@ export async function scheduleRestNotification(endsAt: number, exerciseName: str
   await cancelRestNotification();
   if ((await Notifications.getPermissionsAsync()).status !== 'granted') return;
   scheduledId = await Notifications.scheduleNotificationAsync({
-    content: { title: 'NextSet', body: `Rest over — ${exerciseName}, set ${setNumber}`, sound: 'default', ...(Platform.OS === 'android' ? { channelId: CHANNEL } : {}) },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(endsAt) },
+    content: { title: 'NextSet', body: `Rest over — ${exerciseName}, set ${setNumber}`, sound: 'default' },
+    // On Android the channel is a property of the trigger, not the content; in the
+    // content it is ignored and the alert lands on expo's silent fallback channel.
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(endsAt), ...(Platform.OS === 'android' ? { channelId: CHANNEL } : {}) },
   });
 }

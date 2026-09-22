@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
@@ -10,6 +10,7 @@ import { useAuth } from '@/data/AuthContext';
 import Wordmark from '@/components/Wordmark';
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -216,7 +217,7 @@ export default function LoginScreen() {
         <ScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + spacing.xl }]}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.brandSection}>

@@ -42,26 +42,23 @@ function AppNavigator() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <WorkoutProvider>
+        {/* Auth gate: exactly one of these two guards is active per session state. */}
         <Stack screenOptions={{ headerShown: false }}>
-          {session ? (
-            // User is authenticated - show main app
-            <>
-              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="program-detail" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="workout" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="aboutus" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="help-faq" options={{ presentation: 'modal' }} />
-            </>
-          ) : (
-            // User is not authenticated - show auth flow
-            <>
-              <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-            </>
-          )}
+          <Stack.Protected guard={!!session}>
+            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="program-detail" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="workout" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="aboutus" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="help-faq" options={{ presentation: 'modal' }} />
+          </Stack.Protected>
+          <Stack.Protected guard={!session}>
+            <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+          </Stack.Protected>
         </Stack>
-        <StatusBar style="auto" />
+        {/* The app is light-only (no dark palette wired up); "auto" follows the OS theme and drew light icons on Concrete when the phone was in dark mode. */}
+        <StatusBar style="dark" />
       </WorkoutProvider>
     </GestureHandlerRootView>
   );

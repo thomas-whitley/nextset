@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
@@ -12,6 +12,7 @@ type FAQItem = {
 };
 
 export default function HelpFAQScreen() {
+  const insets = useSafeAreaInsets();
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
   const faqItems: FAQItem[] = [
@@ -79,7 +80,11 @@ export default function HelpFAQScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+      >
         <View style={styles.introSection}>
           <Text style={styles.introTitle}>Help</Text>
           <Text style={styles.introSubtitle}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions, Keyboard } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
@@ -50,7 +50,8 @@ const warmupOptions: WarmupOption[] = [
 ];
 
 export default function WorkoutScreen() {
-  const { 
+  const insets = useSafeAreaInsets();
+  const {
     currentWorkout, 
     updateSet, 
     completeSet, 
@@ -581,7 +582,11 @@ export default function WorkoutScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+        >
         {!isOnline && (
           <View style={styles.offlineBanner} accessibilityRole="alert">
             <Text style={styles.offlineText}>Offline — your sets are saved on this phone</Text>
@@ -777,7 +782,14 @@ export default function WorkoutScreen() {
       </KeyboardAvoidingView>
 
       {rest.endsAt !== null && (
-        <RestBanner remaining={restRemaining} exerciseName={rest.exerciseName} setNumber={rest.setNumber} onSkip={skipRest} onAdjust={adjustRest} />
+        <RestBanner
+          remaining={restRemaining}
+          exerciseName={rest.exerciseName}
+          setNumber={rest.setNumber}
+          onSkip={skipRest}
+          onAdjust={adjustRest}
+          keyboardBarVisible={keyboardOpen && focused !== null}
+        />
       )}
 
       <SetKeyboardBar field={focused?.field ?? 'weight'} onStep={handleStep} onNext={handleNext} visible={keyboardOpen && focused !== null} />
@@ -787,6 +799,7 @@ export default function WorkoutScreen() {
         <Animated.View
           style={[
             styles.undoSnackbar,
+            { bottom: spacing.lg + insets.bottom },
             {
               opacity: undoSnackbarAnim,
               transform: [
@@ -1073,7 +1086,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.lg,
     right: spacing.lg,
-    bottom: spacing.lg,
     backgroundColor: Colors.light.rubber,
     borderRadius: radius.card,
     paddingVertical: spacing.md,

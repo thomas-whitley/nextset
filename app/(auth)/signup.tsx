@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Eye, EyeOff, CircleCheck as CheckCircle, Mail } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withSequence } from 'react-native-reanimated';
 import { supabase } from '@/data/supabase-client';
@@ -10,6 +10,7 @@ import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 import Wordmark from '@/components/Wordmark';
 
 export default function SignUpScreen() {
+  const insets = useSafeAreaInsets();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -318,7 +319,7 @@ export default function SignUpScreen() {
         <ScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + spacing.xl }]}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.brandSection}>

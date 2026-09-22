@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: Colors.light.error,
     flexDirection: 'row',
     alignItems: 'center',

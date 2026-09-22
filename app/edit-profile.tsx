@@ -11,7 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, User, Phone, AtSign, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
@@ -34,6 +34,7 @@ const formatDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
 export default function EditProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { user, refreshUser } = useAuth();
   const [profileData, setProfileData] = useState<ProfileData>(EMPTY);
   const [originalData, setOriginalData] = useState<ProfileData>(EMPTY);
@@ -178,7 +179,12 @@ export default function EditProfileScreen() {
             <ActivityIndicator color={Colors.light.primary} />
           </View>
         ) : (
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+          >
             <View style={styles.avatarSection}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{user ? initialsOf(user) : ''}</Text>
