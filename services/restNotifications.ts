@@ -38,14 +38,26 @@ export function installForegroundHandler(): void {
   }
 }
 
+/**
+ * Opens this app's "Alarms & reminders" page. Always available, unlike the
+ * one-time redirect below: a user who never saw that prompt — anyone who had
+ * already granted notification permission before it shipped — otherwise has no
+ * route to exact alarms and their rest alerts stay up to a minute late (F8).
+ * Returns false when the page does not exist (iOS, Android < 12).
+ */
+export async function openExactAlarmSettings(): Promise<boolean> {
+  if (Platform.OS !== 'android' || Number(Platform.Version) < 31) return false;
+  const pkg = Constants.expoConfig?.android?.package ?? 'com.twhitley.momentumgymtracker';
+  await IntentLauncher.startActivityAsync('android.settings.REQUEST_SCHEDULE_EXACT_ALARM', { data: `package:${pkg}` });
+  return true;
+}
+
 /** Android 12+ only fires alarms on time if the user allows "Alarms & reminders". Send them there once. */
 export async function openExactAlarmSettingsOnce(): Promise<boolean> {
   if (Platform.OS !== 'android' || Number(Platform.Version) < 31) return false;
   if (await AsyncStorage.getItem(EXACT_PROMPTED_KEY)) return false;
   await AsyncStorage.setItem(EXACT_PROMPTED_KEY, '1');
-  const pkg = Constants.expoConfig?.android?.package ?? 'com.twhitley.momentumgymtracker';
-  await IntentLauncher.startActivityAsync('android.settings.REQUEST_SCHEDULE_EXACT_ALARM', { data: `package:${pkg}` });
-  return true;
+  return openExactAlarmSettings();
 }
 
 export async function cancelRestNotification(): Promise<void> {

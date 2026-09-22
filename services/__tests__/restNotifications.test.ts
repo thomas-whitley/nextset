@@ -9,6 +9,7 @@ import {
   hasAskedRestPermission,
   markRestPermissionAsked,
   openExactAlarmSettingsOnce,
+  openExactAlarmSettings,
 } from '../restNotifications';
 
 jest.mock('expo-intent-launcher', () => ({
@@ -100,5 +101,37 @@ describe('openExactAlarmSettingsOnce', () => {
     expect(await openExactAlarmSettingsOnce()).toBe(false);
     expect(IntentLauncher.startActivityAsync).not.toHaveBeenCalled();
     expect(await AsyncStorage.getItem('rest_exact_alarm_prompted_v1')).toBeNull();
+  });
+});
+
+describe('openExactAlarmSettings', () => {
+  const originalOS = Platform.OS;
+  const originalVersionDescriptor = Object.getOwnPropertyDescriptor(Platform, 'Version');
+
+  afterEach(() => {
+    Platform.OS = originalOS;
+    if (originalVersionDescriptor) Object.defineProperty(Platform, 'Version', originalVersionDescriptor);
+  });
+
+  // F8: the Settings row is the only route left for a user who never saw the
+  // one-time redirect, so this one must open every time it is tapped.
+  it('opens the exact-alarm page on every call, ignoring the one-time flag', async () => {
+    Platform.OS = 'android';
+    Object.defineProperty(Platform, 'Version', { value: 34, configurable: true });
+    await AsyncStorage.setItem('rest_exact_alarm_prompted_v1', '1');
+
+    expect(await openExactAlarmSettings()).toBe(true);
+    expect(await openExactAlarmSettings()).toBe(true);
+    expect(IntentLauncher.startActivityAsync).toHaveBeenCalledTimes(2);
+    expect(IntentLauncher.startActivityAsync).toHaveBeenLastCalledWith('android.settings.REQUEST_SCHEDULE_EXACT_ALARM', {
+      data: 'package:com.twhitley.momentumgymtracker',
+    });
+  });
+
+  it('resolves false on iOS so the caller can fall back to the app-info page', async () => {
+    Platform.OS = 'ios';
+
+    expect(await openExactAlarmSettings()).toBe(false);
+    expect(IntentLauncher.startActivityAsync).not.toHaveBeenCalled();
   });
 });

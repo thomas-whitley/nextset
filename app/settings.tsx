@@ -42,6 +42,7 @@ import {
   DEFAULT_REST_SECONDS,
   DEFAULT_BAR_WEIGHT_KG,
 } from '@/services/preferences';
+import { openExactAlarmSettings } from '@/services/restNotifications';
 import { LEGAL_URLS, FEEDBACK_FORM_URL, SUPPORT_EMAIL } from '@/constants/Links';
 import { displayNameOf, initialsOf } from '@/data/userDisplay';
 
@@ -315,8 +316,15 @@ export default function SettingsScreen() {
             <SettingItem
               icon={<Bell size={20} color={Colors.light.primary} />}
               title="Rest alerts"
-              subtitle='Buzz when rest is over, even when locked. For exact timing allow "Alarms & reminders" in system settings.'
-              onPress={() => Linking.openSettings()}
+              subtitle='Buzz when rest is over, even when locked. Tap to allow "Alarms & reminders" so they fire on time.'
+              // Straight to the exact-alarm page where that page exists; the
+              // app-info page is the fallback (iOS, Android < 12, or an OEM
+              // build with no such activity).
+              onPress={() => {
+                void openExactAlarmSettings()
+                  .then((opened) => { if (!opened) void Linking.openSettings(); })
+                  .catch(() => { void Linking.openSettings(); });
+              }}
               showBorder={false}
             />
           </View>
