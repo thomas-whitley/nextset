@@ -1,4 +1,4 @@
-import { summariseWorkout } from '../finishSummary';
+import { summariseWorkout, countLoggedSets } from '../finishSummary';
 import type { Workout } from '../exercise.types';
 
 const workout: Workout = {
@@ -24,4 +24,21 @@ it('no PR when no set is flagged', () => {
     exercises: [{ ...workout.exercises[0], sets: workout.exercises[0].sets.map((s) => ({ ...s, pr: undefined })) }],
   };
   expect(summariseWorkout(noPr).prs).toEqual([]);
+});
+
+it('header set count matches the recap: a completed set with no weight/reps logged is not counted', () => {
+  const withWeightlessTick: Workout = {
+    ...workout,
+    exercises: [{
+      ...workout.exercises[0],
+      sets: [
+        { id: 'a', weight: '60', reps: '8', isComplete: true },
+        { id: 'b', weight: '60', reps: '7', isComplete: true },
+        // ticked complete but never logged a weight or reps
+        { id: 'c', weight: '', reps: '', isComplete: true },
+      ],
+    }],
+  };
+  expect(countLoggedSets(withWeightlessTick.exercises)).toBe(2);
+  expect(summariseWorkout(withWeightlessTick).lines[0].setsDone).toBe(2);
 });

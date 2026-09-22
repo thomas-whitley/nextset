@@ -1,5 +1,22 @@
-import type { Workout } from './exercise.types';
+import type { ExerciseSet, Workout, WorkoutExercise } from './exercise.types';
 import { epley1rm } from './prMath';
+
+/**
+ * A set counts as logged once it is ticked complete *and* carries a real
+ * weight and reps — a set ticked with nothing typed into it (or the
+ * template's placeholder) must not inflate the finish header's "N sets"
+ * or the recap. Keep this in step with `saveWorkoutHistory`'s volume rule
+ * (CLAUDE.md): that rule is `isComplete` only, because an unlogged set's
+ * weight/reps parse to 0 and contribute nothing to volume either way.
+ */
+export function isLoggedSet(set: ExerciseSet): boolean {
+  return set.isComplete && parseFloat(set.weight) > 0 && parseInt(set.reps, 10) > 0;
+}
+
+/** The finish header's "N sets" — identical inclusion rule to the recap below. */
+export function countLoggedSets(exercises: WorkoutExercise[]): number {
+  return exercises.reduce((n, e) => n + e.sets.filter(isLoggedSet).length, 0);
+}
 
 /**
  * Builds the finish-sheet recap from a workout whose sets already carry the
@@ -11,7 +28,7 @@ export function summariseWorkout(workout: Workout) {
   const lines: { id: string; name: string; setsDone: number; detail: string }[] = [];
   const prs: { id: string; name: string; weight: string; reps: string; kind: 'weight' | 'e1rm' | 'both' }[] = [];
   for (const ex of workout.exercises) {
-    const done = ex.sets.filter((s) => s.isComplete && parseFloat(s.weight) > 0 && parseInt(s.reps, 10) > 0);
+    const done = ex.sets.filter(isLoggedSet);
     if (done.length === 0) continue;
     const weights = new Set(done.map((s) => s.weight));
     const detail = weights.size === 1

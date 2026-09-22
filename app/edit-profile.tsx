@@ -8,7 +8,6 @@ import {
   ScrollView,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -156,7 +155,7 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView style={styles.keyboardAvoid} behavior="padding">
         <View style={styles.header}>
           <TouchableOpacity onPress={handleClose} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
             <X size={24} color={Colors.light.text} />

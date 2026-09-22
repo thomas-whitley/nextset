@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react-native';
+import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2, RefreshCw, Trophy } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -23,10 +23,10 @@ import { sanitiseSetValue, stepValue } from '@/services/setSteps';
 import SetRow from '@/components/SetRow';
 import { formatRepsTarget } from '@/services/repsTarget';
 import { remainingSeconds } from '@/services/restTimer';
-import { ensureRestPermission, hasAskedRestPermission, markRestPermissionAsked, scheduleRestNotification, cancelRestNotification } from '@/services/restNotifications';
+import { ensureRestPermission, hasAskedRestPermission, markRestPermissionAsked, scheduleRestNotification, cancelRestNotification, openExactAlarmSettingsOnce } from '@/services/restNotifications';
 import RestBanner from '@/components/RestBanner';
 import SetKeyboardBar from '@/components/SetKeyboardBar';
-import { summariseWorkout } from '@/services/finishSummary';
+import { summariseWorkout, countLoggedSets } from '@/services/finishSummary';
 
 interface WorkoutMetadata {
   startTime: Date | null;
@@ -216,7 +216,12 @@ export default function WorkoutScreen() {
             text: 'Allow',
             onPress: () => {
               void ensureRestPermission().then((status) => {
-                if (status === 'granted') void scheduleRestNotification(endsAt, exercise.name, setIndex + 1);
+                if (status === 'granted') {
+                  void scheduleRestNotification(endsAt, exercise.name, setIndex + 1);
+                  // Fire-and-forget: sending the user to the exact-alarm system
+                  // page must never block or fail the rest banner itself.
+                  void openExactAlarmSettingsOnce().catch(() => {});
+                }
               });
             },
           },
@@ -364,7 +369,7 @@ export default function WorkoutScreen() {
     ? currentWorkout.exercises.filter((e) => e.id !== pendingRemoval?.exercise.id)
     : [];
 
-  const completedSetCount = visibleExercises.reduce((n, e) => n + e.sets.filter((st) => st.isComplete).length, 0);
+  const completedSetCount = countLoggedSets(visibleExercises);
   const sessionVolume = visibleExercises.reduce(
     (total, e) => total + e.sets.filter((st) => st.isComplete).reduce((t, st) => t + (parseFloat(st.weight) || 0) * (parseFloat(st.reps) || 0), 0),
     0
@@ -579,7 +584,7 @@ export default function WorkoutScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
@@ -779,20 +784,23 @@ export default function WorkoutScreen() {
           <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
         </TouchableOpacity>
         </ScrollView>
+
+        {/* Both bars live INSIDE the KeyboardAvoidingView: it is what lifts them
+            clear of the on-screen keyboard. As siblings after it they sat at the
+            bottom of the (unresized, edge-to-edge) screen, i.e. behind the keys. */}
+        {rest.endsAt !== null && (
+          <RestBanner
+            remaining={restRemaining}
+            exerciseName={rest.exerciseName}
+            setNumber={rest.setNumber}
+            onSkip={skipRest}
+            onAdjust={adjustRest}
+            keyboardBarVisible={keyboardOpen && focused !== null}
+          />
+        )}
+
+        <SetKeyboardBar field={focused?.field ?? 'weight'} onStep={handleStep} onNext={handleNext} visible={keyboardOpen && focused !== null} />
       </KeyboardAvoidingView>
-
-      {rest.endsAt !== null && (
-        <RestBanner
-          remaining={restRemaining}
-          exerciseName={rest.exerciseName}
-          setNumber={rest.setNumber}
-          onSkip={skipRest}
-          onAdjust={adjustRest}
-          keyboardBarVisible={keyboardOpen && focused !== null}
-        />
-      )}
-
-      <SetKeyboardBar field={focused?.field ?? 'weight'} onStep={handleStep} onNext={handleNext} visible={keyboardOpen && focused !== null} />
 
       {/* Undo snackbar for an optimistically-removed exercise */}
       {pendingRemoval && (
@@ -852,7 +860,7 @@ export default function WorkoutScreen() {
 
       {/* Finish sheet */}
       <DragDismissSheet visible={showMetadataModal} onDismiss={() => setShowMetadataModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView behavior="padding">
           <View style={styles.sheetBody}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Finish workout</Text>
@@ -875,7 +883,12 @@ export default function WorkoutScreen() {
                   {prs.length > 0 && (
                     <View style={styles.prBlock}>
                       <Text style={styles.sheetLabel}>Personal records</Text>
-                      {prs.map((p) => <Text key={p.id} style={styles.prLine}>🏅 {p.name} — {p.weight} kg × {p.reps}{p.kind === 'weight' ? ' (heaviest)' : p.kind === 'e1rm' ? ' (best est. 1RM)' : ''}</Text>)}
+                      {prs.map((p) => (
+                        <View key={p.id} style={styles.prLineRow}>
+                          <Trophy size={16} color={Colors.light.accent} />
+                          <Text style={styles.prLine}>{p.name} — {p.weight} kg × {p.reps}{p.kind === 'weight' ? ' (heaviest)' : p.kind === 'e1rm' ? ' (best est. 1RM)' : ''}</Text>
+                        </View>
+                      ))}
                     </View>
                   )}
                   {lines.map((l) => <Text key={l.id} style={styles.recapLine}>{l.name} · {l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'} · {l.detail}</Text>)}
@@ -1125,7 +1138,8 @@ const styles = StyleSheet.create({
   sheetSummary: { fontSize: 15, fontFamily: 'Archivo-Medium', color: Colors.light.textSecondary, marginBottom: 20 },
   sheetLabel: { fontSize: 13, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginBottom: 6 },
   prBlock: { marginBottom: spacing.md },
-  prLine: { fontFamily: 'Archivo-Medium', fontSize: 14, color: Colors.light.text, marginTop: 4 },
+  prLineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  prLine: { fontFamily: 'Archivo-Medium', fontSize: 14, color: Colors.light.text },
   recapLine: { fontFamily: 'Archivo-Regular', fontSize: 13, color: Colors.light.textSecondary, marginTop: 2 },
   sheetInput: {
     backgroundColor: Colors.light.background,

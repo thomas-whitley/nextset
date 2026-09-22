@@ -131,6 +131,25 @@ test('a failed cloud write leaves the checkpoint intact', async () => {
   expect(JSON.parse(stored!).exercises[0].sets[0].weight).toBe('80');
 });
 
+it('keeps the session start time when an exercise is removed mid-workout', async () => {
+  const { result } = await setup();
+  const startedAt = result.current.currentWorkout!.startedAt!;
+  expect(startedAt).toBeGreaterThan(0);
+
+  // program_data never carries session-only fields — this is the real shape.
+  const updatedWorkout: Workout = { ...workout, exercises: [] };
+  const updatedProgram: Program = { ...program, workouts: [updatedWorkout] };
+  const updatedActive: UserActiveProgram = { ...active, program_data: updatedProgram };
+  jest.spyOn(UserActiveProgramService, 'removeExerciseFromWorkout').mockResolvedValue(updatedActive);
+
+  await act(async () => {
+    await result.current.removeExerciseFromWorkout('w1', 'e1');
+  });
+
+  expect(result.current.currentWorkout!.startedAt).toBe(startedAt);
+  expect(result.current.workoutStartedAt).toBe(startedAt);
+});
+
 describe('bests and replaceExercise', () => {
   it('loads exercise bests when a workout starts and raises them when a heavier set is ticked', async () => {
     const { result } = await setup();
