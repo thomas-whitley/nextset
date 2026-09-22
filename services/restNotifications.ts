@@ -1,9 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as IntentLauncher from 'expo-intent-launcher';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 const ASKED_KEY = 'rest_notif_asked';
 const CHANNEL = 'rest-timer';
+const EXACT_PROMPTED_KEY = 'rest_exact_alarm_prompted_v1';
 let scheduledId: string | null = null;
 
 export async function hasAskedRestPermission(): Promise<boolean> {
@@ -33,6 +36,16 @@ export function installForegroundHandler(): void {
   if (Platform.OS === 'android') {
     void Notifications.setNotificationChannelAsync(CHANNEL, { name: 'Rest timer', importance: Notifications.AndroidImportance.HIGH, sound: 'default' });
   }
+}
+
+/** Android 12+ only fires alarms on time if the user allows "Alarms & reminders". Send them there once. */
+export async function openExactAlarmSettingsOnce(): Promise<boolean> {
+  if (Platform.OS !== 'android' || Number(Platform.Version) < 31) return false;
+  if (await AsyncStorage.getItem(EXACT_PROMPTED_KEY)) return false;
+  await AsyncStorage.setItem(EXACT_PROMPTED_KEY, '1');
+  const pkg = Constants.expoConfig?.android?.package ?? 'com.twhitley.momentumgymtracker';
+  await IntentLauncher.startActivityAsync('android.settings.REQUEST_SCHEDULE_EXACT_ALARM', { data: `package:${pkg}` });
+  return true;
 }
 
 export async function cancelRestNotification(): Promise<void> {

@@ -315,7 +315,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon={<Bell size={20} color={Colors.light.primary} />}
               title="Rest alerts"
-              subtitle="Buzz when rest is over, even when locked. Managed in system settings."
+              subtitle='Buzz when rest is over, even when locked. For exact timing allow "Alarms & reminders" in system settings.'
               onPress={() => Linking.openSettings()}
               showBorder={false}
             />

@@ -51,6 +51,7 @@
     "owner": "twhitley",
     "android": {
       "package": "com.twhitley.momentumgymtracker",
+      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "monochromeImage": "./assets/images/adaptive-icon-mono.png",

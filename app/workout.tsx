@@ -23,7 +23,7 @@ import { sanitiseSetValue, stepValue } from '@/services/setSteps';
 import SetRow from '@/components/SetRow';
 import { formatRepsTarget } from '@/services/repsTarget';
 import { remainingSeconds } from '@/services/restTimer';
-import { ensureRestPermission, hasAskedRestPermission, markRestPermissionAsked, scheduleRestNotification, cancelRestNotification } from '@/services/restNotifications';
+import { ensureRestPermission, hasAskedRestPermission, markRestPermissionAsked, scheduleRestNotification, cancelRestNotification, openExactAlarmSettingsOnce } from '@/services/restNotifications';
 import RestBanner from '@/components/RestBanner';
 import SetKeyboardBar from '@/components/SetKeyboardBar';
 import { summariseWorkout } from '@/services/finishSummary';
@@ -216,7 +216,12 @@ export default function WorkoutScreen() {
             text: 'Allow',
             onPress: () => {
               void ensureRestPermission().then((status) => {
-                if (status === 'granted') void scheduleRestNotification(endsAt, exercise.name, setIndex + 1);
+                if (status === 'granted') {
+                  void scheduleRestNotification(endsAt, exercise.name, setIndex + 1);
+                  // Fire-and-forget: sending the user to the exact-alarm system
+                  // page must never block or fail the rest banner itself.
+                  void openExactAlarmSettingsOnce().catch(() => {});
+                }
               });
             },
           },

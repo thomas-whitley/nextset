@@ -1,6 +1,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import { ensureRestPermission, scheduleRestNotification, cancelRestNotification, hasAskedRestPermission, markRestPermissionAsked } from '../restNotifications';
+import * as IntentLauncher from 'expo-intent-launcher';
+import { Platform } from 'react-native';
+import {
+  ensureRestPermission,
+  scheduleRestNotification,
+  cancelRestNotification,
+  hasAskedRestPermission,
+  markRestPermissionAsked,
+  openExactAlarmSettingsOnce,
+} from '../restNotifications';
+
+jest.mock('expo-intent-launcher', () => ({
+  __esModule: true,
+  startActivityAsync: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: { expoConfig: { android: { package: 'com.twhitley.momentumgymtracker' } } },
+}));
 
 beforeEach(async () => { await AsyncStorage.clear(); jest.clearAllMocks(); });
 
@@ -50,5 +69,36 @@ describe('scheduleRestNotification', () => {
   it('cancel is a no-op when nothing is scheduled', async () => {
     await cancelRestNotification();
     expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe('openExactAlarmSettingsOnce', () => {
+  const originalOS = Platform.OS;
+  const originalVersionDescriptor = Object.getOwnPropertyDescriptor(Platform, 'Version');
+
+  afterEach(() => {
+    Platform.OS = originalOS;
+    if (originalVersionDescriptor) Object.defineProperty(Platform, 'Version', originalVersionDescriptor);
+  });
+
+  it('opens the exact-alarm settings page once on Android 12+ and remembers it', async () => {
+    Platform.OS = 'android';
+    Object.defineProperty(Platform, 'Version', { value: 34, configurable: true });
+
+    expect(await openExactAlarmSettingsOnce()).toBe(true);
+    expect(IntentLauncher.startActivityAsync).toHaveBeenCalledWith('android.settings.REQUEST_SCHEDULE_EXACT_ALARM', {
+      data: 'package:com.twhitley.momentumgymtracker',
+    });
+
+    expect(await openExactAlarmSettingsOnce()).toBe(false);
+    expect(IntentLauncher.startActivityAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves false on iOS without touching storage', async () => {
+    Platform.OS = 'ios';
+
+    expect(await openExactAlarmSettingsOnce()).toBe(false);
+    expect(IntentLauncher.startActivityAsync).not.toHaveBeenCalled();
+    expect(await AsyncStorage.getItem('rest_exact_alarm_prompted_v1')).toBeNull();
   });
 });
