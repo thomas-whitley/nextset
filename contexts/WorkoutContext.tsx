@@ -450,6 +450,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     // Keep the sets the user has already logged this session.
     const merged: Workout = {
       ...updatedWorkout,
+      // program_data never carries session-only fields; keep the live ones.
+      startedAt: live.startedAt,
       exercises: updatedWorkout.exercises.map((exercise) => {
         const liveExercise = live.exercises.find((e) => e.id === exercise.id);
         if (!liveExercise) return exercise;
