@@ -584,7 +584,7 @@ export default function WorkoutScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
@@ -857,7 +857,7 @@ export default function WorkoutScreen() {
 
       {/* Finish sheet */}
       <DragDismissSheet visible={showMetadataModal} onDismiss={() => setShowMetadataModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView behavior="padding">
           <View style={styles.sheetBody}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Finish workout</Text>
