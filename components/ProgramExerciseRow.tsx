@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { GripVertical, Minus, Plus, Trash2 } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
@@ -17,10 +17,16 @@ type Props = {
   onRemove: () => void;
   /** From DraggableList in handleOnly mode: wraps the grip so only it starts a drag. */
   dragHandle: (node: React.ReactNode) => React.ReactNode;
+  /**
+   * Hands the parent a way to commit a reps value still being typed. Leaving the
+   * screen by the header X never blurs the field, so the editor calls this
+   * before it flushes (review I5). Called with null on unmount.
+   */
+  registerCommit?: (commit: (() => void) | null) => void;
 };
 
 /** One exercise in the day editor: drag grip, name, remove; sets stepper and reps target underneath. */
-export default function ProgramExerciseRow({ exercise, locked, onSetCount, onRepsTarget, onRemove, dragHandle }: Props) {
+export default function ProgramExerciseRow({ exercise, locked, onSetCount, onRepsTarget, onRemove, dragHandle, registerCommit }: Props) {
   const [draft, setDraft] = useState(formatRepsTarget(exercise.repsTarget));
   const min = exercise.repsTarget?.min;
   const max = exercise.repsTarget?.max;
@@ -28,6 +34,21 @@ export default function ProgramExerciseRow({ exercise, locked, onSetCount, onRep
   useEffect(() => {
     setDraft(formatRepsTarget(min === undefined || max === undefined ? undefined : { min, max }));
   }, [min, max]);
+
+  const commit = () => {
+    const { target, text } = commitRepsDraft(draft, exercise.repsTarget);
+    setDraft(text);
+    if (formatRepsTarget(target) !== formatRepsTarget(exercise.repsTarget)) onRepsTarget(target);
+  };
+  // Refs so the registration below happens once, yet always commits the latest draft.
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  const registerRef = useRef(registerCommit);
+  registerRef.current = registerCommit;
+  useEffect(() => {
+    registerRef.current?.(() => commitRef.current());
+    return () => registerRef.current?.(null);
+  }, []);
 
   if (locked) {
     return (
@@ -39,11 +60,6 @@ export default function ProgramExerciseRow({ exercise, locked, onSetCount, onRep
   }
 
   const count = exercise.sets.length;
-  const commit = () => {
-    const { target, text } = commitRepsDraft(draft, exercise.repsTarget);
-    setDraft(text);
-    if (formatRepsTarget(target) !== formatRepsTarget(exercise.repsTarget)) onRepsTarget(target);
-  };
 
   return (
     <View style={styles.card}>

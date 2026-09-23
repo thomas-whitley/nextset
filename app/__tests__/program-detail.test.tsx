@@ -14,10 +14,12 @@ const mockNav = {
   }),
   dispatch: jest.fn(),
 };
+const mockScreenOptions: { current: Record<string, unknown> | null } = { current: null };
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: jest.fn() },
   useLocalSearchParams: () => ({ day: 'd1' }),
   useNavigation: () => mockNav,
+  Stack: { Screen: ({ options }: { options: Record<string, unknown> }) => { mockScreenOptions.current = options; return null; } },
 }));
 
 const day = {
@@ -91,5 +93,27 @@ test('leaving with everything saved closes the screen', async () => {
     mockListeners.beforeRemove(event);
     await settle();
   });
+  expect(mockNav.dispatch).toHaveBeenCalledWith('GO_BACK');
+});
+
+test('the iOS swipe-down is switched off, so every exit goes through the leave check (review I4)', async () => {
+  mockScreenOptions.current = null;
+  await render(<ProgramDayEditorScreen />);
+  expect(mockScreenOptions.current).toMatchObject({ gestureEnabled: false });
+});
+
+test('a reps value typed but not yet committed is saved before the leave check flushes (review I5)', async () => {
+  await render(<ProgramDayEditorScreen />);
+  await fireEvent.changeText(screen.getByLabelText('Reps target for Barbell Deadlift'), '10-12');
+  expect(mockCtx.editDay).not.toHaveBeenCalled(); // nothing committed yet: the field has not blurred
+  const event = { preventDefault: jest.fn(), data: { action: 'GO_BACK' } };
+  await act(async () => {
+    mockListeners.beforeRemove(event);
+    await settle();
+  });
+  expect(mockCtx.editDay).toHaveBeenCalledWith('d1', expect.any(Function), false);
+  const edit = mockCtx.editDay.mock.calls[0][1] as (d: typeof day) => typeof day;
+  expect(edit(day).exercises[0].repsTarget).toEqual({ min: 10, max: 12 });
+  expect(mockCtx.editDay.mock.invocationCallOrder[0]).toBeLessThan(mockCtx.flushProgramSync.mock.invocationCallOrder[0]);
   expect(mockNav.dispatch).toHaveBeenCalledWith('GO_BACK');
 });

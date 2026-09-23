@@ -19,9 +19,12 @@ export function formatRepsTarget(t?: RepsTarget): string {
 /**
  * Copies repsTarget from the source template onto a user's program copy for
  * every exercise that lacks one, matched by workout id then exerciseId.
- * Returns the same object when nothing needed filling so callers can skip a sync.
+ * Runs once per copy (spec D13): the result is marked `repsTargetsBackfilled`,
+ * so a target the user later clears in the editor stays cleared. Returns the
+ * same object when it has already run, so callers can skip a sync.
  */
 export function backfillRepsTargets(program: Program, templates: Program[]): Program {
+  if (program.repsTargetsBackfilled) return program;
   const template = templates.find((t) => t.id === (program.templateId ?? program.id));
   if (!template) return program;
   let changed = false;
@@ -37,7 +40,7 @@ export function backfillRepsTargets(program: Program, templates: Program[]): Pro
     });
     return { ...w, exercises };
   });
-  return changed ? { ...program, workouts } : program;
+  return { ...program, workouts: changed ? workouts : program.workouts, repsTargetsBackfilled: true };
 }
 
 /**

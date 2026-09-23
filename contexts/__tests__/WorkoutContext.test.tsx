@@ -580,4 +580,62 @@ describe('program copies', () => {
     expect(rows.has(blank.id)).toBe(false);
     expect(result.current.currentProgram!.name).toBe('Push / Pull / Legs');
   });
+
+  test('deleting the current blank is refused while its edits cannot be written (review I3)', async () => {
+    const rows = fakeDb();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = await setupEmpty();
+    let dayIds: string[] | null = null;
+    await act(async () => { dayIds = await result.current.createBlankProgram(1); });
+    const blank = result.current.currentActiveProgram!;
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    await act(() => { result.current.editDay(dayIds![0], (d) => addExercise(d, { exerciseId: 8, name: 'Row' }), false); });
+    let error: unknown = null;
+    await act(async () => {
+      try { await result.current.deleteProgramCopy(blank); } catch (e) { error = e; }
+    });
+    expect(error).toBeInstanceOf(Error);
+    expect(rows.has(blank.id)).toBe(true);
+    expect(result.current.currentActiveProgram!.id).toBe(blank.id);
+  });
+});
+
+describe('review fixes', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  test('finishing a workout still writes program edits queued before it (review I2)', async () => {
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await Promise.resolve(); });
+    const { result } = hook;
+    await act(() => { result.current.editDay('w1', (d) => setSetCount(d, 'e1', 3), false); });
+    await act(() => { result.current.startQuickWorkout(); });
+    await act(async () => {
+      result.current.finishWorkout();
+      await result.current.flushProgramSync();
+      jest.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+    expect(UserActiveProgramService.updateActiveProgram).toHaveBeenCalledTimes(1);
+    const written = (UserActiveProgramService.updateActiveProgram as jest.Mock).mock.calls[0][1] as Program;
+    expect(written.workouts[0].exercises[0].sets).toHaveLength(3);
+  });
+
+  test('a token refresh (new user object, same id) does not reload the program over local edits (review I6)', async () => {
+    const original = mockAuthValue.user;
+    try {
+      const hook = await renderHook(() => useWorkout(), { wrapper });
+      await act(async () => { await Promise.resolve(); });
+      await act(() => { hook.result.current.editDay('w1', (d) => setSetCount(d, 'e1', 3), false); });
+      const loads = (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mock.calls.length;
+      mockAuthValue.user = { id: 'user-1' };
+      await hook.rerender({});
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      expect((UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mock.calls.length).toBe(loads);
+      expect(hook.result.current.currentProgram!.workouts[0].exercises[0].sets).toHaveLength(3);
+    } finally {
+      mockAuthValue.user = original;
+    }
+  });
 });

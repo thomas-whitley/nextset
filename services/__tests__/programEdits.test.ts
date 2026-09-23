@@ -83,6 +83,8 @@ test("resetToTemplate takes the template's days but keeps this copy's id", () =>
   expect(reset).toMatchObject({ id: 'active_ppl_1', templateId: 'ppl', isTemplate: false, name: 'Push / Pull / Legs' });
   expect(reset.workouts).toEqual(template.workouts);
   expect(reset.workouts).not.toBe(template.workouts); // a copy: the bundled templates are never shared
+  // Template days already carry their targets, so the one-time backfill must not run again (review I1).
+  expect(reset.repsTargetsBackfilled).toBe(true);
 });
 
 test('makeBlankTemplate: unique blank- id, one empty day when asked for one', () => {

@@ -152,6 +152,8 @@ export interface Program {
   workouts: Workout[];
   isTemplate?: boolean; // Distinguishes between templates and user instances
   templateId?: string; // References the original template if this is a user instance
+  /** Set once the one-time reps-target backfill (spec D13) has run, so a target the user clears is never refilled. */
+  repsTargetsBackfilled?: boolean;
 }
 
 // New interface for user active programs

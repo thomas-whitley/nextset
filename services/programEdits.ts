@@ -94,7 +94,7 @@ export function reorderDays(program: Program, orderedIds: string[]): Program | n
 export function resetToTemplate(copy: Program, template: Program): Program {
   // A deep copy: the bundled templates are module constants and must never be shared by reference.
   const workouts = JSON.parse(JSON.stringify(template.workouts)) as Workout[];
-  return { ...template, workouts, id: copy.id, templateId: template.id, isTemplate: false };
+  return { ...template, workouts, id: copy.id, templateId: template.id, isTemplate: false, repsTargetsBackfilled: true };
 }
 
 /**

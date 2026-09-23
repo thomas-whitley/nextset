@@ -91,6 +91,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [exerciseBests, setExerciseBests] = useState<ExerciseBests>({});
   const [rest, dispatchRest] = useReducer(restReducer, IDLE_REST);
   const { user } = useAuth();
+  // Effects that load per-account data key on the id, not the object: AuthContext hands out a
+  // new user object on every auth event (the hourly TOKEN_REFRESHED too), and re-running them
+  // would reload the server copy over edits still waiting to sync (review I6).
+  const userId = user?.id ?? null;
 
   // Refs mirror state so async code (the debounced program sync, effects that
   // fire after further edits) never reads a stale render-closure value.
@@ -169,7 +173,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   // Restore the most recently used active program so Home can offer "Start"
   // straight after launch instead of forgetting the user's choice.
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       setIsLoadingProgram(false);
       return;
     }
@@ -177,7 +181,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setIsLoadingProgram(true);
     (async () => {
       try {
-        const active = await UserActiveProgramService.getMostRecentActiveProgram(user.id);
+        const active = await UserActiveProgramService.getMostRecentActiveProgram(userId);
         if (!cancelled && active) {
           adoptCopy(active);
         }
@@ -190,7 +194,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [userId]);
 
   const persistWorkoutCheckpoint = async (workout: Workout | null) => {
     if (!user) return;
@@ -220,10 +224,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   // Restore an in-progress workout that was checkpointed before the app was
   // backgrounded or killed, so logged sets aren't silently lost.
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(workoutCheckpointKey(user.id));
+        const stored = await AsyncStorage.getItem(workoutCheckpointKey(userId));
         if (stored) {
           const restored = JSON.parse(stored) as Workout;
           // A checkpoint from before startedAt existed (or one that otherwise
@@ -236,13 +240,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           currentWorkoutRef.current = repaired;
           setCurrentWorkout(repaired);
           setIsWorkoutActive(true);
-          void loadBests(user.id);
+          void loadBests(userId);
         }
       } catch (error) {
         console.error('Failed to restore in-progress workout:', error);
       }
     })();
-  }, [user]);
+  }, [userId]);
 
   const setCurrentProgram = async (program: Program) => {
     if (!user) {
@@ -311,7 +315,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     if (!user || !isBlankTemplateId(row.program_template_id)) return false;
     const isCurrent = row.id === currentActiveProgramRef.current?.id;
     if (isCurrent && programWorkoutRunningNow()) return false;
-    if (isCurrent) programSync.cancel(); // its pending edits go with it
+    // Settle first: a write for this row still pending or in flight could otherwise fail after the
+    // delete and be retried against whichever row becomes current next (review I3).
+    if (isCurrent) await settleBeforeSwitch();
     await UserActiveProgramService.deleteActiveProgram(row.id);
     if (!isCurrent) return true;
     currentActiveProgramRef.current = null;
@@ -632,7 +638,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   const finishWorkout = () => {
-    programSync.cancel(); // the finished workout is saved to history, not to the program
+    // Flush, never cancel: the queue can hold editor edits, a day reorder, a rename or a reset
+    // made before this workout (review I2). Mirroring the last set values too is harmless.
+    void programSync.flush();
     currentWorkoutRef.current = null;
     setCurrentWorkout(null);
     setIsWorkoutActive(false);

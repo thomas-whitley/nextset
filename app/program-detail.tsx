@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Plus, Lock } from 'lucide-react-native';
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { spacing, radius, type, touch } from '@/constants/theme';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -31,6 +31,8 @@ export default function ProgramDayEditorScreen() {
   const { currentProgram, currentActiveProgram, editDay, isDayLocked, flushProgramSync, hasPendingProgramWrite } = useWorkout();
   const [picking, setPicking] = useState(false);
   const leavingRef = useRef(false);
+  // Each row's "commit what is typed", keyed by exercise id (review I5).
+  const pendingCommits = useRef(new Map<string, () => void>());
 
   const day = currentProgram?.workouts.find((w) => w.id === dayId) ?? null;
   const running = day ? isDayLocked(day.id) : false;
@@ -45,6 +47,9 @@ export default function ProgramDayEditorScreen() {
         if (leavingRef.current) return;
         e.preventDefault();
         void (async () => {
+          // A reps value still being typed has not blurred yet: commit it first, so it is
+          // part of what gets flushed and of what "Not saved yet" reports on.
+          pendingCommits.current.forEach((commit) => commit());
           await flushProgramSync();
           if (hasPendingProgramWrite()) {
             Alert.alert('Not saved yet', 'Your changes have not reached NextSet. Check your connection and try again.', [
@@ -79,6 +84,12 @@ export default function ProgramDayEditorScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/*
+        No swipe-down on iOS: a native modal dismissal is not stopped by a
+        beforeRemove listener, so the sheet would vanish before the leave check
+        runs (review I4). The X and Android back both go through it.
+      */}
+      <Stack.Screen options={{ gestureEnabled: false }} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.square} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close">
           <X size={24} color={Colors.light.text} />
@@ -120,6 +131,10 @@ export default function ProgramDayEditorScreen() {
                   onRepsTarget={(t) => edit((d) => setRepsTarget(d, exercise.id, t), false)}
                   onRemove={() => confirmRemove(exercise.id, exercise.name)}
                   dragHandle={handle}
+                  registerCommit={(commit) => {
+                    if (commit) pendingCommits.current.set(exercise.id, commit);
+                    else pendingCommits.current.delete(exercise.id);
+                  }}
                 />
               )}
             />

@@ -36,9 +36,20 @@ describe('backfillRepsTargets', () => {
     const out = backfillRepsTargets(copy, [tmpl]);
     expect(out.workouts[0].exercises[0].repsTarget).toEqual({ min: 5, max: 5 });
   });
-  it('returns the same object when nothing changes', () => {
-    const copy: Program = { ...tmpl, id: 'c1', isTemplate: false, templateId: 't1' };
+  it('returns the same object once a copy has been backfilled', () => {
+    const copy: Program = { ...tmpl, id: 'c1', isTemplate: false, templateId: 't1', repsTargetsBackfilled: true };
     expect(backfillRepsTargets(copy, [tmpl])).toBe(copy);
+  });
+  it('marks a copy as backfilled the first time, even when nothing needed filling', () => {
+    const copy: Program = { ...tmpl, id: 'c1', isTemplate: false, templateId: 't1' };
+    const out = backfillRepsTargets(copy, [tmpl]);
+    expect(out.repsTargetsBackfilled).toBe(true);
+    expect(out.workouts).toEqual(copy.workouts);
+  });
+  it('never refills a target the user cleared after the first backfill (review I1)', () => {
+    const cleared: Program = { ...tmpl, id: 'c1', isTemplate: false, templateId: 't1', repsTargetsBackfilled: true,
+      workouts: [{ ...tmpl.workouts[0], exercises: [{ ...tmpl.workouts[0].exercises[0], repsTarget: undefined }] }] };
+    expect(backfillRepsTargets(cleared, [tmpl]).workouts[0].exercises[0].repsTarget).toBeUndefined();
   });
   it('leaves unknown exercises without a target', () => {
     const copy: Program = { ...tmpl, id: 'c1', isTemplate: false, templateId: 't1',
