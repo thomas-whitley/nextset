@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TrendingUp, Trophy, Target, Calendar, Zap, FileText } from 'lucide-react-native';
@@ -8,6 +8,12 @@ import Colors from '@/constants/Colors';
 import { spacing, radius, type, fonts, touch } from '@/constants/theme';
 import { WorkoutHistoryService, ProgressStats } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
+import { router, useFocusEffect } from 'expo-router';
+import HistoryRow from '@/components/HistoryRow';
+import { historyRow } from '@/services/historySummary';
+import type { WorkoutHistoryEntry } from '@/services/workoutHistoryService';
+
+const HISTORY_PAGE = 20;
 
 type TimeRange = '1W' | '1M' | '3M' | '6M' | '1Y';
 
@@ -58,6 +64,37 @@ export default function ProgressScreen() {
   const [workoutStreak, setWorkoutStreak] = useState({ currentStreak: 0, longestStreak: 0 });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+
+  // Not tied to the range control: history is every workout, newest first, 20 at a time.
+  const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+
+  const loadHistory = useCallback(
+    async (fromStart: boolean) => {
+      if (!user) return;
+      setHistoryLoading(true);
+      try {
+        const offset = fromStart ? 0 : history.length;
+        const page = await WorkoutHistoryService.getWorkoutHistory(user.id, HISTORY_PAGE, offset);
+        setHistory((prev) => (fromStart ? page : [...prev, ...page]));
+        setHasMoreHistory(page.length === HISTORY_PAGE);
+      } catch (error) {
+        console.error('Failed to load history:', error);
+      } finally {
+        setHistoryLoading(false);
+      }
+    },
+    [user, history.length]
+  );
+
+  // Reload on focus so a workout finished a moment ago is at the top.
+  useFocusEffect(
+    useCallback(() => {
+      void loadHistory(true);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user])
+  );
 
   useEffect(() => {
     loadProgressData();
@@ -289,6 +326,34 @@ export default function ProgressScreen() {
             ))}
           </View>
         )}
+
+        <View style={styles.historyCard}>
+          <Text style={[styles.chartTitle, styles.historyTitle]}>History</Text>
+          {history.length === 0 && !historyLoading ? (
+            <Text style={styles.historyEmpty}>Finished workouts show here.</Text>
+          ) : null}
+          {history.map((entry, i) => {
+            const r = historyRow(entry);
+            return (
+              <HistoryRow
+                key={r.id}
+                title={r.title}
+                completedAt={r.completedAt}
+                sets={r.sets}
+                volume={r.volume}
+                first={i === 0}
+                onPress={() => router.push({ pathname: '/workout-detail', params: { id: r.id } })}
+              />
+            );
+          })}
+          {historyLoading ? (
+            <ActivityIndicator color={Colors.light.primary} style={styles.historyLoader} />
+          ) : hasMoreHistory ? (
+            <TouchableOpacity style={styles.moreButton} onPress={() => void loadHistory(false)} accessibilityRole="button">
+              <Text style={styles.moreText}>Show older workouts</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {/* Workout Notes */}
         {progressStats?.workoutNotes && progressStats.workoutNotes.length > 0 && (
@@ -588,4 +653,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: spacing.xxxl,
   },
+  historyCard: { backgroundColor: Colors.light.card, borderRadius: radius.card, marginBottom: spacing.lg, paddingTop: spacing.lg, overflow: 'hidden', ...shadow },
+  historyTitle: { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  historyEmpty: { ...type.body, color: Colors.light.textTertiary, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+  historyLoader: { marginVertical: spacing.base },
+  moreButton: { minHeight: touch.min, justifyContent: 'center', alignItems: 'center', borderTopWidth: 1, borderTopColor: Colors.light.background },
+  moreText: { fontFamily: 'Archivo-SemiBold', fontSize: 16, color: Colors.light.primary },
 });

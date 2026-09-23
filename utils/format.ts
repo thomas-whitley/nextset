@@ -39,3 +39,9 @@ export const formatSet = (weight: string | number | undefined, reps: string | nu
   const kg = `${(Math.round(w * 10) / 10).toLocaleString('en-GB', { maximumFractionDigits: 1 })} kg`;
   return r ? `${kg} × ${r}` : kg;
 };
+
+/** `Tuesday 22 September`: history rows and the workout detail header. */
+export const formatDayDate = (iso: string | Date): string => {
+  const d = typeof iso === 'string' ? new Date(iso) : iso;
+  return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+};
