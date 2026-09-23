@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/Colors';
 import { spacing, touch, radius, type } from '@/constants/theme';
@@ -29,35 +29,32 @@ export default function RenameProgramSheet({ visible, initialName, onDismiss, on
   };
 
   return (
-    <DragDismissSheet visible={visible} onDismiss={onDismiss}>
-      {/* Inside the sheet, or the keyboard covers the field (the Tier 1 F7 lesson). */}
-      <KeyboardAvoidingView behavior="padding">
-        <View style={[styles.body, { paddingBottom: spacing.lg + insets.bottom }]}>
-          <Text style={styles.heading}>Rename program</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            autoFocus
-            maxLength={MAX_PROGRAM_NAME}
-            returnKeyType="done"
-            onSubmitEditing={save}
-            accessibilityLabel="Program name"
-          />
-          <TouchableOpacity
-            style={[styles.save, !usable && styles.disabled]}
-            disabled={!usable || saving}
-            onPress={save}
-            accessibilityRole="button"
-            accessibilityLabel="Save name"
-          >
-            <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save name'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancel} onPress={onDismiss} accessibilityRole="button">
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+    <DragDismissSheet visible={visible} onDismiss={onDismiss} avoidKeyboard>
+      <View style={[styles.body, { paddingBottom: spacing.lg + insets.bottom }]}>
+        <Text style={styles.heading}>Rename program</Text>
+        <TextInput
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+          autoFocus
+          maxLength={MAX_PROGRAM_NAME}
+          returnKeyType="done"
+          onSubmitEditing={save}
+          accessibilityLabel="Program name"
+        />
+        <TouchableOpacity
+          style={[styles.save, !usable && styles.disabled]}
+          disabled={!usable || saving}
+          onPress={save}
+          accessibilityRole="button"
+          accessibilityLabel="Save name"
+        >
+          <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save name'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancel} onPress={onDismiss} accessibilityRole="button">
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
     </DragDismissSheet>
   );
 }

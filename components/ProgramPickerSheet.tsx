@@ -81,7 +81,8 @@ export default function ProgramPickerSheet({ visible, onDismiss, onBlankCreated 
 
   return (
     <DragDismissSheet visible={visible} onDismiss={onDismiss}>
-      <View style={{ height: height * 0.9 }}>
+      {/* Stops below the status bar, like the How-to sheet (redesign R6, device run T2-14). */}
+      <View style={{ height: Math.min(height * 0.9, height - insets.top - insets.bottom - spacing.xxl - 48) }}>
         <View style={styles.header}>
           <Text style={styles.title}>Choose a program</Text>
           <TouchableOpacity style={styles.close} onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close">

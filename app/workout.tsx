@@ -667,95 +667,93 @@ export default function WorkoutScreen() {
       )}
 
       {/* Finish sheet */}
-      <DragDismissSheet visible={showMetadataModal} onDismiss={() => setShowMetadataModal(false)}>
-        <KeyboardAvoidingView behavior="padding">
-          <View style={styles.sheetBody}>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Finish workout</Text>
-              <TouchableOpacity style={styles.headerIcon} onPress={() => setShowMetadataModal(false)} accessibilityRole="button" accessibilityLabel="Back to workout">
-                <X size={22} color={Colors.light.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.statTiles}>
-              <View style={styles.statTile}>
-                <Text style={styles.statTileValue}>{completedSetCount}</Text>
-                <Text style={styles.statTileLabel}>{completedSetCount === 1 ? 'set done' : 'sets done'}</Text>
-              </View>
-              <View style={styles.statTile}>
-                <Text style={styles.statTileValue}>{formatKg(sessionVolume)}</Text>
-                <Text style={styles.statTileLabel}>lifted in {formatMinutes(Math.max(1, Math.round(workoutDuration / 60)))}</Text>
-              </View>
-            </View>
-
-            {(() => {
-              // Summarise visibleExercises, not currentWorkout: an exercise
-              // mid-swipe inside its undo window must not appear in the
-              // recap (item 9) — it matches sessionVolume/completedSetCount
-              // above, which already exclude it.
-              const { lines, prs } = summariseWorkout({ ...currentWorkout, exercises: visibleExercises });
-              return (
-                <>
-                  {prs.length > 0 && (
-                    <View style={styles.prBlock}>
-                      <Text style={styles.sheetLabel}>Personal records</Text>
-                      {prs.map((p) => (
-                        <View key={p.id} style={styles.prLineRow}>
-                          <Trophy size={16} color={Colors.light.accent} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.prName}>{p.name}</Text>
-                            {p.kind === 'weight' || p.kind === 'e1rm' ? (
-                              <Text style={styles.prQualifier}>{p.kind === 'weight' ? '(heaviest)' : '(best est. 1RM)'}</Text>
-                            ) : null}
-                          </View>
-                          <Text style={styles.prValue}>{p.weight} × {p.reps}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                  {lines.map((l) => (
-                    <View key={l.id} style={styles.recapRow}>
-                      <View style={styles.recapRowTop}>
-                        <Text style={styles.recapName}>{l.name}</Text>
-                        <Text style={styles.recapSets}>{l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'}</Text>
-                      </View>
-                      <Text style={styles.recapDetail}>{l.detail}</Text>
-                    </View>
-                  ))}
-                </>
-              );
-            })()}
-
-            <Text style={styles.sheetLabel}>Notes (optional)</Text>
-            <TextInput
-              style={[styles.sheetInput, styles.sheetNotes]}
-              value={metadata.notes}
-              onChangeText={(v) => setMetadata((prev) => ({ ...prev, notes: v }))}
-              placeholder="How did it go?"
-              placeholderTextColor={Colors.light.textTertiary}
-              multiline
-              accessibilityLabel="Workout notes"
-            />
-
-            <TouchableOpacity
-              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-              onPress={saveWorkout}
-              disabled={saving}
-              accessibilityRole="button"
-              accessibilityLabel="Save workout"
-            >
-              <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Save workout'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.backToWorkoutButton}
-              onPress={() => setShowMetadataModal(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Back to workout"
-            >
-              <Text style={styles.backToWorkoutText}>Back to workout</Text>
+      <DragDismissSheet visible={showMetadataModal} onDismiss={() => setShowMetadataModal(false)} avoidKeyboard>
+        <View style={styles.sheetBody}>
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Finish workout</Text>
+            <TouchableOpacity style={styles.headerIcon} onPress={() => setShowMetadataModal(false)} accessibilityRole="button" accessibilityLabel="Back to workout">
+              <X size={22} color={Colors.light.text} />
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+
+          <View style={styles.statTiles}>
+            <View style={styles.statTile}>
+              <Text style={styles.statTileValue}>{completedSetCount}</Text>
+              <Text style={styles.statTileLabel}>{completedSetCount === 1 ? 'set done' : 'sets done'}</Text>
+            </View>
+            <View style={styles.statTile}>
+              <Text style={styles.statTileValue}>{formatKg(sessionVolume)}</Text>
+              <Text style={styles.statTileLabel}>lifted in {formatMinutes(Math.max(1, Math.round(workoutDuration / 60)))}</Text>
+            </View>
+          </View>
+
+          {(() => {
+            // Summarise visibleExercises, not currentWorkout: an exercise
+            // mid-swipe inside its undo window must not appear in the
+            // recap (item 9) — it matches sessionVolume/completedSetCount
+            // above, which already exclude it.
+            const { lines, prs } = summariseWorkout({ ...currentWorkout, exercises: visibleExercises });
+            return (
+              <>
+                {prs.length > 0 && (
+                  <View style={styles.prBlock}>
+                    <Text style={styles.sheetLabel}>Personal records</Text>
+                    {prs.map((p) => (
+                      <View key={p.id} style={styles.prLineRow}>
+                        <Trophy size={16} color={Colors.light.accent} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.prName}>{p.name}</Text>
+                          {p.kind === 'weight' || p.kind === 'e1rm' ? (
+                            <Text style={styles.prQualifier}>{p.kind === 'weight' ? '(heaviest)' : '(best est. 1RM)'}</Text>
+                          ) : null}
+                        </View>
+                        <Text style={styles.prValue}>{p.weight} × {p.reps}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {lines.map((l) => (
+                  <View key={l.id} style={styles.recapRow}>
+                    <View style={styles.recapRowTop}>
+                      <Text style={styles.recapName}>{l.name}</Text>
+                      <Text style={styles.recapSets}>{l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'}</Text>
+                    </View>
+                    <Text style={styles.recapDetail}>{l.detail}</Text>
+                  </View>
+                ))}
+              </>
+            );
+          })()}
+
+          <Text style={styles.sheetLabel}>Notes (optional)</Text>
+          <TextInput
+            style={[styles.sheetInput, styles.sheetNotes]}
+            value={metadata.notes}
+            onChangeText={(v) => setMetadata((prev) => ({ ...prev, notes: v }))}
+            placeholder="How did it go?"
+            placeholderTextColor={Colors.light.textTertiary}
+            multiline
+            accessibilityLabel="Workout notes"
+          />
+
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={saveWorkout}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel="Save workout"
+          >
+            <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Save workout'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backToWorkoutButton}
+            onPress={() => setShowMetadataModal(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Back to workout"
+          >
+            <Text style={styles.backToWorkoutText}>Back to workout</Text>
+          </TouchableOpacity>
+        </View>
       </DragDismissSheet>
 
       {/* Exercise Selection sheet */}
