@@ -211,6 +211,23 @@ describe('bests and replaceExercise', () => {
     expect(ex.sets[0].isComplete).toBe(false);
   });
 
+  it('an exercise added mid-workout gets its last-time hints (device run T2-10)', async () => {
+    const { WorkoutHistoryService } = require('../../services/workoutHistoryService');
+    (WorkoutHistoryService.getLastPerformance as jest.Mock).mockImplementation(async (_u: string, names: string[]) =>
+      names.includes('Barbell Back Squat') ? { 'Barbell Back Squat': [{ weight: '60', reps: '8' }] } : {}
+    );
+    const { result } = await setup();
+    await act(() => { result.current.startQuickWorkout(); });
+    const id = result.current.currentWorkout!.id;
+    await act(async () => {
+      await result.current.addExerciseToWorkout(id, { id: 3, name: 'Barbell Back Squat' } as any);
+    });
+    const added = result.current.currentWorkout!.exercises.find((e) => e.name === 'Barbell Back Squat')!;
+    expect(added.sets[0].previousWeight).toBe('60');
+    expect(added.sets[0].previousReps).toBe('8');
+    (WorkoutHistoryService.getLastPerformance as jest.Mock).mockResolvedValue({});
+  });
+
   it('backfills repsTarget on the active program from the template', async () => {
     const { result } = await setup();
     // program fixture has no repsTarget; test template 't1' is not in programTemplates, so nothing changes
@@ -562,23 +579,99 @@ describe('program copies', () => {
     expect(result.current.currentProgram!.name).toBe('Push / Pull / Legs');
   });
 
-  test('delete: blanks only; deleting the current one falls back to the most recent copy (grill R2-Q4)', async () => {
+  test('delete: any copy that is not current; the current one only if blank, then falls back (T2-11, grill R2-Q4)', async () => {
     const rows = fakeDb();
     const { result } = await setupEmpty();
     await act(async () => { await result.current.setCurrentProgram(ppl); });
     const pplRow = result.current.currentActiveProgram!;
     let ok = true;
     await act(async () => { ok = await result.current.deleteProgramCopy(pplRow); });
-    expect(ok).toBe(false);
+    expect(ok).toBe(false); // current template copy: refused
     expect(rows.has(pplRow.id)).toBe(true);
 
     await act(async () => { await result.current.createBlankProgram(1); });
     const blank = result.current.currentActiveProgram!;
-    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mockResolvedValue(rows.get(pplRow.id)!);
-    await act(async () => { ok = await result.current.deleteProgramCopy(blank); });
-    expect(ok).toBe(true);
+    await act(async () => { ok = await result.current.deleteProgramCopy(rows.get(pplRow.id)!); });
+    expect(ok).toBe(true); // not current any more: allowed
+    expect(rows.has(pplRow.id)).toBe(false);
+    expect(result.current.currentActiveProgram!.id).toBe(blank.id);
+
+    await act(async () => { await result.current.setCurrentProgram(ul); });
+    const ulRow = result.current.currentActiveProgram!;
+    await act(async () => { await result.current.selectProgramCopy(rows.get(blank.id)!); }); // blank current again
+    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mockResolvedValue(rows.get(ulRow.id)!);
+    await act(async () => { ok = await result.current.deleteProgramCopy(rows.get(blank.id)!); });
+    expect(ok).toBe(true); // current blank: allowed, falls back
     expect(rows.has(blank.id)).toBe(false);
-    expect(result.current.currentProgram!.name).toBe('Push / Pull / Legs');
+    expect(result.current.currentActiveProgram!.id).toBe(ulRow.id);
+  });
+
+  test('a reset that cannot be written is undone and never written later (M7, Review Focus 4)', async () => {
+    fakeDb();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    const firstId = pullDay(result.current.currentProgram).exercises[0].id;
+    await act(async () => {
+      result.current.editDay('ppl-pull', (d) => removeExercise(d, firstId), true);
+      await result.current.flushProgramSync();
+    });
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    let ok = true;
+    await act(async () => { ok = await result.current.resetProgramToTemplate(); });
+    expect(ok).toBe(false);
+    expect(pullDay(result.current.currentProgram).exercises).toHaveLength(4);
+    expect(result.current.hasPendingProgramWrite()).toBe(false);
+
+    // Back online, a later edit must not carry the reset with it.
+    const pushId = result.current.currentProgram!.workouts[0].id;
+    const exId = result.current.currentProgram!.workouts[0].exercises[0].id;
+    await act(async () => {
+      result.current.editDay(pushId, (d) => setSetCount(d, exId, 5), true);
+      await result.current.flushProgramSync();
+    });
+    const calls = (UserActiveProgramService.updateActiveProgram as jest.Mock).mock.calls;
+    expect(pullDay(calls[calls.length - 1][1] as Program).exercises).toHaveLength(4);
+  });
+
+  test('a rename that cannot be written is undone (M7)', async () => {
+    fakeDb();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.createBlankProgram(1); });
+    const before = result.current.currentProgram!.name;
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    let ok = true;
+    await act(async () => { ok = await result.current.renameCurrentProgram('Arms'); });
+    expect(ok).toBe(false);
+    expect(result.current.currentProgram!.name).toBe(before);
+    expect(result.current.hasPendingProgramWrite()).toBe(false);
+  });
+
+  test('a failed restore is reported, not shown as a first run, and can be retried (M13)', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(active);
+    const { result } = await setupEmpty();
+    expect(result.current.programLoadFailed).toBe(true);
+    expect(result.current.currentProgram).toBeNull();
+    await act(async () => {
+      result.current.retryProgramLoad();
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+    expect(result.current.programLoadFailed).toBe(false);
+    expect(result.current.currentProgram?.name).toBe('Test');
+  });
+
+  test('picking a program after a failed restore clears "did not load" (final review I1)', async () => {
+    fakeDb();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    const { result } = await setupEmpty();
+    expect(result.current.programLoadFailed).toBe(true);
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    expect(result.current.programLoadFailed).toBe(false);
   });
 
   test('deleting the current blank is refused while its edits cannot be written (review I3)', async () => {
@@ -637,5 +730,68 @@ describe('review fixes', () => {
     } finally {
       mockAuthValue.user = original;
     }
+  });
+});
+
+describe('discard (device run T2-3)', () => {
+  const ticks = async () => {
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+  };
+  const lastWritten = () => {
+    const calls = (UserActiveProgramService.updateActiveProgram as jest.Mock).mock.calls;
+    return calls[calls.length - 1][1] as Program;
+  };
+
+  test('discarding puts the day back as it was at Start', async () => {
+    const { result } = await setup();
+    await act(async () => { await result.current.updateSet('e1', 's1', 'weight', '40'); });
+    await act(async () => { await result.current.completeSet('e1', 's1'); });
+    expect(lastWritten().workouts[0].exercises[0].sets[0].weight).toBe('40');
+    await act(async () => { result.current.discardWorkout(); await ticks(); });
+    expect(result.current.currentWorkout).toBeNull();
+    expect(result.current.currentProgram!.workouts[0].exercises[0].sets[0].weight).toBe('');
+    expect(lastWritten().workouts[0].exercises[0].sets[0].weight).toBe('');
+  });
+
+  test('the restore point is kept in the checkpoint but never reaches program_data', async () => {
+    const { result } = await setup();
+    await act(async () => { await result.current.completeSet('e1', 's1'); });
+    expect('discardRestore' in lastWritten().workouts[0]).toBe(false);
+    const stored = JSON.parse((await AsyncStorage.getItem('momentum:in_progress_workout:user-1'))!) as Workout;
+    expect(stored.discardRestore?.id).toBe('w1');
+  });
+
+  test('a restored checkpoint can still be discarded back to its Start (Review Focus 2)', async () => {
+    const started: Workout = {
+      ...workout,
+      startedAt: 1,
+      exercises: [{ ...workout.exercises[0], sets: [{ id: 's1', weight: '40', reps: '5', isComplete: true }] }],
+      discardRestore: workout,
+    };
+    await AsyncStorage.setItem('momentum:in_progress_workout:user-1', JSON.stringify(started));
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await ticks(); });
+    expect(hook.result.current.currentWorkout?.id).toBe('w1');
+    await act(async () => { hook.result.current.discardWorkout(); await ticks(); });
+    expect(hook.result.current.currentWorkout).toBeNull();
+    expect(lastWritten().workouts[0].exercises[0].sets[0].weight).toBe('');
+  });
+
+  test('a checkpoint from before this change discards without a restore point (Review Focus 3)', async () => {
+    const old: Workout = { ...workout, startedAt: 1 }; // no discardRestore
+    await AsyncStorage.setItem('momentum:in_progress_workout:user-1', JSON.stringify(old));
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await ticks(); });
+    await act(async () => { hook.result.current.discardWorkout(); await ticks(); });
+    expect(hook.result.current.currentWorkout).toBeNull();
+  });
+
+  test('a quick workout discards without touching the program', async () => {
+    const { result } = await setup();
+    await act(async () => { result.current.discardWorkout(); await ticks(); });
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockClear();
+    await act(() => { result.current.startQuickWorkout(); });
+    await act(async () => { result.current.discardWorkout(); await ticks(); });
+    expect(UserActiveProgramService.updateActiveProgram).not.toHaveBeenCalled();
   });
 });

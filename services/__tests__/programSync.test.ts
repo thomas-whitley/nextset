@@ -104,3 +104,52 @@ test('cancel clears hasPending', () => {
   sync.cancel();
   expect(sync.hasPending()).toBe(false);
 });
+
+test('a failed flushed write is not retried on its own (device run T2-2)', async () => {
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+  const write = jest.fn().mockRejectedValue(new Error('offline'));
+  const sync = createProgramSync(write, 800);
+  sync.schedule(program('a'));
+  await sync.flush();
+  for (let i = 0; i < 10; i++) {
+    jest.advanceTimersByTime(1000);
+    await Promise.resolve();
+  }
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(sync.hasPending()).toBe(true);
+});
+
+test('a failed timer write is not retried on its own either (device run T2-2)', async () => {
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+  const write = jest.fn().mockRejectedValue(new Error('offline'));
+  const sync = createProgramSync(write, 800);
+  sync.schedule(program('a'));
+  jest.advanceTimersByTime(800);
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  for (let i = 0; i < 10; i++) {
+    jest.advanceTimersByTime(1000);
+    await Promise.resolve();
+  }
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(sync.hasPending()).toBe(true);
+});
+
+test('every flush resolves only after a write scheduled while it waited has landed (review M8)', async () => {
+  let resolveFirst: () => void = () => {};
+  const write = jest
+    .fn()
+    .mockImplementationOnce(() => new Promise<void>((r) => { resolveFirst = r; }))
+    .mockResolvedValue(undefined);
+  const sync = createProgramSync(write, 800);
+  sync.schedule(program('a'));
+  const first = sync.flush(); // writes a
+  const second = sync.flush(); // waits on a
+  sync.schedule(program('b')); // arrives mid-flight
+  resolveFirst();
+  await first;
+  expect(sync.hasPending()).toBe(false);
+  await second;
+  expect(sync.hasPending()).toBe(false);
+  expect(write).toHaveBeenCalledTimes(2);
+  expect(write.mock.calls[1][0].name).toBe('b');
+});

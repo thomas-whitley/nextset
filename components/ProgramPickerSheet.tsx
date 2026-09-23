@@ -60,28 +60,35 @@ export default function ProgramPickerSheet({ visible, onDismiss, onBlankCreated 
     }
   };
 
-  const confirmDelete = (row: UserActiveProgram) =>
-    Alert.alert(`Delete ${row.program_data.name}?`, 'The program and its days are removed. Workouts you logged with it stay in your history.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            if (!(await deleteProgramCopy(row))) Alert.alert('Finish your workout first', 'This program has a workout running.');
-            await load();
-          } catch {
-            Alert.alert('Could not delete', 'Check your connection and try again.');
-          }
+  const confirmDelete = (row: UserActiveProgram, blank: boolean) =>
+    Alert.alert(
+      blank ? `Delete ${row.program_data.name}?` : `Delete your copy of ${row.program_data.name}?`,
+      blank
+        ? 'The program and its days are removed. Workouts you logged with it stay in your history.'
+        : 'Your changes to it are removed, and it goes back to Start something new. Workouts you logged stay in your history.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (!(await deleteProgramCopy(row))) Alert.alert('Finish your workout first', 'This program has a workout running.');
+              await load();
+            } catch {
+              Alert.alert('Could not delete', 'Check your connection and try again.');
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
 
   const choices = copies ? buildProgramChoices(programs, copies, currentActiveProgram?.id ?? null) : null;
 
   return (
     <DragDismissSheet visible={visible} onDismiss={onDismiss}>
-      <View style={{ height: height * 0.9 }}>
+      {/* Stops below the status bar, like the How-to sheet (redesign R6, device run T2-14). */}
+      <View style={{ height: Math.min(height * 0.9, height - insets.top - insets.bottom - spacing.xxl - 48) }}>
         <View style={styles.header}>
           <Text style={styles.title}>Choose a program</Text>
           <TouchableOpacity style={styles.close} onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close">
@@ -132,8 +139,9 @@ export default function ProgramPickerSheet({ visible, onDismiss, onBlankCreated 
                             <Check size={22} color={Colors.light.success} strokeWidth={3} />
                           ) : null}
                         </TouchableOpacity>
-                        {c.blank ? (
-                          <TouchableOpacity style={styles.more} onPress={() => confirmDelete(c.row)} accessibilityRole="button" accessibilityLabel={`Delete ${c.name}`}>
+                        {/* Any copy but the active one; that one is deleted from the slab (review M10). */}
+                        {!c.active ? (
+                          <TouchableOpacity style={styles.more} onPress={() => confirmDelete(c.row, c.blank)} accessibilityRole="button" accessibilityLabel={`Delete ${c.name}`}>
                             <Trash2 size={22} color={Colors.light.textTertiary} />
                           </TouchableOpacity>
                         ) : (
@@ -214,7 +222,7 @@ const styles = StyleSheet.create({
   list: { backgroundColor: Colors.light.card, borderRadius: radius.card, borderWidth: 1, borderColor: Colors.light.border },
   item: { flexDirection: 'row', alignItems: 'center' },
   itemDivider: { borderTopWidth: 1, borderTopColor: Colors.light.background },
-  pick: { flex: 1, minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingLeft: spacing.base, paddingRight: spacing.sm },
+  pick: { flex: 1, minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingLeft: spacing.base, paddingRight: spacing.sm, paddingVertical: spacing.sm },
   freshPick: { paddingRight: spacing.base },
   pickText: { flex: 1, gap: 2 },
   name: { fontFamily: 'ArchivoNarrow-Bold', fontSize: 20, color: Colors.light.text },
@@ -231,6 +239,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
   },
   blankIcon: { width: 40, height: 40, borderRadius: radius.card, backgroundColor: Colors.light.primaryLight, justifyContent: 'center', alignItems: 'center' },
 });

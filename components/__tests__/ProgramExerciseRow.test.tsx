@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import ProgramExerciseRow from '../ProgramExerciseRow';
 
@@ -64,4 +65,12 @@ test('locked: the plan as text, no controls', async () => {
   expect(screen.getByText('2 sets × 6 reps')).toBeTruthy();
   expect(screen.queryByLabelText('Remove Barbell Bench Press')).toBeNull();
   expect(screen.queryByLabelText('Reps target for Barbell Bench Press')).toBeNull();
+});
+
+test('empty reps shows the word "reps", centred like the set inputs (device run T2-8, T2-9)', async () => {
+  await render(<ProgramExerciseRow {...props({ exercise: { ...exercise, repsTarget: undefined } })} />);
+  expect(field().props.placeholder).toBe('reps');
+  const style = StyleSheet.flatten(field().props.style);
+  expect(style.textAlignVertical).toBe('center');
+  expect(style.paddingVertical).toBe(0);
 });

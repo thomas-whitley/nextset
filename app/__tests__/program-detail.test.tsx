@@ -117,3 +117,68 @@ test('a reps value typed but not yet committed is saved before the leave check f
   expect(mockCtx.editDay.mock.invocationCallOrder[0]).toBeLessThan(mockCtx.flushProgramSync.mock.invocationCallOrder[0]);
   expect(mockNav.dispatch).toHaveBeenCalledWith('GO_BACK');
 });
+
+type AlertButton = { text: string; onPress?: () => void };
+const button = (call: unknown[], text: string) => (call[2] as AlertButton[]).find((b) => b.text === text)!;
+
+test('Try again re-runs the check and stays while still unsaved (device run T2-1)', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  mockCtx.hasPendingProgramWrite.mockReturnValue(true);
+  await render(<ProgramDayEditorScreen />);
+  const event = { preventDefault: jest.fn(), data: { action: 'GO_BACK' } };
+  await act(async () => {
+    mockListeners.beforeRemove(event);
+    await settle();
+  });
+  await act(async () => {
+    button(alert.mock.calls[0], 'Try again').onPress!();
+    await settle();
+  });
+  expect(mockCtx.flushProgramSync).toHaveBeenCalledTimes(2);
+  expect(alert).toHaveBeenCalledTimes(2);
+  expect(mockNav.dispatch).not.toHaveBeenCalled();
+
+  mockCtx.hasPendingProgramWrite.mockReturnValue(false); // back online
+  await act(async () => {
+    button(alert.mock.calls[1], 'Try again').onPress!();
+    await settle();
+  });
+  expect(mockCtx.flushProgramSync).toHaveBeenCalledTimes(3);
+  expect(mockNav.dispatch).toHaveBeenCalledTimes(1);
+  expect(mockNav.dispatch).toHaveBeenCalledWith('GO_BACK');
+});
+
+test('a second X while the first check is running does not leave twice (review M9)', async () => {
+  let release: () => void = () => {};
+  mockCtx.flushProgramSync.mockImplementationOnce(() => new Promise<void>((r) => { release = r; }));
+  await render(<ProgramDayEditorScreen />);
+  const first = { preventDefault: jest.fn(), data: { action: 'GO_BACK' } };
+  const second = { preventDefault: jest.fn(), data: { action: 'GO_BACK' } };
+  await act(async () => {
+    mockListeners.beforeRemove(first);
+    mockListeners.beforeRemove(second);
+    await settle();
+  });
+  expect(second.preventDefault).toHaveBeenCalled();
+  await act(async () => {
+    release();
+    await settle();
+  });
+  expect(mockCtx.flushProgramSync).toHaveBeenCalledTimes(1);
+  expect(mockNav.dispatch).toHaveBeenCalledTimes(1);
+});
+
+test('the leave listener is added once, not on every render (review M9)', async () => {
+  await render(<ProgramDayEditorScreen />);
+  await fireEvent.press(screen.getByLabelText('More sets for Barbell Deadlift')); // any re-render
+  await screen.rerender(<ProgramDayEditorScreen />);
+  expect(mockNav.addListener.mock.calls.filter((c) => c[0] === 'beforeRemove')).toHaveLength(1);
+});
+
+test('the list lifts above the keyboard and a drag closes it (device run T2-4)', async () => {
+  await render(<ProgramDayEditorScreen />);
+  expect(screen.getByTestId('day-editor-keyboard')).toBeTruthy();
+  const scroll = screen.getByTestId('day-editor-scroll');
+  expect(scroll.props.keyboardDismissMode).toBe('on-drag');
+  expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
+});

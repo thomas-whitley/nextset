@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   heading: { fontFamily: 'ArchivoNarrow-Bold', fontSize: 24, color: Colors.light.text, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   row: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.base, paddingHorizontal: spacing.lg, borderTopWidth: 1, borderTopColor: Colors.light.background },
   title: { fontFamily: 'Archivo-Medium', fontSize: 17, color: Colors.light.text },
-  sub: { fontFamily: 'Archivo-Regular', fontSize: 14, color: Colors.light.textSecondary, marginTop: 2 },
+  sub: { fontFamily: 'Archivo-Regular', fontSize: 15, color: Colors.light.textSecondary, marginTop: 2 },
   cancel: { height: touch.row, marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: Colors.light.border, justifyContent: 'center', alignItems: 'center' },
   cancelText: { fontFamily: 'Archivo-SemiBold', fontSize: 17, color: Colors.light.text },
 });

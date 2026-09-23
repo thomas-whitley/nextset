@@ -1,4 +1,4 @@
-import { historyRow, loggedExercises } from '../historySummary';
+import { historyRow, loggedExercises, historyWindow, lastWorkoutTitle, forHistory } from '../historySummary';
 
 const saved = {
   id: 'h1',
@@ -36,4 +36,35 @@ test('loggedExercises keeps logged sets, numbered in order, and drops empty exer
     ] },
   ]);
   expect(loggedExercises(null)).toEqual([]);
+});
+
+describe('historyWindow (review M12)', () => {
+  test('a refresh reloads everything already shown, never less than a page', () => {
+    expect(historyWindow(0, true, 20)).toEqual({ offset: 0, limit: 20 });
+    expect(historyWindow(60, true, 20)).toEqual({ offset: 0, limit: 60 });
+  });
+  test('"more" continues after what is loaded', () => {
+    expect(historyWindow(40, false, 20)).toEqual({ offset: 40, limit: 20 });
+  });
+});
+
+describe('lastWorkoutTitle (device run T2-13)', () => {
+  test('a quick workout is not dated twice', () => {
+    expect(lastWorkoutTitle({ name: 'Quick workout 23 Sept', isQuick: true })).toBe('Quick workout');
+  });
+  test('a program day keeps its name; nothing saved falls back', () => {
+    expect(lastWorkoutTitle({ name: 'Push' })).toBe('Push');
+    expect(lastWorkoutTitle(null)).toBe('Last workout');
+  });
+});
+
+describe('forHistory (final review I2)', () => {
+  test('a saved workout carries no session-only copies', () => {
+    const day = { id: 'w1', name: 'Push', description: '', order: 0, exercises: [] };
+    const saved = forHistory({ ...day, startedAt: 5, collapsedExerciseIds: ['e1'], discardRestore: day });
+    expect('discardRestore' in saved).toBe(false);
+    expect('collapsedExerciseIds' in saved).toBe(false);
+    expect(saved.startedAt).toBe(5);
+    expect(saved.name).toBe('Push');
+  });
 });

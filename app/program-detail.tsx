@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Plus, Lock } from 'lucide-react-native';
 import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -31,8 +31,15 @@ export default function ProgramDayEditorScreen() {
   const { currentProgram, currentActiveProgram, editDay, isDayLocked, flushProgramSync, hasPendingProgramWrite } = useWorkout();
   const [picking, setPicking] = useState(false);
   const leavingRef = useRef(false);
+  // A leave check is running: a second X or back tap waits for it (review M9).
+  const checkingRef = useRef(false);
   // Each row's "commit what is typed", keyed by exercise id (review I5).
   const pendingCommits = useRef(new Map<string, () => void>());
+  // Latest context functions, so the listener below is added once (review M9).
+  const flushRef = useRef(flushProgramSync);
+  flushRef.current = flushProgramSync;
+  const hasPendingRef = useRef(hasPendingProgramWrite);
+  hasPendingRef.current = hasPendingProgramWrite;
 
   const day = currentProgram?.workouts.find((w) => w.id === dayId) ?? null;
   const running = day ? isDayLocked(day.id) : false;
@@ -41,29 +48,37 @@ export default function ProgramDayEditorScreen() {
   // Every way out (the X, Android back, the iOS swipe-down) passes through
   // here: write what is pending, and stay put if it could not be written.
   // The editor has no local checkpoint to fall back on (grill R2-Q2).
-  useEffect(
-    () =>
-      navigation.addListener('beforeRemove', (e) => {
-        if (leavingRef.current) return;
-        e.preventDefault();
-        void (async () => {
-          // A reps value still being typed has not blurred yet: commit it first, so it is
-          // part of what gets flushed and of what "Not saved yet" reports on.
-          pendingCommits.current.forEach((commit) => commit());
-          await flushProgramSync();
-          if (hasPendingProgramWrite()) {
-            Alert.alert('Not saved yet', 'Your changes have not reached NextSet. Check your connection and try again.', [
-              { text: 'Keep editing', style: 'cancel' },
-              { text: 'Try again', onPress: () => navigation.dispatch(e.data.action) },
-            ]);
-            return;
-          }
-          leavingRef.current = true;
-          navigation.dispatch(e.data.action);
-        })();
-      }),
-    [navigation, flushProgramSync, hasPendingProgramWrite]
-  );
+  useEffect(() => {
+    // Try again runs this again instead of re-dispatching the action: expo-router
+    // marks an action it has already shown to beforeRemove, so a replay skips
+    // this listener and closes the editor unsaved (device run T2-1).
+    const attemptLeave = async (action: unknown) => {
+      if (checkingRef.current) return;
+      checkingRef.current = true;
+      try {
+        // A reps value still being typed has not blurred yet: commit it first, so it is
+        // part of what gets flushed and of what "Not saved yet" reports on.
+        pendingCommits.current.forEach((commit) => commit());
+        await flushRef.current();
+        if (hasPendingRef.current()) {
+          Alert.alert('Not saved yet', 'Your changes have not reached NextSet. Check your connection and try again.', [
+            { text: 'Keep editing', style: 'cancel' },
+            { text: 'Try again', onPress: () => void attemptLeave(action) },
+          ]);
+          return;
+        }
+        leavingRef.current = true;
+        navigation.dispatch(action);
+      } finally {
+        checkingRef.current = false;
+      }
+    };
+    return navigation.addListener('beforeRemove', (e) => {
+      if (leavingRef.current) return;
+      e.preventDefault();
+      void attemptLeave(e.data.action);
+    });
+  }, [navigation]);
 
   const edit = (fn: (d: Workout) => Workout | null, immediate: boolean) => {
     if (day) editDay(day.id, fn, immediate);
@@ -100,59 +115,67 @@ export default function ProgramDayEditorScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}>
-        {!day ? (
-          <Text style={styles.note}>This day is no longer in your program.</Text>
-        ) : (
-          <>
-            {!currentActiveProgram ? (
-              <Text style={styles.note}>Your copy of this program did not load. Check your connection and open it again.</Text>
-            ) : running ? (
-              <View style={styles.lockedNote}>
-                <Lock size={20} color={Colors.light.text} />
-                <Text style={styles.lockedText}>You are doing this workout now. Finish it to edit this day.</Text>
-              </View>
-            ) : null}
+      {/* Lifts the list so a focused reps field stays above the keyboard (device run T2-4). */}
+      <KeyboardAvoidingView testID="day-editor-keyboard" style={styles.flex} behavior="padding">
+        <ScrollView
+          testID="day-editor-scroll"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
+        >
+          {!day ? (
+            <Text style={styles.note}>This day is no longer in your program.</Text>
+          ) : (
+            <>
+              {!currentActiveProgram ? (
+                <Text style={styles.note}>Your copy of this program did not load. Check your connection and open it again.</Text>
+              ) : running ? (
+                <View style={styles.lockedNote}>
+                  <Lock size={20} color={Colors.light.text} />
+                  <Text style={styles.lockedText}>You are doing this workout now. Finish it to edit this day.</Text>
+                </View>
+              ) : null}
 
-            {exercises.length === 0 ? <Text style={styles.note}>No exercises yet. Add the first one below.</Text> : null}
+              {exercises.length === 0 ? <Text style={styles.note}>No exercises yet. Add the first one below.</Text> : null}
 
-            <DraggableList
-              items={exercises}
-              keyExtractor={(e) => e.id}
-              gap={spacing.md}
-              handleOnly
-              enabled={!locked && exercises.length > 1}
-              onReorder={(ids) => edit((d) => reorderExercises(d, ids), true)}
-              renderItem={(exercise, _index, _isActive, handle) => (
-                <ProgramExerciseRow
-                  exercise={exercise}
-                  locked={locked}
-                  onSetCount={(n) => edit((d) => setSetCount(d, exercise.id, n), false)}
-                  onRepsTarget={(t) => edit((d) => setRepsTarget(d, exercise.id, t), false)}
-                  onRemove={() => confirmRemove(exercise.id, exercise.name)}
-                  dragHandle={handle}
-                  registerCommit={(commit) => {
-                    if (commit) pendingCommits.current.set(exercise.id, commit);
-                    else pendingCommits.current.delete(exercise.id);
-                  }}
-                />
-              )}
-            />
+              <DraggableList
+                items={exercises}
+                keyExtractor={(e) => e.id}
+                gap={spacing.md}
+                handleOnly
+                enabled={!locked && exercises.length > 1}
+                onReorder={(ids) => edit((d) => reorderExercises(d, ids), true)}
+                renderItem={(exercise, _index, _isActive, handle) => (
+                  <ProgramExerciseRow
+                    exercise={exercise}
+                    locked={locked}
+                    onSetCount={(n) => edit((d) => setSetCount(d, exercise.id, n), false)}
+                    onRepsTarget={(t) => edit((d) => setRepsTarget(d, exercise.id, t), false)}
+                    onRemove={() => confirmRemove(exercise.id, exercise.name)}
+                    dragHandle={handle}
+                    registerCommit={(commit) => {
+                      if (commit) pendingCommits.current.set(exercise.id, commit);
+                      else pendingCommits.current.delete(exercise.id);
+                    }}
+                  />
+                )}
+              />
 
-            {!locked ? (
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => setPicking(true)}
-                accessibilityRole="button"
-                accessibilityLabel={`Add exercise to ${day.name}`}
-              >
-                <Plus size={22} color={Colors.light.primary} />
-                <Text style={styles.addText}>Add exercise</Text>
-              </TouchableOpacity>
-            ) : null}
-          </>
-        )}
-      </ScrollView>
+              {!locked ? (
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => setPicking(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add exercise to ${day.name}`}
+                >
+                  <Plus size={22} color={Colors.light.primary} />
+                  <Text style={styles.addText}>Add exercise</Text>
+                </TouchableOpacity>
+              ) : null}
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <DragDismissSheet visible={picking} onDismiss={() => setPicking(false)}>
         <View style={{ height: windowHeight * 0.85 }}>
@@ -171,6 +194,7 @@ export default function ProgramDayEditorScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
+  flex: { flex: 1 },
   header: {
     minHeight: 64,
     flexDirection: 'row',

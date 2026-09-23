@@ -20,7 +20,8 @@ export default function ResumeWorkoutBar() {
   return (
     <TouchableOpacity style={styles.bar} onPress={() => router.push('/workout')} accessibilityRole="button" accessibilityLabel={`Resume ${currentWorkout.name}`}>
       <Play size={16} color="#FFFFFF" />
-      <Text style={styles.name} numberOfLines={1}>{currentWorkout.name}</Text>
+      {/* "Resume" first: a day named "Back" read as a back button (device run T2-13). */}
+      <Text style={styles.name} numberOfLines={1}>Resume {currentWorkout.name}</Text>
       <Text style={styles.time}>{workoutStartedAt ? mmss(now - workoutStartedAt) : ''}</Text>
     </TouchableOpacity>
   );

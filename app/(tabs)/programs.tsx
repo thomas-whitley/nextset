@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   dayName: { fontFamily: 'ArchivoNarrow-Bold', fontSize: 22, color: Colors.light.text, flexShrink: 1 },
   upNext: {
     fontFamily: 'Archivo-SemiBold',
-    fontSize: 13,
+    fontSize: 15,
     color: Colors.light.primary,
     backgroundColor: Colors.light.primaryLight,
     borderRadius: radius.pill,

@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { View, StyleSheet, Modal, Pressable, useWindowDimensions } from 'react-native';
+import { ReactNode, useEffect, useState } from 'react';
+import { View, StyleSheet, Modal, Pressable, Keyboard, Platform, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -32,6 +32,12 @@ type Props = {
   children: ReactNode;
   /** Tapping the dimmed area closes the sheet. */
   dismissOnBackdropPress?: boolean;
+  /**
+   * Rise with the keyboard. For sheets with a text field (rename, finish notes).
+   * A KeyboardAvoidingView inside this Modal did nothing on Android edge-to-edge
+   * (device run T2-5).
+   */
+  avoidKeyboard?: boolean;
 };
 
 export default function DragDismissSheet({
@@ -39,11 +45,26 @@ export default function DragDismissSheet({
   onDismiss,
   children,
   dismissOnBackdropPress = true,
+  avoidKeyboard = false,
 }: Props) {
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(0);
   const sheetHeight = useSharedValue(screenHeight * 0.5);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    if (!avoidKeyboard || !visible) return;
+    // iOS reports before the animation, Android only after it.
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const shown = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hidden = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => {
+      shown.remove();
+      hidden.remove();
+      setKeyboardHeight(0);
+    };
+  }, [avoidKeyboard, visible]);
 
   const close = () => {
     translateY.value = 0;
@@ -98,7 +119,13 @@ export default function DragDismissSheet({
 
         <GestureDetector gesture={pan}>
           <Animated.View
-            style={[styles.sheet, { paddingBottom: spacing.xxl + insets.bottom }, sheetStyle]}
+            testID="drag-dismiss-sheet"
+            style={[
+              styles.sheet,
+              // Over the keyboard the home-indicator inset is hidden anyway.
+              { paddingBottom: keyboardHeight > 0 ? spacing.lg : spacing.xxl + insets.bottom, marginBottom: keyboardHeight },
+              sheetStyle,
+            ]}
             onLayout={(e) => {
               sheetHeight.value = e.nativeEvent.layout.height;
             }}

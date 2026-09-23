@@ -109,7 +109,7 @@ export default function ProgramExerciseRow({ exercise, locked, onSetCount, onRep
             onChangeText={setDraft}
             onBlur={commit}
             onSubmitEditing={commit}
-            placeholder="8–12"
+            placeholder="reps"
             placeholderTextColor={Colors.light.textTertiary}
             // A numeric pad has no hyphen for "8-12" (grill R2-Q1).
             keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
@@ -147,6 +147,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     backgroundColor: Colors.light.background,
     textAlign: 'center',
+    // Same as the set inputs (redesign R8): Android pads the top of a fixed-height input.
+    textAlignVertical: 'center',
+    paddingVertical: 0,
     paddingHorizontal: spacing.sm,
   },
 });
