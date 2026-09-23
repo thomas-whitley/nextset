@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useReducer } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useReducer } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserActiveProgramService } from '../services/userActiveProgramService';
@@ -34,8 +34,6 @@ interface WorkoutContextType {
   rest: RestState;
   dispatchRest: (action: RestAction) => void;
   setCurrentProgram: (program: Program) => Promise<void>;
-  /** Forget the active program locally so the picker shows again (edits are kept in the cloud). */
-  clearCurrentProgram: () => void;
   /** Make one of the user's existing copies current (picker "Your programs"). */
   selectProgramCopy: (row: UserActiveProgram) => Promise<void>;
   /** Create a blank program (its own row, 1–7 empty days "Day 1".."Day N"), make it current, and return the day ids in order. */
@@ -324,11 +322,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     if (next) adoptCopy(next);
     return true;
   };
-
-  const clearCurrentProgram = useCallback(() => {
-    setCurrentProgramState(null);
-    setCurrentActiveProgram(null);
-  }, []);
 
   const startWorkout = (workout: Workout) => {
     // Start with a clean sheet: nothing ticked, weights as the template/last edit left them.
@@ -664,7 +657,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         rest,
         dispatchRest,
         setCurrentProgram,
-        clearCurrentProgram,
         selectProgramCopy,
         createBlankProgram,
         resetProgramToTemplate,
