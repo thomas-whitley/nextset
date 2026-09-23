@@ -11,7 +11,7 @@ import { backfillRepsTargets } from '../services/repsTarget';
 import { mergeBest, mergeBests, detectPr, type ExerciseBests } from '../services/prMath';
 import { restReducer, IDLE_REST, type RestState, type RestAction } from '../services/restTimer';
 import { cancelRestNotification } from '../services/restNotifications';
-import { addExercise, removeExercise, setSetCount, reorderExercises as reorderExerciseList, reorderDays } from '../services/programEdits';
+import { addExercise, removeExercise, setSetCount, reorderExercises as reorderExerciseList, reorderDays, updateDay } from '../services/programEdits';
 
 const workoutCheckpointKey = (userId: string) => `momentum:in_progress_workout:${userId}`;
 
@@ -53,6 +53,19 @@ interface WorkoutContextType {
   removeSet: (exerciseId: string, setId: string) => Promise<void>;
   /** Write any pending program edits to Supabase now (blur, before save, app background). */
   flushProgramSync: () => Promise<void>;
+  /**
+   * Edit one day of the current program from the day editor (spec §6.1).
+   * Structural edits pass immediate=true (written now); set count and reps
+   * target pass false (debounced), per grill R1-Q1. Refused (false) for the
+   * day that is the running workout: one writer per day (R1-Q2).
+   */
+  editDay: (workoutId: string, edit: (day: Workout) => Workout | null, immediate: boolean) => boolean;
+  /** True when this day is the running workout, so the editor shows it read-only. */
+  isDayLocked: (workoutId: string) => boolean;
+  /** True when the running workout is a day of the current program (blocks reset, delete and switching). */
+  isProgramWorkoutRunning: boolean;
+  /** True while a program edit has not reached Supabase (grill R2-Q2). */
+  hasPendingProgramWrite: () => boolean;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -432,6 +445,20 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
   const flushProgramSync = () => programSync.flush();
 
+  const isDayLocked = (workoutId: string) =>
+    !!currentWorkout && !currentWorkout.isQuick && currentWorkout.id === workoutId;
+
+  const isProgramWorkoutRunning =
+    !!currentWorkout && !currentWorkout.isQuick && !!currentProgram?.workouts.some((w) => w.id === currentWorkout.id);
+
+  const editDay = (workoutId: string, edit: (day: Workout) => Workout | null, immediate: boolean): boolean => {
+    const live = currentWorkoutRef.current;
+    if (live && !live.isQuick && live.id === workoutId) return false;
+    return applyProgramUpdate((program) => updateDay(program, workoutId, edit), immediate);
+  };
+
+  const hasPendingProgramWrite = () => programSync.hasPending();
+
   const replaceExercise = async (exerciseId: string, next: DetailedExercise) => {
     applyWorkoutUpdate(
       (current) => ({
@@ -549,6 +576,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         setExerciseCollapsed,
         removeSet,
         flushProgramSync,
+        editDay,
+        isDayLocked,
+        isProgramWorkoutRunning,
+        hasPendingProgramWrite,
       }}
     >
       {children}

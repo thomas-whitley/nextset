@@ -5,6 +5,7 @@ import { WorkoutProvider, useWorkout } from '../WorkoutContext';
 import ResumeWorkoutBar from '../../components/ResumeWorkoutBar';
 import { UserActiveProgramService } from '../../services/userActiveProgramService';
 import type { Program, UserActiveProgram, Workout } from '../../services/exercise.types';
+import { addExercise, setSetCount } from '../../services/programEdits';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() } }));
 
@@ -292,5 +293,69 @@ describe('folds and set removal', () => {
     const hook = await renderHook(() => useWorkout(), { wrapper });
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     expect(hook.result.current.currentWorkout?.collapsedExerciseIds).toEqual(['e1']);
+  });
+});
+
+describe('program editor', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear(); // no restored workout: the editor is used between sessions
+  });
+
+  async function setupIdle() {
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await Promise.resolve(); });
+    return hook;
+  }
+
+  test('set count is debounced into one write', async () => {
+    const { result } = await setupIdle();
+    await act(() => { result.current.editDay('w1', (d) => setSetCount(d, 'e1', 2), false); });
+    await act(() => { result.current.editDay('w1', (d) => setSetCount(d, 'e1', 3), false); });
+    expect(UserActiveProgramService.updateActiveProgram).not.toHaveBeenCalled();
+    expect(result.current.hasPendingProgramWrite()).toBe(true);
+    await act(async () => {
+      jest.advanceTimersByTime(800);
+      await Promise.resolve();
+    });
+    expect(UserActiveProgramService.updateActiveProgram).toHaveBeenCalledTimes(1);
+    const written = (UserActiveProgramService.updateActiveProgram as jest.Mock).mock.calls[0][1] as Program;
+    expect(written.workouts[0].exercises[0].sets).toHaveLength(3);
+  });
+
+  test('adding an exercise is written at once', async () => {
+    const { result } = await setupIdle();
+    await act(async () => {
+      result.current.editDay('w1', (d) => addExercise(d, { exerciseId: 8, name: 'Row' }), true);
+      await result.current.flushProgramSync();
+    });
+    expect(UserActiveProgramService.updateActiveProgram).toHaveBeenCalledTimes(1);
+    expect(result.current.currentProgram!.workouts[0].exercises).toHaveLength(2);
+  });
+
+  test('the day of the running workout is locked', async () => {
+    const { result } = await setup(); // starts w1
+    expect(result.current.isDayLocked('w1')).toBe(true);
+    expect(result.current.isProgramWorkoutRunning).toBe(true);
+    let accepted = true;
+    await act(() => { accepted = result.current.editDay('w1', (d) => setSetCount(d, 'e1', 4), true); });
+    expect(accepted).toBe(false);
+    expect(result.current.currentProgram!.workouts[0].exercises[0].sets).toHaveLength(1);
+  });
+
+  test('nothing is locked between sessions', async () => {
+    const { result } = await setupIdle();
+    expect(result.current.isDayLocked('w1')).toBe(false);
+    expect(result.current.isProgramWorkoutRunning).toBe(false);
+  });
+
+  test('a failed write is reported as still pending', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    const { result } = await setupIdle();
+    await act(async () => {
+      result.current.editDay('w1', (d) => setSetCount(d, 'e1', 2), false);
+      await result.current.flushProgramSync();
+    });
+    expect(result.current.hasPendingProgramWrite()).toBe(true);
   });
 });
