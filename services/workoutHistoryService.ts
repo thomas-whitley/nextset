@@ -147,6 +147,22 @@ export class WorkoutHistoryService {
     return (data || []).map(toEntry);
   }
 
+  /** One saved workout for the read-only detail screen. Null when it is gone or not this user's. */
+  static async getWorkoutById(userId: string, id: string): Promise<WorkoutHistoryEntry | null> {
+    const { data, error } = await supabase
+      .from('workout_history')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to get workout: ${error.message}`);
+    }
+
+    return data ? toEntry(data) : null;
+  }
+
   /**
    * Get progress statistics for a user
    */

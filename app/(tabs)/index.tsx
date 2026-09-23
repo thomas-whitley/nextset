@@ -1,16 +1,18 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Calendar, Play, ChevronRight, Flame } from 'lucide-react-native';
+import { Calendar, Play, ChevronRight, Flame, Zap } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { spacing, radius, elevation, type, touch, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, elevation, type, touch } from '@/constants/theme';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutCalendarView from '@/components/WorkoutCalendarView';
 import { WorkoutHistoryService, WorkoutHistoryEntry, toDateKey } from '@/services/workoutHistoryService';
-import { Workout } from '@/services/exercise.types';
-import { formatKg, formatShortDate, formatMinutes } from '@/utils/format';
+import { useStartWorkout } from '@/hooks/useStartWorkout';
+import { pickNextWorkout, exerciseListLine } from '@/services/upNext';
+import type { Program } from '@/services/exercise.types';
+import { formatKg, formatShortDate, plural } from '@/utils/format';
 import { greetingFor } from '@/data/userDisplay';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -30,12 +32,13 @@ const thisWeekKeys = (): string[] => {
 };
 
 export default function HomeScreen() {
-  const [recentModalVisible, setRecentModalVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const [recent, setRecent] = useState<WorkoutHistoryEntry[]>([]);
   const [streak, setStreak] = useState(0);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const { currentProgram, isLoadingProgram, startWorkout } = useWorkout();
+  const { programs, currentProgram, isLoadingProgram, setCurrentProgram } = useWorkout();
+  const { start, startQuick } = useStartWorkout();
+  const [choosing, setChoosing] = useState<string | null>(null);
   const { user, loading } = useAuth();
 
   const loadHistory = useCallback(async () => {
@@ -67,25 +70,25 @@ export default function HomeScreen() {
   const todayKey = toDateKey(new Date());
   const lastWorkout = recent[0] ?? null;
 
-  // Up next: the workout after the most recently completed one in this program,
-  // wrapping round; the first workout if nothing has been logged yet.
-  const nextWorkout: Workout | null = (() => {
-    if (!currentProgram || currentProgram.workouts.length === 0) return null;
-    const ordered = [...currentProgram.workouts].sort((a, b) => a.order - b.order);
-    const lastFromProgram = recent.find((r) => ordered.some((w) => w.id === r.workout_data?.id));
-    if (!lastFromProgram) return ordered[0];
-    const idx = ordered.findIndex((w) => w.id === lastFromProgram.workout_data.id);
-    return ordered[(idx + 1) % ordered.length];
-  })();
+  const nextWorkout = pickNextWorkout(currentProgram, recent);
 
-  const handleStart = () => {
-    if (!nextWorkout) {
-      router.push('/(tabs)/programs');
-      return;
+  const choose = async (program: Program) => {
+    setChoosing(program.id);
+    try {
+      await setCurrentProgram(program);
+    } catch {
+      Alert.alert('Could not select program', 'Check your connection and try again.');
+    } finally {
+      setChoosing(null);
     }
-    startWorkout(nextWorkout);
-    router.push('/workout');
   };
+
+  const quickButton = (
+    <TouchableOpacity style={styles.quickButton} onPress={startQuick} accessibilityRole="button" accessibilityLabel="Quick workout">
+      <Zap size={20} color={Colors.light.onRubber} />
+      <Text style={styles.quickButtonText}>Quick workout</Text>
+    </TouchableOpacity>
+  );
 
   const greeting = greetingFor(user);
   const dateLabel = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -115,39 +118,51 @@ export default function HomeScreen() {
           </View>
         ) : nextWorkout && currentProgram ? (
           <View style={styles.mainCard}>
-            <Text style={styles.workoutLabel}>Up next · {currentProgram.name}</Text>
+            <Text style={styles.workoutLabel}>Up next in {currentProgram.name}</Text>
             <Text style={styles.workoutName}>{nextWorkout.name}</Text>
             <Text style={styles.workoutExercises} numberOfLines={2}>
-              {nextWorkout.exercises.length === 0
-                ? 'No exercises yet — add some when you start.'
-                : nextWorkout.exercises.map((e) => e.name).join(' · ')}
+              {exerciseListLine(nextWorkout.exercises.map((e) => e.name))}
             </Text>
             <TouchableOpacity
               style={styles.startButton}
-              onPress={handleStart}
+              onPress={() => start(nextWorkout)}
               accessibilityRole="button"
               accessibilityLabel={`Start ${nextWorkout.name}`}
             >
-              <Play size={18} color="#FFFFFF" />
-              <Text style={styles.startButtonText}>Start</Text>
+              <Play size={18} color="#FFFFFF" fill="#FFFFFF" />
+              <Text style={styles.startButtonText}>Start {nextWorkout.name}</Text>
             </TouchableOpacity>
+            {quickButton}
           </View>
         ) : (
+          // First run (spec §6.4): with no program the slab is the picker.
           <View style={styles.mainCard}>
-            <Text style={styles.workoutLabel}>No program yet</Text>
+            <Text style={styles.workoutLabel}>Get started</Text>
             <Text style={styles.workoutName}>Pick a program</Text>
-            <Text style={styles.workoutExercises}>
-              Choose a template in Programs, then start your first workout from here.
-            </Text>
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={() => router.push('/(tabs)/programs')}
-              accessibilityRole="button"
-              accessibilityLabel="Choose a program"
-            >
-              <Text style={styles.startButtonText}>Choose a program</Text>
-              <ChevronRight size={18} color="#FFFFFF" />
-            </TouchableOpacity>
+            <Text style={styles.workoutExercises}>Follow one of these, or log a quick workout.</Text>
+            <View style={styles.templateList}>
+              {programs.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.templateRow}
+                  onPress={() => choose(p)}
+                  disabled={choosing !== null}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Start with ${p.name}`}
+                >
+                  <View style={styles.templateText}>
+                    <Text style={styles.templateName}>{p.name}</Text>
+                    <Text style={styles.templateMeta}>{p.schedule ?? plural(p.workouts.length, 'day')}</Text>
+                  </View>
+                  {choosing === p.id ? (
+                    <ActivityIndicator color={Colors.light.onRubber} />
+                  ) : (
+                    <ChevronRight size={20} color={Colors.light.onRubberSecondary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            {quickButton}
           </View>
         )}
 
@@ -198,9 +213,9 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.statCard}
-            onPress={() => setRecentModalVisible(true)}
+            onPress={() => router.push('/(tabs)/progress')}
             accessibilityRole="button"
-            accessibilityLabel="Last workout"
+            accessibilityLabel="Last workout. Opens your history in Progress"
           >
             <Text style={styles.statValue} numberOfLines={1}>
               {loadingHistory ? '—' : lastWorkout ? formatKg(lastWorkout.total_volume) : '—'}
@@ -212,41 +227,6 @@ export default function HomeScreen() {
         </View>
 
       </ScrollView>
-
-      {/* Recent workouts */}
-      <Modal animationType="fade" transparent visible={recentModalVisible} onRequestClose={() => setRecentModalVisible(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setRecentModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Recent workouts</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setRecentModalVisible(false)}
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                hitSlop={HIT_SLOP}
-              >
-                <X size={24} color={Colors.light.textTertiary} />
-              </TouchableOpacity>
-            </View>
-            {recent.length === 0 ? (
-              <Text style={styles.modalEmpty}>Nothing logged yet. Finish a workout and it shows here.</Text>
-            ) : (
-              recent.slice(0, 6).map((row) => (
-                <View key={row.id} style={styles.workoutItem}>
-                  <View style={styles.workoutItemText}>
-                    <Text style={styles.workoutItemName}>{row.workout_data?.name ?? 'Workout'}</Text>
-                    <Text style={styles.workoutItemDate}>
-                      {formatShortDate(row.completed_at)} · {formatMinutes(row.duration_minutes)}
-                    </Text>
-                  </View>
-                  <Text style={styles.workoutItemVolume}>{formatKg(row.total_volume)}</Text>
-                </View>
-              ))
-            )}
-          </View>
-        </Pressable>
-      </Modal>
 
       <WorkoutCalendarView visible={calendarModalVisible} onClose={() => setCalendarModalVisible(false)} />
     </SafeAreaView>
@@ -280,7 +260,7 @@ const styles = StyleSheet.create({
   mainCardLoading: { minHeight: 180, justifyContent: 'center', alignItems: 'center' },
   workoutLabel: { ...type.label, color: Colors.light.onRubberSecondary, marginBottom: spacing.xs },
   workoutName: { ...type.display, color: Colors.light.onRubber, marginBottom: spacing.sm },
-  workoutExercises: { ...type.body, color: Colors.light.onRubberSecondary, marginBottom: spacing.xl },
+  workoutExercises: { ...type.body, color: Colors.light.onRubberSecondary, marginBottom: spacing.lg },
   startButton: {
     backgroundColor: Colors.light.primary,
     borderRadius: radius.card,
@@ -329,18 +309,29 @@ const styles = StyleSheet.create({
   statValue: { ...type.title, color: Colors.light.text, marginTop: spacing.sm },
   statLabel: { ...type.label, fontSize: 15, color: Colors.light.textSecondary, textAlign: 'center' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg },
-  modalContent: { backgroundColor: Colors.light.card, borderRadius: radius.slab, padding: spacing.xl, width: '100%', maxWidth: 400 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  // Explicit box rather than relying on hitSlop alone: hitSlop pads the
-  // existing 24px icon box by 8 each side (40x40), still short of the
-  // touch.min minimum. minWidth/minHeight + centering gets the real box there.
-  modalCloseButton: { minWidth: touch.min, minHeight: touch.min, justifyContent: 'center', alignItems: 'center' },
-  modalTitle: { ...type.section, color: Colors.light.text },
-  modalEmpty: { ...type.body, color: Colors.light.textTertiary, paddingVertical: spacing.md },
-  workoutItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
-  workoutItemText: { flex: 1, marginRight: spacing.md },
-  workoutItemName: { ...type.bodyMedium, color: Colors.light.text },
-  workoutItemDate: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.xs / 2 },
-  workoutItemVolume: { ...type.numeric, color: Colors.light.primary },
+  quickButton: {
+    minHeight: touch.min,
+    marginTop: spacing.md,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: Colors.light.borderOnRubber,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  quickButtonText: { fontFamily: 'Archivo-Medium', fontSize: 16, color: Colors.light.onRubber },
+  templateList: { gap: spacing.sm, marginBottom: spacing.xs },
+  templateRow: {
+    minHeight: 64,
+    borderRadius: radius.card,
+    backgroundColor: Colors.light.slabField,
+    paddingHorizontal: spacing.base,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  templateText: { flex: 1, gap: 2 },
+  templateName: { fontFamily: 'ArchivoNarrow-Bold', fontSize: 20, color: Colors.light.onRubber },
+  templateMeta: { ...type.label, fontSize: 15, color: Colors.light.onRubberSecondary },
 });

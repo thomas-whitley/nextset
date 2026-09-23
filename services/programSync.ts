@@ -7,6 +7,8 @@ export type ProgramSync = {
   flush: () => Promise<void>;
   /** Drop the pending program without writing it. */
   cancel: () => void;
+  /** True while a program is waiting to be written or a write is in flight. Still true after a failed write (it is kept for retry). */
+  hasPending: () => boolean;
 };
 
 /**
@@ -75,6 +77,9 @@ export function createProgramSync(write: (program: Program) => Promise<unknown>,
     cancel() {
       clearTimer();
       pending = null;
+    },
+    hasPending() {
+      return pending !== null || inFlight !== null;
     },
   };
 }

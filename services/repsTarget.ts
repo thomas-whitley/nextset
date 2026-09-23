@@ -19,9 +19,12 @@ export function formatRepsTarget(t?: RepsTarget): string {
 /**
  * Copies repsTarget from the source template onto a user's program copy for
  * every exercise that lacks one, matched by workout id then exerciseId.
- * Returns the same object when nothing needed filling so callers can skip a sync.
+ * Runs once per copy (spec D13): the result is marked `repsTargetsBackfilled`,
+ * so a target the user later clears in the editor stays cleared. Returns the
+ * same object when it has already run, so callers can skip a sync.
  */
 export function backfillRepsTargets(program: Program, templates: Program[]): Program {
+  if (program.repsTargetsBackfilled) return program;
   const template = templates.find((t) => t.id === (program.templateId ?? program.id));
   if (!template) return program;
   let changed = false;
@@ -37,5 +40,17 @@ export function backfillRepsTargets(program: Program, templates: Program[]): Pro
     });
     return { ...w, exercises };
   });
-  return changed ? { ...program, workouts } : program;
+  return { ...program, workouts: changed ? workouts : program.workouts, repsTargetsBackfilled: true };
+}
+
+/**
+ * What the editor's reps field does on blur (grill R2-Q1): empty clears the
+ * target, a valid range is saved and shown normalised ("8-12" → "8–12"), and
+ * anything else reverts to what was there rather than clearing it.
+ */
+export function commitRepsDraft(draft: string, current: RepsTarget | undefined): { target: RepsTarget | undefined; text: string } {
+  if (draft.trim() === '') return { target: undefined, text: '' };
+  const parsed = parseRepsTarget(draft);
+  if (!parsed) return { target: current, text: formatRepsTarget(current) };
+  return { target: parsed, text: formatRepsTarget(parsed) };
 }
