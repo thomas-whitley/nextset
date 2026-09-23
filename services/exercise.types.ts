@@ -137,6 +137,8 @@ export interface Workout {
   startedAt?: number;
   /** Exercises the user folded on the workout screen. Session-only: checkpointed, never written to program_data. */
   collapsedExerciseIds?: string[];
+  /** A workout with no program (spec D12). Checkpointed locally and saved to history; never written to program_data. */
+  isQuick?: boolean;
 }
 
 export interface Program {
