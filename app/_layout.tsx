@@ -48,6 +48,7 @@ function AppNavigator() {
             <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
             <Stack.Screen name="program-detail" options={{ presentation: 'modal' }} />
             <Stack.Screen name="workout-detail" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="exercise-progress" options={{ presentation: 'modal' }} />
             <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
             <Stack.Screen name="workout" options={{ presentation: 'modal' }} />
             <Stack.Screen name="aboutus" options={{ presentation: 'modal' }} />
