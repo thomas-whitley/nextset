@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   list: { backgroundColor: Colors.light.card, borderRadius: radius.card, borderWidth: 1, borderColor: Colors.light.border },
   item: { flexDirection: 'row', alignItems: 'center' },
   itemDivider: { borderTopWidth: 1, borderTopColor: Colors.light.background },
-  pick: { flex: 1, minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingLeft: spacing.base, paddingRight: spacing.sm },
+  pick: { flex: 1, minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingLeft: spacing.base, paddingRight: spacing.sm, paddingVertical: spacing.sm },
   freshPick: { paddingRight: spacing.base },
   pickText: { flex: 1, gap: 2 },
   name: { fontFamily: 'ArchivoNarrow-Bold', fontSize: 20, color: Colors.light.text },
@@ -239,6 +239,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
   },
   blankIcon: { width: 40, height: 40, borderRadius: radius.card, backgroundColor: Colors.light.primaryLight, justifyContent: 'center', alignItems: 'center' },
 });

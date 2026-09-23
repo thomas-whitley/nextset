@@ -236,23 +236,24 @@ export default function ProgressScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Key Stats */}
+        {/* A third of the screen wide: past 1.3× single words break mid-word (device run T2-7). */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <TrendingUp size={24} color={Colors.light.success} />
-            <Text style={styles.statValue}>{progressStats?.totalWorkouts || 0}</Text>
-            <Text style={styles.statLabel}>Total Workouts</Text>
+            <Text style={styles.statValue} maxFontSizeMultiplier={1.3}>{progressStats?.totalWorkouts || 0}</Text>
+            <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>Total Workouts</Text>
           </View>
           <View style={styles.statCard}>
             <Trophy size={24} color={Colors.light.accent} />
-            <Text style={styles.statValue}>{workoutStreak.currentStreak}</Text>
-            <Text style={styles.statLabel}>Current Streak</Text>
+            <Text style={styles.statValue} maxFontSizeMultiplier={1.3}>{workoutStreak.currentStreak}</Text>
+            <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>Current Streak</Text>
           </View>
           <View style={styles.statCard}>
             <Target size={24} color={Colors.light.primary} />
-            <Text style={styles.statValue}>
+            <Text style={styles.statValue} maxFontSizeMultiplier={1.3}>
               {formatKg(progressStats?.totalVolume)}
             </Text>
-            <Text style={styles.statLabel}>Total Volume</Text>
+            <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>Total Volume</Text>
           </View>
         </View>
 

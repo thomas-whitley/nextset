@@ -31,12 +31,12 @@ export default function HistoryRow({ title, completedAt, sets, volume, first, on
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingLeft: spacing.base, paddingRight: spacing.md },
+  row: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingLeft: spacing.base, paddingRight: spacing.md, paddingVertical: spacing.sm },
   divider: { borderTopWidth: 1, borderTopColor: Colors.light.background },
   left: { flex: 1, gap: 2 },
   title: { fontFamily: 'ArchivoNarrow-Bold', fontSize: 20, color: Colors.light.text },
   date: { ...type.label, fontSize: 15, color: Colors.light.textSecondary },
   right: { alignItems: 'flex-end', gap: 2 },
   volume: { ...type.numeric, color: Colors.light.text },
-  sets: { ...type.label, fontSize: 14, color: Colors.light.textSecondary, fontVariant: ['tabular-nums'] },
+  sets: { ...type.label, fontSize: 15, color: Colors.light.textSecondary, fontVariant: ['tabular-nums'] },
 });
