@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { Check, Trophy } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
-import { spacing, radius } from '@/constants/theme';
+import { spacing, radius, touch, type } from '@/constants/theme';
 import type { ExerciseSet, RepsTarget } from '@/services/exercise.types';
 import { formatRepsTarget } from '@/services/repsTarget';
 import { formatSet } from '@/utils/format';
@@ -25,167 +25,128 @@ export interface SetRowProps {
 }
 
 export default function SetRow({
-  set,
-  index,
-  repsTarget,
-  isActiveRest,
-  onSlab,
-  onToggleComplete,
-  onChange,
-  onBlur,
-  onFocus,
-  weightRef,
-  repsRef,
+  set, index, repsTarget, isActiveRest, onSlab, onToggleComplete, onChange, onBlur, onFocus, weightRef, repsRef,
 }: SetRowProps) {
-  const isCompleted = set.isComplete;
+  const done = set.isComplete;
   const previousLabel = formatSet(set.previousWeight, set.previousReps);
+  const field = [styles.input, onSlab ? styles.inputOnSlab : styles.inputOnCard, done && styles.inputComplete];
 
   return (
-    <View style={styles.setBlock}>
-      <View style={styles.setRow}>
-        <TouchableOpacity
-          style={[
-            styles.setIndicator,
-            onSlab && styles.setIndicatorOnSlab,
-            isCompleted && styles.completedIndicator,
-            isActiveRest && styles.activeRestIndicator,
-          ]}
-          onPress={onToggleComplete}
-          accessibilityRole="checkbox"
-          accessibilityLabel={`Set ${index + 1} ${isCompleted ? 'completed' : 'incomplete'}`}
-          accessibilityHint="Tap to mark this set as complete or incomplete"
-          accessibilityState={{ checked: isCompleted }}
-        >
-          {isCompleted ? (
-            <Check size={12} color="#FFFFFF" />
-          ) : (
-            <Text style={[styles.setNumber, onSlab && styles.onSlabText]}>{index + 1}</Text>
-          )}
-        </TouchableOpacity>
+    <View style={styles.row}>
+      <TouchableOpacity
+        style={[styles.tick, onSlab ? styles.tickOnSlab : styles.tickOnCard, done && styles.tickDone, isActiveRest && styles.tickResting]}
+        onPress={onToggleComplete}
+        accessibilityRole="checkbox"
+        accessibilityLabel={`Set ${index + 1} ${done ? 'completed' : 'incomplete'}`}
+        accessibilityHint="Tap to mark this set as complete or incomplete"
+        accessibilityState={{ checked: done }}
+      >
+        {done ? (
+          <Check size={22} strokeWidth={3} color="#FFFFFF" />
+        ) : (
+          <Text style={[styles.setNumber, onSlab && styles.onSlabText]}>{index + 1}</Text>
+        )}
+      </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.previousCell}
-          onPress={() => {
-            onChange('weight', set.previousWeight ?? '');
-            onChange('reps', set.previousReps ?? '');
-          }}
-          disabled={previousLabel === '—'}
-          accessibilityRole="button"
-          accessibilityLabel="Use last session's weight and reps"
-        >
-          <Text style={[styles.previousData, onSlab && styles.onSlabMuted]}>{previousLabel}</Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.previous}
+        onPress={() => {
+          onChange('weight', set.previousWeight ?? '');
+          onChange('reps', set.previousReps ?? '');
+        }}
+        disabled={previousLabel === '—'}
+        accessibilityRole="button"
+        accessibilityLabel="Use last session's weight and reps"
+      >
+        <Text style={[styles.previousText, onSlab && styles.onSlabMuted]} numberOfLines={1}>{previousLabel}</Text>
+      </TouchableOpacity>
 
-        <TextInput
-          ref={weightRef}
-          style={[styles.input, isCompleted && styles.inputComplete]}
-          value={set.weight}
-          onChangeText={(value) => onChange('weight', value)}
-          onBlur={onBlur}
-          onFocus={() => onFocus('weight')}
-          keyboardType="numeric"
-          placeholder="kg"
-          placeholderTextColor={Colors.light.textTertiary}
-          inputAccessoryViewID={SET_ACCESSORY_ID}
-          accessibilityLabel={`Weight for set ${index + 1}`}
-          accessibilityHint="Enter the weight used for this set"
-        />
+      <TextInput
+        ref={weightRef}
+        style={field}
+        value={set.weight}
+        onChangeText={(v) => onChange('weight', v)}
+        onBlur={onBlur}
+        onFocus={() => onFocus('weight')}
+        keyboardType="numeric"
+        placeholder="kg"
+        placeholderTextColor={onSlab ? Colors.light.onRubberSecondary : Colors.light.textTertiary}
+        maxFontSizeMultiplier={1.3}
+        inputAccessoryViewID={SET_ACCESSORY_ID}
+        accessibilityLabel={`Weight for set ${index + 1}`}
+        accessibilityHint="Enter the weight used for this set"
+      />
 
+      <View>
         <TextInput
           ref={repsRef}
-          style={[styles.input, isCompleted && styles.inputComplete]}
+          style={field}
           value={set.reps}
-          onChangeText={(value) => onChange('reps', value)}
+          onChangeText={(v) => onChange('reps', v)}
           onBlur={onBlur}
           onFocus={() => onFocus('reps')}
           keyboardType="numeric"
-          placeholder={repsTarget ? `×${formatRepsTarget(repsTarget)}` : 'reps'}
-          placeholderTextColor={Colors.light.textTertiary}
+          placeholder={repsTarget ? formatRepsTarget(repsTarget) : 'reps'}
+          placeholderTextColor={onSlab ? Colors.light.onRubberSecondary : Colors.light.textTertiary}
+          maxFontSizeMultiplier={1.3}
           inputAccessoryViewID={SET_ACCESSORY_ID}
           accessibilityLabel={`Repetitions for set ${index + 1}`}
           accessibilityHint="Enter the number of repetitions completed"
         />
-
-        {set.pr && (
-          <View style={styles.prChip}>
-            <Text style={styles.prChipText}>PR</Text>
+        {set.pr ? (
+          <View style={styles.prBadge} accessibilityLabel="Personal record">
+            <Trophy size={14} color={Colors.light.rubber} />
           </View>
-        )}
+        ) : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  setBlock: {
-    marginBottom: 2,
-  },
-  setRow: {
+  row: {
+    minHeight: touch.row,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
-    position: 'relative',
+    gap: spacing.sm,
   },
-  setIndicator: {
+  tick: {
+    width: touch.min,
+    height: touch.min,
+    borderRadius: 12,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tickOnCard: { backgroundColor: Colors.light.card, borderColor: Colors.light.border },
+  tickOnSlab: { backgroundColor: Colors.light.rubber, borderColor: Colors.light.textSecondary },
+  tickDone: { backgroundColor: Colors.light.success, borderColor: Colors.light.success },
+  tickResting: { borderColor: Colors.light.accent },
+  setNumber: { fontFamily: 'ArchivoNarrow-SemiBold', fontSize: 17, color: Colors.light.textSecondary },
+  onSlabText: { color: Colors.light.onRubber },
+  onSlabMuted: { color: Colors.light.onRubberSecondary },
+  previous: { flex: 1, minHeight: touch.min, justifyContent: 'center', paddingHorizontal: spacing.xs },
+  previousText: { fontFamily: 'Archivo-Medium', fontSize: 15, color: Colors.light.textSecondary },
+  input: {
+    width: 88,
+    height: touch.min,
+    borderRadius: radius.input,
+    borderWidth: 1,
+    textAlign: 'center',
+    ...type.setInput,
+  },
+  inputOnCard: { backgroundColor: Colors.light.background, borderColor: Colors.light.border, color: Colors.light.text },
+  inputOnSlab: { backgroundColor: Colors.light.slabField, borderColor: Colors.light.borderOnRubber, color: Colors.light.onRubber },
+  inputComplete: { backgroundColor: 'rgba(47,125,79,0.22)' },
+  prBadge: {
+    position: 'absolute',
+    top: -7,
+    right: -7,
     width: 24,
     height: 24,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.card,
+    backgroundColor: Colors.light.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 4,
   },
-  // A white disc on a near-black slab swallowed its own number, so a pending
-  // set becomes an outline instead of a fill.
-  setIndicatorOnSlab: {
-    backgroundColor: 'transparent',
-    borderColor: Colors.light.onRubberSecondary,
-  },
-  completedIndicator: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
-  },
-  activeRestIndicator: {
-    borderColor: Colors.light.accent,
-    backgroundColor: Colors.light.accentLight,
-  },
-  setNumber: { fontSize: 10, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.primary },
-  onSlabText: {
-    color: Colors.light.onRubber,
-  },
-  onSlabMuted: {
-    color: Colors.light.onRubberSecondary,
-  },
-  previousCell: {
-    width: 50,
-  },
-  previousData: { fontSize: 10, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, width: 50, textAlign: 'center' },
-  input: {
-    width: 50,
-    backgroundColor: Colors.light.background,
-    borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    fontSize: 12,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    textAlign: 'center',
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  inputComplete: {
-    backgroundColor: Colors.light.primaryLight,
-    borderColor: Colors.light.primary,
-  },
-  prChip: {
-    marginLeft: spacing.xs,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.pill ?? 999,
-    backgroundColor: Colors.light.accent,
-  },
-  prChipText: { fontSize: 10, fontFamily: 'ArchivoNarrow-Bold', color: '#FFFFFF' },
 });
