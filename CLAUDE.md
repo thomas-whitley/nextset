@@ -29,7 +29,7 @@ Tests: jest via `jest-expo` (`npm test`). CI (`.github/workflows/ci.yml`) runs l
 Expo Router file-based routing under `app/`:
 - `app/(auth)/` — unauthenticated flow: login (`index`), signup, confirm, forgot/update password. There is no `welcome` screen; login is the entry point.
 - `app/(tabs)/` — main tab bar: home (`index`), programs, progress, profile
-- Modal screens at root: `workout`, `program-detail`, `settings`, `edit-profile`, `aboutus`, `help-faq`. `/timer` (the standalone interval timer) was deleted 2026-09 (spec D2); the rest timer inside `workout.tsx` is the only timer now.
+- Modal screens at root: `workout`, `program-detail` (the day editor, `/program-detail?day=<workoutId>`), `workout-detail` (a saved workout, read-only, `/workout-detail?id=<historyId>`), `settings`, `edit-profile`, `aboutus`, `help-faq`. `/timer` (the standalone interval timer) was deleted 2026-09 (spec D2); the rest timer inside `workout.tsx` is the only timer now.
 
 Every file under `app/` becomes a route, so an orphaned screen still ships as a reachable page — `app/-settings.tsx` did exactly that, exposing controls that had been removed elsewhere. Delete dead screens, don't just unlink them.
 
@@ -52,6 +52,11 @@ Supabase is the only persistence tier. Reads and writes go through the services 
 | Exercise library (bundled, local) | `services/exerciseService.ts` |
 | Preferences: rest time + bar weight (AsyncStorage cache, mirrored to `profile.preferences`; server wins on sign-in) | `services/preferences.ts` |
 | Debounced program sync (≈800 ms, flushed on set complete / blur / finish / app background) | `services/programSync.ts` |
+| Pure program/day edits, blank-program ids (`blank-…`), name cleaning (pure, tested) | `services/programEdits.ts` |
+| Up next (skips quick workouts), quick-workout name (pure, tested) | `services/upNext.ts` |
+| Program picker lists: your copies + templates not yet started (pure, tested) | `services/programChoices.ts` |
+| History row / workout-detail data from a saved workout (pure, tested) | `services/historySummary.ts` |
+| Start guard for every Start / Quick workout button | `hooks/useStartWorkout.ts` |
 | Streak maths (pure, tested) | `services/stats.ts` |
 | PR maths: best weight / e1RM per exercise, PR detection (pure, tested) | `services/prMath.ts` |
 | Rest timer state (reducer, pure, tested) | `services/restTimer.ts` |
@@ -67,7 +72,7 @@ Supabase is the only persistence tier. Reads and writes go through the services 
 
 **Supabase tables** (defined by the sum of `supabase/migrations/*.sql`, CLI timestamp-named; three tables after migration `20260917100100`):
 - `profile` — mirrors `auth.users`; auto-created by DB trigger on signup; `role` enum: `user | admin | super_admin`; `preferences jsonb` (`{ defaultRestSeconds, barWeightKg }`); authenticated may UPDATE only `full_name, username, phone, avatar_url, updated_at, preferences`
-- `user_active_programs` — user's editable copy of a template as JSONB (`program_data`); **unique per `(user_id, program_template_id)`**; `updated_at` set by trigger
+- `user_active_programs` — user's editable copy of a template as JSONB (`program_data`); **unique per `(user_id, program_template_id)`**; `updated_at` set by trigger; a blank program is its own row with program_template_id = 'blank-<id>'
 - `workout_history` — completed workout records as JSONB; `total_volume` must be `0 ≤ v < 10,000,000` (check constraint); index on `(user_id, completed_at desc)`
 
 `exercise_log` and `timer_presets` were dropped in `20260917100100`. All tables have RLS; policies are `to authenticated` and use `(select auth.uid())`; `anon` has no table grants.
@@ -118,3 +123,10 @@ Supabase client is initialized in `data/supabase-client.ts` and throws if either
 - **Anything that counts sets or volume goes through `withoutPending`** (`services/pendingRemoval.ts`): an exercise or a set inside its 4 s undo window must be gone from the finish sheet and the saved workout alike.
 - **No card-level swipe on the workout screen.** Set rows swipe to remove; nesting a second horizontal swipe on the card conflicts. Exercise removal is in the `⋯` sheet.
 - **`@testing-library/react-native` 14 is async.** `render` and every `fireEvent.*` return a Promise — `await` them. An unawaited `fireEvent` leaves an act open and the *next* test in the file renders `null`.
+- **Every write to `user_active_programs.program_data` goes through `programSync`** (`applyProgramUpdate` / `applyWorkoutUpdate` in `WorkoutContext`). `UserActiveProgramService` no longer has fetch-modify-write helpers. They raced the debounced write and lost edits. Structural edits flush at once; set count and reps target are debounced.
+- **Switching program flushes first and refuses if the flush fails** (`settleBeforeSwitch`). The sync writes to whatever row is current *when it fires*, so a pending edit left behind would land on the next program.
+- **`updated_at` is set by a trigger and defines the current program.** Writing any row makes it the one the app reopens on launch. That is why only the current program can be renamed.
+- **Quick workouts (`Workout.isQuick`) never touch `program_data`.** `applyWorkoutUpdate` returns after the checkpoint. The saved `workout_data` keeps `isQuick`, and `pickNextWorkout` skips it.
+- **The day editor guards every exit with `beforeRemove`** (X, Android back, iOS swipe-down): it flushes, and stays open with "Not saved yet" if `hasPendingProgramWrite()`. The running day is read-only (`isDayLocked`).
+- **Start buttons go through `useStartWorkout`.** Calling `startWorkout` directly over a minimised workout discards its sets.
+- **Screen tests need the safe-area mock.** There is no `SafeAreaProvider` in a unit render and `useSafeAreaInsets` throws; add `jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default)` (see `app/__tests__/program-detail.test.tsx`). A new route also needs `expo start` once before local `tsc` accepts it in `router.push`: typed routes live in the gitignored `.expo/types/router.d.ts`.
