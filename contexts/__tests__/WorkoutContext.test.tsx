@@ -135,19 +135,50 @@ it('keeps the session start time when an exercise is removed mid-workout', async
   const { result } = await setup();
   const startedAt = result.current.currentWorkout!.startedAt!;
   expect(startedAt).toBeGreaterThan(0);
-
-  // program_data never carries session-only fields — this is the real shape.
-  const updatedWorkout: Workout = { ...workout, exercises: [] };
-  const updatedProgram: Program = { ...program, workouts: [updatedWorkout] };
-  const updatedActive: UserActiveProgram = { ...active, program_data: updatedProgram };
-  jest.spyOn(UserActiveProgramService, 'removeExerciseFromWorkout').mockResolvedValue(updatedActive);
-
   await act(async () => {
     await result.current.removeExerciseFromWorkout('w1', 'e1');
   });
-
+  expect(result.current.currentWorkout!.exercises).toHaveLength(0);
   expect(result.current.currentWorkout!.startedAt).toBe(startedAt);
   expect(result.current.workoutStartedAt).toBe(startedAt);
+});
+
+describe('workout-screen structure edits go through programSync', () => {
+  test('adding an exercise updates the live workout and the program in one write', async () => {
+    const { result } = await setup();
+    await act(async () => {
+      await result.current.addExerciseToWorkout('w1', { id: 8, name: 'Row' } as any);
+    });
+    expect(result.current.currentWorkout!.exercises.map((e) => e.name)).toEqual(['Squat', 'Row']);
+    expect(result.current.currentProgram!.workouts[0].exercises.map((e) => e.name)).toEqual(['Squat', 'Row']);
+    expect(UserActiveProgramService.updateActiveProgram).toHaveBeenCalledTimes(1);
+    const written = (UserActiveProgramService.updateActiveProgram as jest.Mock).mock.calls[0][1] as Program;
+    expect(written.workouts[0].exercises).toHaveLength(2);
+    expect(written.workouts[0]).not.toHaveProperty('startedAt');
+  });
+
+  test('+ Add set grows the live exercise and keeps ticked sets', async () => {
+    const { result } = await setup();
+    await act(async () => { await result.current.completeSet('e1', 's1'); });
+    await act(async () => { await result.current.updateExerciseSets('w1', 'e1', 2); });
+    const sets = result.current.currentWorkout!.exercises[0].sets;
+    expect(sets).toHaveLength(2);
+    expect(sets[0].isComplete).toBe(true);
+  });
+
+  test('a day reordered while its workout runs keeps its new order after the next set edit', async () => {
+    const legs: Workout = { ...workout, id: 'w2', name: 'Legs', order: 1 };
+    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mockResolvedValue({
+      ...active,
+      program_data: { ...program, workouts: [workout, legs] },
+    });
+    const { result } = await setup(); // w1 is running
+    await act(async () => { await result.current.reorderWorkouts(['w2', 'w1']); });
+    await act(async () => { await result.current.updateSet('e1', 's1', 'weight', '70'); });
+    const days = result.current.currentProgram!.workouts;
+    expect(days.find((w) => w.id === 'w1')!.order).toBe(1);
+    expect(days.find((w) => w.id === 'w2')!.order).toBe(0);
+  });
 });
 
 describe('bests and replaceExercise', () => {

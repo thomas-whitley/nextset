@@ -4,13 +4,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserActiveProgramService } from '../services/userActiveProgramService';
 import { WorkoutHistoryService } from '../services/workoutHistoryService';
 import { createProgramSync } from '../services/programSync';
-import { Exercise as DetailedExercise, Program, Workout, WorkoutExercise, UserActiveProgram } from '../services/exercise.types';
+import { Exercise as DetailedExercise, Program, Workout, UserActiveProgram } from '../services/exercise.types';
 import { programTemplates } from '../data/programTemplates';
 import { useAuth } from '../data/AuthContext';
 import { backfillRepsTargets } from '../services/repsTarget';
 import { mergeBest, mergeBests, detectPr, type ExerciseBests } from '../services/prMath';
 import { restReducer, IDLE_REST, type RestState, type RestAction } from '../services/restTimer';
 import { cancelRestNotification } from '../services/restNotifications';
+import { addExercise, removeExercise, setSetCount, reorderExercises as reorderExerciseList, reorderDays } from '../services/programEdits';
 
 const workoutCheckpointKey = (userId: string) => `momentum:in_progress_workout:${userId}`;
 
@@ -278,6 +279,24 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
+   * The one way program_data changes: edit the in-memory program (the ref,
+   * never the render closure), then schedule the debounced write, or write
+   * now when `immediate`. Returns false when there was nothing to change or
+   * no cloud copy to write to.
+   */
+  const applyProgramUpdate = (edit: (program: Program) => Program | null, immediate: boolean): boolean => {
+    const program = currentProgramRef.current;
+    if (!program || !currentActiveProgramRef.current) return false;
+    const next = edit(program);
+    if (!next) return false;
+    currentProgramRef.current = next;
+    setCurrentProgramState(next);
+    programSync.schedule(next);
+    if (immediate) void programSync.flush();
+    return true;
+  };
+
+  /**
    * Applies an edit to the running workout using the *latest* workout (the
    * ref, not the render closure), then checkpoints locally at once and
    * schedules (or flushes) the cloud write. `edit` must be pure: it receives
@@ -295,8 +314,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setCurrentWorkout(next);
     persistWorkoutCheckpoint(next);
 
-    const program = currentProgramRef.current;
-    if (!program || !currentActiveProgramRef.current) return;
+    // A quick workout belongs to no program (spec D12): the checkpoint above is its only copy.
+    if (next.isQuick) return;
     // Strip transient session-only fields before this lands in program_data:
     // startedAt (item 1 — otherwise next week's session inherits this week's
     // start time) and each set's pr flag (item 2 — a per-session PR badge has
@@ -310,14 +329,16 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         sets: exercise.sets.map(({ pr, ...set }) => set),
       })),
     };
-    const updatedProgram: Program = {
-      ...program,
-      workouts: program.workouts.map((w) => (w.id === forProgramWorkout.id ? forProgramWorkout : w)),
-    };
-    currentProgramRef.current = updatedProgram;
-    setCurrentProgramState(updatedProgram);
-    programSync.schedule(updatedProgram);
-    if (immediate) void programSync.flush();
+    applyProgramUpdate(
+      (program) => ({
+        ...program,
+        // Keep the program's own order for this day. Days can be reordered on
+        // the Programs tab while this workout runs, and the live copy still
+        // carries the order it started with.
+        workouts: program.workouts.map((w) => (w.id === forProgramWorkout.id ? { ...forProgramWorkout, order: w.order } : w)),
+      }),
+      immediate
+    );
   };
 
   const updateSet = async (exerciseId: string, setId: string, field: 'weight' | 'reps', value: string) => {
@@ -374,18 +395,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   const reorderExercises = async (orderedExerciseIds: string[]) => {
-    applyWorkoutUpdate((current) => {
-      const byId = new Map(current.exercises.map((exercise) => [exercise.id, exercise]));
-      const reordered = orderedExerciseIds
-        .map((id, index) => {
-          const exercise = byId.get(id);
-          return exercise ? { ...exercise, order: index } : undefined;
-        })
-        .filter((exercise): exercise is WorkoutExercise => exercise !== undefined);
-      // Never silently shrink the list on a stale or partial ordering.
-      if (reordered.length !== current.exercises.length) return null;
-      return { ...current, exercises: reordered };
-    }, true);
+    // Never silently shrink the list on a stale or partial ordering: the pure edit refuses it.
+    applyWorkoutUpdate((current) => reorderExerciseList(current, orderedExerciseIds), true);
     await programSync.flush();
   };
 
@@ -471,89 +482,31 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  /** After the service rewrites the program, mirror it into state (and the running workout if affected). */
-  const adoptActiveProgram = (updated: UserActiveProgram, workoutId: string) => {
-    setCurrentActiveProgram(updated);
-    const updatedProgram = updated.program_data as Program;
-    currentProgramRef.current = updatedProgram;
-    setCurrentProgramState(updatedProgram);
-
-    const live = currentWorkoutRef.current;
-    if (!live || live.id !== workoutId) return;
-    const updatedWorkout = updatedProgram.workouts.find((w) => w.id === workoutId);
-    if (!updatedWorkout) return;
-
-    // Keep the sets the user has already logged this session.
-    const merged: Workout = {
-      ...updatedWorkout,
-      // program_data never carries session-only fields; keep the live ones.
-      startedAt: live.startedAt,
-      collapsedExerciseIds: live.collapsedExerciseIds,
-      exercises: updatedWorkout.exercises.map((exercise) => {
-        const liveExercise = live.exercises.find((e) => e.id === exercise.id);
-        if (!liveExercise) return exercise;
-        return {
-          ...exercise,
-          sets: exercise.sets.map((set) => liveExercise.sets.find((s) => s.id === set.id) ?? set),
-        };
-      }),
-    };
-    currentWorkoutRef.current = merged;
-    setCurrentWorkout(merged);
-    persistWorkoutCheckpoint(merged);
-  };
-
+  // The running workout's structure edits. The same code serves a program day
+  // (applyWorkoutUpdate mirrors it into program_data) and a quick workout
+  // (checkpoint only), so workout.tsx does not need to know which it is
+  // (grill R1-Q4).
   const addExerciseToWorkout = async (workoutId: string, exercise: DetailedExercise) => {
-    if (!currentActiveProgram) return;
-
-    try {
-      const updated = await UserActiveProgramService.addExerciseToWorkout(currentActiveProgram.id, workoutId, {
-        exerciseId: exercise.id,
-        name: exercise.name,
-        sets: 3,
-      });
-      adoptActiveProgram(updated, workoutId);
-    } catch (error) {
-      console.error('Failed to add exercise to workout:', error);
-      throw error;
-    }
+    applyWorkoutUpdate(
+      (current) => (current.id === workoutId ? addExercise(current, { exerciseId: exercise.id, name: exercise.name }) : null),
+      true
+    );
+    await programSync.flush();
   };
 
   const removeExerciseFromWorkout = async (workoutId: string, exerciseId: string) => {
-    if (!currentActiveProgram) return;
-
-    try {
-      const updated = await UserActiveProgramService.removeExerciseFromWorkout(currentActiveProgram.id, workoutId, exerciseId);
-      adoptActiveProgram(updated, workoutId);
-    } catch (error) {
-      console.error('Failed to remove exercise from workout:', error);
-      throw error;
-    }
+    applyWorkoutUpdate((current) => (current.id === workoutId ? removeExercise(current, exerciseId) : null), true);
+    await programSync.flush();
   };
 
   const updateExerciseSets = async (workoutId: string, exerciseId: string, newSetCount: number) => {
-    if (!currentActiveProgram) return;
-
-    try {
-      const updated = await UserActiveProgramService.updateExerciseSets(currentActiveProgram.id, workoutId, exerciseId, newSetCount);
-      adoptActiveProgram(updated, workoutId);
-    } catch (error) {
-      console.error('Failed to update exercise sets:', error);
-      throw error;
-    }
+    applyWorkoutUpdate((current) => (current.id === workoutId ? setSetCount(current, exerciseId, newSetCount) : null), true);
+    await programSync.flush();
   };
 
   const reorderWorkouts = async (workoutIds: string[]) => {
-    if (!currentActiveProgram) return;
-
-    try {
-      const updated = await UserActiveProgramService.reorderWorkouts(currentActiveProgram.id, workoutIds);
-      setCurrentActiveProgram(updated);
-      setCurrentProgramState(updated.program_data as Program);
-    } catch (error) {
-      console.error('Failed to reorder workouts:', error);
-      throw error;
-    }
+    applyProgramUpdate((program) => reorderDays(program, workoutIds), true);
+    await programSync.flush();
   };
 
   const finishWorkout = () => {
