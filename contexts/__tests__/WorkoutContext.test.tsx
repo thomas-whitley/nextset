@@ -639,3 +639,66 @@ describe('review fixes', () => {
     }
   });
 });
+
+describe('discard (device run T2-3)', () => {
+  const ticks = async () => {
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+  };
+  const lastWritten = () => {
+    const calls = (UserActiveProgramService.updateActiveProgram as jest.Mock).mock.calls;
+    return calls[calls.length - 1][1] as Program;
+  };
+
+  test('discarding puts the day back as it was at Start', async () => {
+    const { result } = await setup();
+    await act(async () => { await result.current.updateSet('e1', 's1', 'weight', '40'); });
+    await act(async () => { await result.current.completeSet('e1', 's1'); });
+    expect(lastWritten().workouts[0].exercises[0].sets[0].weight).toBe('40');
+    await act(async () => { result.current.discardWorkout(); await ticks(); });
+    expect(result.current.currentWorkout).toBeNull();
+    expect(result.current.currentProgram!.workouts[0].exercises[0].sets[0].weight).toBe('');
+    expect(lastWritten().workouts[0].exercises[0].sets[0].weight).toBe('');
+  });
+
+  test('the restore point is kept in the checkpoint but never reaches program_data', async () => {
+    const { result } = await setup();
+    await act(async () => { await result.current.completeSet('e1', 's1'); });
+    expect('discardRestore' in lastWritten().workouts[0]).toBe(false);
+    const stored = JSON.parse((await AsyncStorage.getItem('momentum:in_progress_workout:user-1'))!) as Workout;
+    expect(stored.discardRestore?.id).toBe('w1');
+  });
+
+  test('a restored checkpoint can still be discarded back to its Start (Review Focus 2)', async () => {
+    const started: Workout = {
+      ...workout,
+      startedAt: 1,
+      exercises: [{ ...workout.exercises[0], sets: [{ id: 's1', weight: '40', reps: '5', isComplete: true }] }],
+      discardRestore: workout,
+    };
+    await AsyncStorage.setItem('momentum:in_progress_workout:user-1', JSON.stringify(started));
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await ticks(); });
+    expect(hook.result.current.currentWorkout?.id).toBe('w1');
+    await act(async () => { hook.result.current.discardWorkout(); await ticks(); });
+    expect(hook.result.current.currentWorkout).toBeNull();
+    expect(lastWritten().workouts[0].exercises[0].sets[0].weight).toBe('');
+  });
+
+  test('a checkpoint from before this change discards without a restore point (Review Focus 3)', async () => {
+    const old: Workout = { ...workout, startedAt: 1 }; // no discardRestore
+    await AsyncStorage.setItem('momentum:in_progress_workout:user-1', JSON.stringify(old));
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await ticks(); });
+    await act(async () => { hook.result.current.discardWorkout(); await ticks(); });
+    expect(hook.result.current.currentWorkout).toBeNull();
+  });
+
+  test('a quick workout discards without touching the program', async () => {
+    const { result } = await setup();
+    await act(async () => { result.current.discardWorkout(); await ticks(); });
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockClear();
+    await act(() => { result.current.startQuickWorkout(); });
+    await act(async () => { result.current.discardWorkout(); await ticks(); });
+    expect(UserActiveProgramService.updateActiveProgram).not.toHaveBeenCalled();
+  });
+});

@@ -49,6 +49,7 @@ export default function WorkoutScreen() {
     reorderExercises,
     replaceExercise,
     finishWorkout,
+    discardWorkout,
     flushProgramSync,
     rest,
     dispatchRest,
@@ -335,12 +336,12 @@ export default function WorkoutScreen() {
   };
 
   const handleClosePress = () => {
-    Alert.alert(currentWorkout?.name ?? 'Workout', undefined, [
+    Alert.alert(currentWorkout?.name ?? 'Workout', 'Minimise keeps it running. Discard throws this session away.', [
       { text: 'Minimise', onPress: () => router.back() },
       { text: 'Discard workout', style: 'destructive', onPress: () =>
         Alert.alert('Discard this workout?', 'Nothing from this session will be saved.', [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => { stopTimers(); finishWorkout(); router.back(); } },
+          { text: 'Discard', style: 'destructive', onPress: () => { stopTimers(); discardWorkout(); router.back(); } },
         ]) },
       { text: 'Cancel', style: 'cancel' },
     ]);
@@ -361,7 +362,7 @@ export default function WorkoutScreen() {
     if (completedSetCount === 0) {
       Alert.alert('Nothing logged yet', 'Tick off at least one set, or close the workout without saving.', [
         { text: 'Keep going', style: 'cancel' },
-        { text: 'Discard workout', style: 'destructive', onPress: () => { stopTimers(); finishWorkout(); router.back(); } },
+        { text: 'Discard workout', style: 'destructive', onPress: () => { stopTimers(); discardWorkout(); router.back(); } },
       ]);
       return;
     }

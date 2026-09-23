@@ -137,6 +137,12 @@ export interface Workout {
   startedAt?: number;
   /** Exercises the user folded on the workout screen. Session-only: checkpointed, never written to program_data. */
   collapsedExerciseIds?: string[];
+  /**
+   * Session-only: the program day as it stood when this workout started. Discard
+   * writes it back, because set edits mirror into program_data as they are typed
+   * (device run T2-3). Lives in the checkpoint; never written to program_data.
+   */
+  discardRestore?: Workout;
   /** A workout with no program (spec D12). Checkpointed locally and saved to history; never written to program_data. */
   isQuick?: boolean;
 }

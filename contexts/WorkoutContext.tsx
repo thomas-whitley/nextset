@@ -52,6 +52,8 @@ interface WorkoutContextType {
   /** Swaps an exercise's identity in the running workout, keeping the set count but clearing logged values. */
   replaceExercise: (exerciseId: string, next: DetailedExercise) => Promise<void>;
   finishWorkout: () => void;
+  /** Throw the running workout away: nothing saved, and its program day restored to how it was at Start. */
+  discardWorkout: () => void;
   addExerciseToWorkout: (workoutId: string, exercise: DetailedExercise) => Promise<void>;
   removeExerciseFromWorkout: (workoutId: string, exerciseId: string) => Promise<void>;
   updateExerciseSets: (workoutId: string, exerciseId: string, newSetCount: number) => Promise<void>;
@@ -80,6 +82,12 @@ interface WorkoutContextType {
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
+
+/** A day as program_data holds it: none of a session's own fields. */
+function withoutSessionFields(w: Workout): Workout {
+  const { startedAt, collapsedExerciseIds, discardRestore, ...day } = w;
+  return day;
+}
 
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [programs] = useState<Program[]>(programTemplates);
@@ -339,6 +347,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       // survives across app restarts (see the restore effect above).
       startedAt: Date.now(),
       collapsedExerciseIds: [],
+      // The day as it is now, for Discard. A quick workout has no day to restore.
+      discardRestore: workout.isQuick ? undefined : withoutSessionFields(workout),
       exercises: workout.exercises.map((exercise) => ({
         ...exercise,
         sets: exercise.sets.map((set) => ({ ...set, isComplete: false, pr: undefined, previousWeight: undefined, previousReps: undefined })),
@@ -434,8 +444,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     // startedAt (item 1 — otherwise next week's session inherits this week's
     // start time) and each set's pr flag (item 2 — a per-session PR badge has
     // no business surviving into the program template), and
-    // collapsedExerciseIds (spec R7) — a fold is how this session looks, not part of the program.
-    const { startedAt, collapsedExerciseIds, ...forProgram } = next;
+    // collapsedExerciseIds (spec R7) — a fold is how this session looks, not part of the program —
+    // and discardRestore (T2-3), Discard's copy of the day at Start.
+    const { startedAt, collapsedExerciseIds, discardRestore, ...forProgram } = next;
     const forProgramWorkout: Workout = {
       ...forProgram,
       exercises: forProgram.exercises.map((exercise) => ({
@@ -651,6 +662,23 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     void cancelRestNotification();
   };
 
+  const discardWorkout = () => {
+    const live = currentWorkoutRef.current;
+    // A checkpoint from an older build has no restore point: discard as before.
+    const before = live && !live.isQuick ? live.discardRestore : undefined;
+    if (before) {
+      applyProgramUpdate(
+        (program) => ({
+          ...program,
+          // Keep the day's current order: days can be reordered while it runs.
+          workouts: program.workouts.map((w) => (w.id === before.id ? { ...before, order: w.order } : w)),
+        }),
+        true
+      );
+    }
+    finishWorkout();
+  };
+
   return (
     <WorkoutContext.Provider
       value={{
@@ -676,6 +704,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         completeSet,
         replaceExercise,
         finishWorkout,
+        discardWorkout,
         addExerciseToWorkout,
         removeExerciseFromWorkout,
         updateExerciseSets,
