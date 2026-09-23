@@ -1,5 +1,7 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render, screen, fireEvent, act } from '@testing-library/react-native';
+import { formatShortDate } from '../../utils/format';
 import { router } from 'expo-router';
 import ProgressScreen from '../(tabs)/progress';
 import { WorkoutHistoryService } from '../../services/workoutHistoryService';
@@ -53,4 +55,13 @@ test('See all exercises is there even with no weighted records in range', async 
   await settle();
   await fireEvent.press(screen.getByText('See all exercises'));
   expect(screen.getByText('SHEET OPEN')).toBeTruthy();
+});
+
+test('text inside a tappable record row is at least 15pt', async () => {
+  jest.spyOn(WorkoutHistoryService, 'getProgressStats').mockResolvedValue(stats([{ exerciseId: 42, exercise: 'Bench', maxWeight: 80, date: '2026-09-22' }]) as any);
+  await render(<ProgressScreen />);
+  await settle();
+  for (const text of ['Bench', formatShortDate('2026-09-22')]) {
+    expect(StyleSheet.flatten(screen.getByText(text).props.style).fontSize).toBeGreaterThanOrEqual(15);
+  }
 });

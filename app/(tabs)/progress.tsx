@@ -554,6 +554,7 @@ const styles = StyleSheet.create({
   },
   exerciseDate: {
     ...type.label,
+    fontSize: 15, // the row is tappable: 15pt floor
     color: Colors.light.textTertiary,
     marginTop: spacing.xs / 2,
   },

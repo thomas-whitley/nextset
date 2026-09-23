@@ -2,7 +2,7 @@ import { supabase } from '../data/supabase-client';
 import type { Database, Json } from '../data/supabase.types';
 import { Workout } from './exercise.types';
 import { computeStreaks, toDateKey } from './stats';
-import { bestsFromWorkouts, type ExerciseBests } from './prMath';
+import { bestsFromWorkouts, parseSetNumber, type ExerciseBests } from './prMath';
 import { ExerciseService } from './exerciseService';
 import type { HistorySource } from './exerciseProgress';
 
@@ -222,8 +222,9 @@ export class WorkoutHistoryService {
       (workoutData?.exercises ?? []).forEach(exercise => {
         if (typeof exercise.exerciseId !== 'number') return;
         (exercise.sets ?? []).forEach(set => {
-          if (!set.isComplete) return;
-          const weight = parseFloat(set.weight) || 0;
+          // Parsed like prMath and the exercise screen this row opens, so the two agree.
+          if (!set.isComplete || !parseSetNumber(set.reps)) return;
+          const weight = parseSetNumber(set.weight);
           const best = exerciseMaxWeights[exercise.exerciseId];
           if (!best || weight > best.weight) {
             exerciseMaxWeights[exercise.exerciseId] = {

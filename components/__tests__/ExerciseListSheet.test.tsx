@@ -1,9 +1,14 @@
 import React from 'react';
+import { StyleSheet, Dimensions } from 'react-native';
 import { render, screen, fireEvent, act } from '@testing-library/react-native';
 import ExerciseListSheet from '../ExerciseListSheet';
 import { WorkoutHistoryService } from '../../services/workoutHistoryService';
 
-jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+const mockInsets = { top: 0, bottom: 0, left: 0, right: 0 };
+jest.mock('react-native-safe-area-context', () => ({
+  ...require('react-native-safe-area-context/jest/mock').default,
+  useSafeAreaInsets: () => mockInsets,
+}));
 jest.mock('../gestures/DragDismissSheet', () => ({ __esModule: true, default: ({ visible, children }: any) => (visible ? children : null) }));
 const mockAuth = { user: { id: 'user-1' } };
 jest.mock('../../data/AuthContext', () => ({ useAuth: () => mockAuth }));
@@ -58,4 +63,18 @@ test('does not fetch while hidden', async () => {
   await render(<ExerciseListSheet visible={false} onDismiss={jest.fn()} onPick={jest.fn()} />);
   await settle();
   expect(spy).not.toHaveBeenCalled();
+});
+
+test('stops below the status bar, like the program picker (device run T2-14)', async () => {
+  mockInsets.top = 59;
+  mockInsets.bottom = 34;
+  jest.spyOn(WorkoutHistoryService, 'getExerciseHistory').mockResolvedValue([]);
+  await render(<ExerciseListSheet visible onDismiss={jest.fn()} onPick={jest.fn()} />);
+  await settle();
+  const { height } = Dimensions.get('window');
+  const style = StyleSheet.flatten(screen.getByTestId('exercise-list-sheet').props.style);
+  expect(style.height).toBe(Math.min(height * 0.9, height - 59 - 34 - 32 - 48));
+  expect(style.height).toBeLessThan(height * 0.9);
+  mockInsets.top = 0;
+  mockInsets.bottom = 0;
 });

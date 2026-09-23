@@ -22,10 +22,10 @@ beforeEach(() => {
   for (const m of ['select', 'eq', 'gte', 'order', 'limit']) mocked.__chain[m].mockClear();
 });
 
-const row = (id: string, day: string, exerciseId: number, name: string, weight: string) => ({
+const row = (id: string, day: string, exerciseId: number, name: string, weight: string, reps = '5') => ({
   id, user_id: 'u', created_at: '', completed_at: `${day}T12:00:00.000Z`, total_volume: 0, duration_minutes: 0, health_stats: {},
   workout_data: { id: 'w', name: 'Push', description: '', order: 0, exercises: [
-    { id: 'e', exerciseId, name, order: 0, sets: [{ id: 's', weight, reps: '5', isComplete: true }] },
+    { id: 'e', exerciseId, name, order: 0, sets: [{ id: 's', weight, reps, isComplete: true }] },
   ] },
 });
 
@@ -58,5 +58,16 @@ describe('getProgressStats exercise PRs', () => {
     const libRows = stats.exerciseProgress.filter((p) => p.exerciseId === lib.id);
     expect(libRows).toEqual([{ exerciseId: lib.id, exercise: lib.name, maxWeight: 90, date: '2026-09-08' }]);
     expect(stats.exerciseProgress.find((p) => p.exerciseId === -7)?.exercise).toBe('Retired lift');
+  });
+});
+
+describe('getProgressStats reads sets like the exercise screen', () => {
+  it('parses a comma decimal and ignores a ticked set with no reps', async () => {
+    mocked.__result.data = [
+      row('h1', '2026-09-01', -3, 'Bench', '82,5'),
+      row('h2', '2026-09-02', -3, 'Bench', '100', ''),
+    ];
+    const stats = await WorkoutHistoryService.getProgressStats('u', 30);
+    expect(stats.exerciseProgress).toEqual([{ exerciseId: -3, exercise: 'Bench', maxWeight: 82.5, date: '2026-09-01' }]);
   });
 });
