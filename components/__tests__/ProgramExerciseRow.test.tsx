@@ -65,3 +65,12 @@ test('locked: the plan as text, no controls', async () => {
   expect(screen.queryByLabelText('Remove Barbell Bench Press')).toBeNull();
   expect(screen.queryByLabelText('Reps target for Barbell Bench Press')).toBeNull();
 });
+
+test('empty reps shows the word "reps", centred like the set inputs (device run T2-8, T2-9)', async () => {
+  const { StyleSheet } = require('react-native');
+  await render(<ProgramExerciseRow {...props({ exercise: { ...exercise, repsTarget: undefined } })} />);
+  expect(field().props.placeholder).toBe('reps');
+  const style = StyleSheet.flatten(field().props.style);
+  expect(style.textAlignVertical).toBe('center');
+  expect(style.paddingVertical).toBe(0);
+});

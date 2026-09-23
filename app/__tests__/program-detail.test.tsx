@@ -174,3 +174,11 @@ test('the leave listener is added once, not on every render (review M9)', async 
   await screen.rerender(<ProgramDayEditorScreen />);
   expect(mockNav.addListener.mock.calls.filter((c) => c[0] === 'beforeRemove')).toHaveLength(1);
 });
+
+test('the list lifts above the keyboard and a drag closes it (device run T2-4)', async () => {
+  await render(<ProgramDayEditorScreen />);
+  expect(screen.getByTestId('day-editor-keyboard')).toBeTruthy();
+  const scroll = screen.getByTestId('day-editor-scroll');
+  expect(scroll.props.keyboardDismissMode).toBe('on-drag');
+  expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
+});

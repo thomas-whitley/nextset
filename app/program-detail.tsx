@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Plus, Lock } from 'lucide-react-native';
 import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -115,59 +115,67 @@ export default function ProgramDayEditorScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}>
-        {!day ? (
-          <Text style={styles.note}>This day is no longer in your program.</Text>
-        ) : (
-          <>
-            {!currentActiveProgram ? (
-              <Text style={styles.note}>Your copy of this program did not load. Check your connection and open it again.</Text>
-            ) : running ? (
-              <View style={styles.lockedNote}>
-                <Lock size={20} color={Colors.light.text} />
-                <Text style={styles.lockedText}>You are doing this workout now. Finish it to edit this day.</Text>
-              </View>
-            ) : null}
+      {/* Lifts the list so a focused reps field stays above the keyboard (device run T2-4). */}
+      <KeyboardAvoidingView testID="day-editor-keyboard" style={styles.flex} behavior="padding">
+        <ScrollView
+          testID="day-editor-scroll"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
+        >
+          {!day ? (
+            <Text style={styles.note}>This day is no longer in your program.</Text>
+          ) : (
+            <>
+              {!currentActiveProgram ? (
+                <Text style={styles.note}>Your copy of this program did not load. Check your connection and open it again.</Text>
+              ) : running ? (
+                <View style={styles.lockedNote}>
+                  <Lock size={20} color={Colors.light.text} />
+                  <Text style={styles.lockedText}>You are doing this workout now. Finish it to edit this day.</Text>
+                </View>
+              ) : null}
 
-            {exercises.length === 0 ? <Text style={styles.note}>No exercises yet. Add the first one below.</Text> : null}
+              {exercises.length === 0 ? <Text style={styles.note}>No exercises yet. Add the first one below.</Text> : null}
 
-            <DraggableList
-              items={exercises}
-              keyExtractor={(e) => e.id}
-              gap={spacing.md}
-              handleOnly
-              enabled={!locked && exercises.length > 1}
-              onReorder={(ids) => edit((d) => reorderExercises(d, ids), true)}
-              renderItem={(exercise, _index, _isActive, handle) => (
-                <ProgramExerciseRow
-                  exercise={exercise}
-                  locked={locked}
-                  onSetCount={(n) => edit((d) => setSetCount(d, exercise.id, n), false)}
-                  onRepsTarget={(t) => edit((d) => setRepsTarget(d, exercise.id, t), false)}
-                  onRemove={() => confirmRemove(exercise.id, exercise.name)}
-                  dragHandle={handle}
-                  registerCommit={(commit) => {
-                    if (commit) pendingCommits.current.set(exercise.id, commit);
-                    else pendingCommits.current.delete(exercise.id);
-                  }}
-                />
-              )}
-            />
+              <DraggableList
+                items={exercises}
+                keyExtractor={(e) => e.id}
+                gap={spacing.md}
+                handleOnly
+                enabled={!locked && exercises.length > 1}
+                onReorder={(ids) => edit((d) => reorderExercises(d, ids), true)}
+                renderItem={(exercise, _index, _isActive, handle) => (
+                  <ProgramExerciseRow
+                    exercise={exercise}
+                    locked={locked}
+                    onSetCount={(n) => edit((d) => setSetCount(d, exercise.id, n), false)}
+                    onRepsTarget={(t) => edit((d) => setRepsTarget(d, exercise.id, t), false)}
+                    onRemove={() => confirmRemove(exercise.id, exercise.name)}
+                    dragHandle={handle}
+                    registerCommit={(commit) => {
+                      if (commit) pendingCommits.current.set(exercise.id, commit);
+                      else pendingCommits.current.delete(exercise.id);
+                    }}
+                  />
+                )}
+              />
 
-            {!locked ? (
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => setPicking(true)}
-                accessibilityRole="button"
-                accessibilityLabel={`Add exercise to ${day.name}`}
-              >
-                <Plus size={22} color={Colors.light.primary} />
-                <Text style={styles.addText}>Add exercise</Text>
-              </TouchableOpacity>
-            ) : null}
-          </>
-        )}
-      </ScrollView>
+              {!locked ? (
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => setPicking(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add exercise to ${day.name}`}
+                >
+                  <Plus size={22} color={Colors.light.primary} />
+                  <Text style={styles.addText}>Add exercise</Text>
+                </TouchableOpacity>
+              ) : null}
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <DragDismissSheet visible={picking} onDismiss={() => setPicking(false)}>
         <View style={{ height: windowHeight * 0.85 }}>
@@ -186,6 +194,7 @@ export default function ProgramDayEditorScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
+  flex: { flex: 1 },
   header: {
     minHeight: 64,
     flexDirection: 'row',
