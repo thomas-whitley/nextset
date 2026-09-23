@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, Minus, X, Clock, Dumbbell, ChevronDown, ChevronUp, Trash2, RefreshCw, Trophy } from 'lucide-react-native';
+import { Plus, X, Clock, Dumbbell, Trophy } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useWorkout } from '@/contexts/WorkoutContext';
@@ -12,16 +12,18 @@ import { getDefaultRestSeconds, DEFAULT_REST_SECONDS } from '@/services/preferen
 import { formatKg, formatMinutes } from '@/utils/format';
 import BarLoadingStrip from '@/components/BarLoadingStrip';
 import * as Haptics from 'expo-haptics';
-import { radius, elevation, spacing, motion, type, HIT_SLOP } from '@/constants/theme';
+import { radius, elevation, spacing, motion, type, touch, HIT_SLOP } from '@/constants/theme';
 import { useConnectivity } from '@/hooks/useConnectivity';
-import { isTimedExercise } from '@/data/timedExercises';
-import SwipeToRemove from '@/components/gestures/SwipeToRemove';
 import DragDismissSheet from '@/components/gestures/DragDismissSheet';
 import DraggableList from '@/components/gestures/DraggableList';
-import type { WorkoutExercise } from '@/services/exercise.types';
+import type { WorkoutExercise, ExerciseSet } from '@/services/exercise.types';
 import { sanitiseSetValue, stepValue } from '@/services/setSteps';
 import SetRow from '@/components/SetRow';
-import { formatRepsTarget } from '@/services/repsTarget';
+import ExerciseCard from '@/components/ExerciseCard';
+import ExerciseActionsSheet from '@/components/ExerciseActionsSheet';
+import SwapExerciseSheet from '@/components/SwapExerciseSheet';
+import HowToSheet from '@/components/HowToSheet';
+import { withoutPending, pendingKey, type PendingRemoval } from '@/services/pendingRemoval';
 import { remainingSeconds } from '@/services/restTimer';
 import { ensureRestPermission, hasAskedRestPermission, markRestPermissionAsked, scheduleRestNotification, cancelRestNotification, openExactAlarmSettingsOnce } from '@/services/restNotifications';
 import RestBanner from '@/components/RestBanner';
@@ -31,23 +33,8 @@ import { summariseWorkout, countLoggedSets } from '@/services/finishSummary';
 interface WorkoutMetadata {
   startTime: Date | null;
   endTime: Date | null;
-  bodyweight: string;
   notes: string;
 }
-
-interface WarmupOption {
-  id: string;
-  name: string;
-  duration: string;
-  description: string;
-}
-
-const warmupOptions: WarmupOption[] = [
-  { id: '1', name: 'Leg Swings', duration: '5 min', description: 'Dynamic leg movements to activate hip flexors' },
-  { id: '2', name: 'Dynamic Stretches', duration: '8 min', description: 'Full body dynamic stretching routine' },
-  { id: '3', name: 'Yoga Flow', duration: '10 min', description: 'Gentle yoga sequence for mobility' },
-  { id: '4', name: 'Joint Mobility', duration: '6 min', description: 'Targeted joint activation exercises' },
-];
 
 export default function WorkoutScreen() {
   const insets = useSafeAreaInsets();
@@ -65,16 +52,19 @@ export default function WorkoutScreen() {
     flushProgramSync,
     rest,
     dispatchRest,
-    workoutStartedAt
+    workoutStartedAt,
+    setExerciseCollapsed,
+    removeSet
   } = useWorkout();
   const { user } = useAuth();
   const { height: windowHeight } = useWindowDimensions();
   const { isOnline } = useConnectivity();
 
   const [showExerciseModal, setShowExerciseModal] = useState(false);
-  const [pickerMode, setPickerMode] = useState<{ kind: 'add' } | { kind: 'replace'; exerciseId: string }>({ kind: 'add' });
   const [showMetadataModal, setShowMetadataModal] = useState(false);
-  const [showWarmupModal, setShowWarmupModal] = useState(false);
+  const [actionsFor, setActionsFor] = useState<WorkoutExercise | null>(null);
+  const [swapFor, setSwapFor] = useState<WorkoutExercise | null>(null);
+  const [howToFor, setHowToFor] = useState<WorkoutExercise | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const restRemaining = remainingSeconds(rest, now);
   const firedRef = useRef(false);
@@ -93,8 +83,6 @@ export default function WorkoutScreen() {
   // minimise/resume remount, unlike a locally-owned start Date would).
   const [workoutNow, setWorkoutNow] = useState(() => Date.now());
   const workoutDuration = workoutStartedAt ? Math.max(0, Math.floor((workoutNow - workoutStartedAt) / 1000)) : 0;
-  const [isWarmupCollapsed, setIsWarmupCollapsed] = useState(false);
-  const [selectedWarmup, setSelectedWarmup] = useState<WarmupOption | null>(null);
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
 
   type Focused = { exerciseId: string; setId: string; field: 'weight' | 'reps' } | null;
@@ -110,7 +98,6 @@ export default function WorkoutScreen() {
   const [metadata, setMetadata] = useState<WorkoutMetadata>({
     startTime: null,
     endTime: null,
-    bodyweight: '',
     notes: ''
   });
 
@@ -119,7 +106,7 @@ export default function WorkoutScreen() {
   // window, so Undo is just "never send the write" rather than trying to
   // reconstruct a completed one.
   const UNDO_WINDOW_MS = 4000;
-  const [pendingRemoval, setPendingRemoval] = useState<{ exercise: WorkoutExercise } | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
   const pendingRemovalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
   const undoSnackbarAnim = useRef(new Animated.Value(0)).current;
@@ -143,7 +130,7 @@ export default function WorkoutScreen() {
         useNativeDriver: true,
       }).start();
     }
-  }, [pendingRemoval?.exercise.id]);
+  }, [pendingRemoval ? pendingKey(pendingRemoval) : null]);
 
   // Tick the display clock while a workout is active; the duration itself is
   // derived from workoutStartedAt, so this survives a minimise/resume remount.
@@ -237,52 +224,50 @@ export default function WorkoutScreen() {
     if (!currentWorkout) return;
 
     try {
-      if (pickerMode.kind === 'replace') await replaceExercise(pickerMode.exerciseId, exercise);
-      else await addExerciseToWorkout(currentWorkout.id, exercise);
+      await addExerciseToWorkout(currentWorkout.id, exercise);
       setShowExerciseModal(false);
     } catch {
-      Alert.alert(pickerMode.kind === 'replace' ? 'Could not replace exercise' : 'Could not add exercise', 'Check your connection and try again.');
+      Alert.alert('Could not add exercise', 'Check your connection and try again.');
     }
   };
 
-  // Only clears pendingRemoval if it's still the one this commit was for:
-  // committing exercise A (because B got swiped before A's undo window
-  // closed) must not wipe B's still-pending state out from under it once
-  // A's write resolves.
-  const clearPendingRemovalFor = (exercise: WorkoutExercise) => {
-    setPendingRemoval((p) => (p?.exercise.id === exercise.id ? null : p));
+  const clearPendingRemovalFor = (p: PendingRemoval) => {
+    setPendingRemoval((cur) => (cur && pendingKey(cur) === pendingKey(p) ? null : cur));
   };
 
-  /** Actually sends the removal once the undo window has elapsed (or the screen closes with one still pending). */
-  const commitRemoval = async (exercise: WorkoutExercise) => {
+  /** Sends the removal once the undo window has elapsed (or the screen closes with one still pending). */
+  const commitRemoval = async (p: PendingRemoval) => {
     if (!currentWorkout) {
-      if (isMountedRef.current) clearPendingRemovalFor(exercise);
+      if (isMountedRef.current) clearPendingRemovalFor(p);
       return;
     }
     try {
-      await removeExerciseFromWorkout(currentWorkout.id, exercise.id);
+      if (p.kind === 'exercise') await removeExerciseFromWorkout(currentWorkout.id, p.exercise.id);
+      else await removeSet(p.exerciseId, p.set.id);
     } catch {
-      if (isMountedRef.current) Alert.alert('Could not remove exercise', 'Check your connection and try again.');
+      if (isMountedRef.current) Alert.alert(p.kind === 'exercise' ? 'Could not remove exercise' : 'Could not remove set', 'Check your connection and try again.');
     } finally {
-      if (isMountedRef.current) clearPendingRemovalFor(exercise);
+      if (isMountedRef.current) clearPendingRemovalFor(p);
     }
   };
 
-  const handleRemoveExercise = (exercise: WorkoutExercise) => {
-    // Only one undo window open at a time: swiping a second row commits
-    // whichever removal was already pending, so "removed" stays meaningful.
+  const queueRemoval = (p: PendingRemoval) => {
+    // One undo window at a time: a second removal commits the first.
     if (pendingRemovalTimer.current) {
       clearTimeout(pendingRemovalTimer.current);
       pendingRemovalTimer.current = null;
-      if (pendingRemoval) commitRemoval(pendingRemoval.exercise);
+      if (pendingRemoval) commitRemoval(pendingRemoval);
     }
-
-    setPendingRemoval({ exercise });
+    setPendingRemoval(p);
     pendingRemovalTimer.current = setTimeout(() => {
       pendingRemovalTimer.current = null;
-      commitRemoval(exercise);
+      commitRemoval(p);
     }, UNDO_WINDOW_MS);
   };
+
+  const handleRemoveExercise = (exercise: WorkoutExercise) => queueRemoval({ kind: 'exercise', exercise });
+  const handleRemoveSet = (exerciseId: string, set: ExerciseSet, setNumber: number) =>
+    queueRemoval({ kind: 'set', exerciseId, set, setNumber });
 
   const handleUndoRemoval = () => {
     if (pendingRemovalTimer.current) {
@@ -307,11 +292,6 @@ export default function WorkoutScreen() {
     }
   };
 
-  const handleWarmupSelect = (warmup: WarmupOption) => {
-    setSelectedWarmup(warmup);
-    setShowWarmupModal(false);
-  };
-
   const handleReorderExercises = async (orderedExerciseIds: string[]) => {
     // DraggableList only ever sees visibleExercises, which is one shorter
     // than currentWorkout.exercises while a removal is mid-undo-window.
@@ -321,7 +301,7 @@ export default function WorkoutScreen() {
     // before persisting, or every drag would silently no-op for as long as
     // the undo snackbar is showing.
     let finalOrder = orderedExerciseIds;
-    if (pendingRemoval && currentWorkout) {
+    if (pendingRemoval?.kind === 'exercise' && currentWorkout) {
       const pendingId = pendingRemoval.exercise.id;
       const originalIndex = currentWorkout.exercises.findIndex((e) => e.id === pendingId);
       finalOrder = [...orderedExerciseIds];
@@ -362,12 +342,9 @@ export default function WorkoutScreen() {
     ]);
   };
 
-  // Excludes whichever exercise is mid-swipe: once removed from view it
-  // should stop counting toward the summary too, even before the delayed
-  // write actually lands.
-  const visibleExercises = currentWorkout
-    ? currentWorkout.exercises.filter((e) => e.id !== pendingRemoval?.exercise.id)
-    : [];
+  // Excludes whatever is mid-swipe (an exercise, or one set) so the summary,
+  // the finish sheet and the saved workout all agree (spec, Review Focus 1).
+  const visibleExercises = currentWorkout ? withoutPending(currentWorkout.exercises, pendingRemoval) : [];
 
   const completedSetCount = countLoggedSets(visibleExercises);
   const sessionVolume = visibleExercises.reduce(
@@ -404,10 +381,7 @@ export default function WorkoutScreen() {
     // Match whatever the summary above showed: if a swipe is still inside
     // its undo window when the user saves, its sets must not be banked —
     // the delayed write and this save must never disagree about volume.
-    const workoutToSave = {
-      ...currentWorkout,
-      exercises: currentWorkout.exercises.filter((e) => e.id !== pendingRemoval?.exercise.id),
-    };
+    const workoutToSave = { ...currentWorkout, exercises: withoutPending(currentWorkout.exercises, pendingRemoval) };
 
     try {
       await flushProgramSync();
@@ -514,9 +488,21 @@ export default function WorkoutScreen() {
     if (!cur.set.isComplete) void handleSetComplete(cur.ex, cur.set.id, cur.index);
     // visibleExercises, not currentWorkout.exercises: the latter still
     // includes an exercise mid-swipe inside its undo window (item 10).
-    const nextSet = cur.ex.sets[cur.index + 1] ?? visibleExercises[visibleExercises.indexOf(cur.ex) + 1]?.sets[0];
-    if (nextSet) inputRefs.current.get(`${nextSet.id}:weight`)?.focus();
-    else Keyboard.dismiss();
+    const nextInSame = cur.ex.sets[cur.index + 1];
+    const liveIndex = visibleExercises.findIndex((e) => e.id === cur.ex.id);
+    const nextExercise = nextInSame ? null : visibleExercises[liveIndex + 1] ?? null;
+    const nextSet = nextInSame ?? nextExercise?.sets[0];
+    if (!nextSet) {
+      Keyboard.dismiss();
+      return;
+    }
+    if (nextExercise && (currentWorkout?.collapsedExerciseIds ?? []).includes(nextExercise.id)) {
+      // Its inputs don't exist while folded: unfold, then focus after it renders (Review Focus 3).
+      setExerciseCollapsed(nextExercise.id, false);
+      requestAnimationFrame(() => inputRefs.current.get(`${nextSet.id}:weight`)?.focus());
+      return;
+    }
+    inputRefs.current.get(`${nextSet.id}:weight`)?.focus();
   };
 
   if (!isWorkoutActive || !currentWorkout) {
@@ -544,41 +530,28 @@ export default function WorkoutScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header with Workout Timer */}
-      <View style={[styles.header, { height: 60 }]}>
-        <TouchableOpacity
-          onPress={handleClosePress}
-          accessibilityRole="button"
-          accessibilityLabel="Close or discard workout"
-          accessibilityHint="Exit current workout session"
-        >
-          <X size={20} color={Colors.light.text} />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerIcon} onPress={handleClosePress} accessibilityRole="button" accessibilityLabel="Close or discard workout">
+          <X size={24} color={Colors.light.text} />
         </TouchableOpacity>
-
         <View style={styles.headerContent}>
-          <Text style={styles.workoutTitle}>{currentWorkout.name}</Text>
+          <Text style={styles.workoutTitle} numberOfLines={1}>{currentWorkout.name}</Text>
           <View style={styles.timerContainer}>
             <Clock size={14} color={Colors.light.success} />
             <Text style={styles.workoutTimer}>{formatTime(workoutDuration)}</Text>
           </View>
         </View>
-        
-        <View style={styles.headerButtons}>
-          <View>
-            <TouchableOpacity
-              style={styles.finishButton}
-              onPress={handleFinishWorkout}
-              disabled={!isOnline || saving}
-              accessibilityRole="button"
-              accessibilityLabel="Finish workout"
-              accessibilityHint="Complete and save your workout session"
-            >
-              <Text style={styles.finishButtonText}>Finish</Text>
-            </TouchableOpacity>
-            {!isOnline && (
-              <Text style={styles.finishHelper}>Waiting for connection</Text>
-            )}
-          </View>
+        <View>
+          <TouchableOpacity
+            style={[styles.finishButton, (!isOnline || saving) && { opacity: 0.5 }]}
+            onPress={handleFinishWorkout}
+            disabled={!isOnline || saving}
+            accessibilityRole="button"
+            accessibilityLabel="Finish workout"
+          >
+            <Text style={styles.finishButtonText}>Finish</Text>
+          </TouchableOpacity>
+          {!isOnline ? <Text style={styles.finishHelper}>Waiting for connection</Text> : null}
         </View>
       </View>
 
@@ -597,191 +570,48 @@ export default function WorkoutScreen() {
             <Text style={styles.offlineText}>Offline — your sets are saved on this phone</Text>
           </View>
         )}
-        {/* Warmup Section */}
-        <TouchableOpacity 
-          style={styles.warmupCard} 
-          onPress={() => setIsWarmupCollapsed(!isWarmupCollapsed)}
-          accessibilityRole="button"
-          accessibilityLabel={`Warmup section ${isWarmupCollapsed ? 'collapsed' : 'expanded'}`}
-          accessibilityHint="Tap to expand or collapse warmup options"
-        >
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <Dumbbell size={16} color={Colors.light.primary} />
-              <Text style={styles.sectionTitle}>Warmup</Text>
-            </View>
-            {isWarmupCollapsed ? 
-              <ChevronDown size={20} color={Colors.light.textTertiary} /> : 
-              <ChevronUp size={20} color={Colors.light.textTertiary} />
-            }
-          </View>
-          
-          {!isWarmupCollapsed && (
-            <>
-              {selectedWarmup ? (
-                <View style={styles.selectedWarmup}>
-                  <Text style={styles.selectedWarmupName}>{selectedWarmup.name}</Text>
-                  <Text style={styles.selectedWarmupDescription}>{selectedWarmup.description}</Text>
-                  <Text style={styles.selectedWarmupDuration}>{selectedWarmup.duration}</Text>
-                </View>
-              ) : (
-                <TouchableOpacity 
-                  style={styles.chooseWarmupButton}
-                  onPress={() => setShowWarmupModal(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Choose warmup exercise"
-                  accessibilityHint="Select a warmup routine for your workout"
-                >
-                  <Text style={styles.chooseWarmupText}>Choose Warmup</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-        </TouchableOpacity>
-
-        {/* Exercises — long-press a card to pick it up and reorder. */}
+        {/* Exercises — drag the grip (folded cards only) to reorder. */}
         <DraggableList
           items={visibleExercises}
           keyExtractor={(exercise) => exercise.id}
           gap={spacing.md}
           enabled={visibleExercises.length > 1}
+          handleOnly
           onReorder={handleReorderExercises}
-          renderItem={(exercise, exerciseIndex, isDragging) => (
-            <View
-              style={[
-                styles.exerciseCardOuter,
-                exercise.id === activeExerciseId && styles.exerciseCardOuterActive,
-                isDragging && styles.exerciseCardDragging,
-                isDragging && { borderRadius: exercise.id === activeExerciseId ? radius.slab : radius.card },
-              ]}
-            >
-              <SwipeToRemove
-                onRemove={() => handleRemoveExercise(exercise)}
-                label={`Remove ${exercise.name}`}
-                cornerRadius={exercise.id === activeExerciseId ? radius.slab : radius.card}
-              >
-                <View
-                  style={[styles.exerciseCard, exercise.id === activeExerciseId && styles.exerciseCardActive]}
-                >
-                  <View style={styles.exerciseHeader}>
-                    <Text
-                      style={[styles.exerciseName, exercise.id === activeExerciseId && styles.onSlabText]}
-                    >
-                      {exercise.name}
-                    </Text>
-                    <Text style={[styles.planText, exercise.id === activeExerciseId && styles.onSlabMuted]}>
-                      {exercise.sets.length} × {formatRepsTarget(exercise.repsTarget) || '—'}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => { setPickerMode({ kind: 'replace', exerciseId: exercise.id }); setShowExerciseModal(true); }}
-                      hitSlop={HIT_SLOP}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Replace ${exercise.name}`}
-                    >
-                      <RefreshCw
-                        size={16}
-                        color={
-                          exercise.id === activeExerciseId
-                            ? Colors.light.onRubberSecondary
-                            : Colors.light.textTertiary
-                        }
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => handleRemoveExercise(exercise)}
-                      hitSlop={HIT_SLOP}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Remove ${exercise.name}`}
-                    >
-                      <Trash2
-                        size={16}
-                        color={
-                          exercise.id === activeExerciseId
-                            ? Colors.light.onRubberSecondary
-                            : Colors.light.textTertiary
-                        }
-                      />
-                    </TouchableOpacity>
-                    <View style={styles.setControls}>
-                      <TouchableOpacity
-                        style={styles.setControlButton}
-                        onPress={() => handleUpdateSets(exercise.id, -1)}
-                        disabled={exercise.sets.length <= 1}
-                      >
-                        <Minus
-                          size={12}
-                          color={exercise.sets.length <= 1 ? Colors.light.border : Colors.light.primary}
-                        />
-                      </TouchableOpacity>
-                      <Text style={styles.setCount}>{exercise.sets.length}</Text>
-                      <TouchableOpacity
-                        style={styles.setControlButton}
-                        onPress={() => handleUpdateSets(exercise.id, 1)}
-                      >
-                        <Plus size={12} color={Colors.light.primary} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Exercise Notes */}
-                  <TextInput
-                    style={[styles.notesInput, exercise.id === activeExerciseId && styles.notesInputOnSlab]}
-                    value={exerciseNotes[exercise.id] || ''}
-                    onChangeText={(value) => setExerciseNotes(prev => ({ ...prev, [exercise.id]: value }))}
-                    placeholder="Notes for this session..."
-                    placeholderTextColor={
-                      exercise.id === activeExerciseId
-                        ? Colors.light.onRubberSecondary
-                        : Colors.light.textTertiary
-                    }
-                    multiline
-                    numberOfLines={2}
-                  />
-
-                  <View style={styles.setHeader}>
-                    {['Set', 'Last time', 'Weight', isTimedExercise(exercise.name) ? 'Secs' : 'Reps'].map(
-                      (heading) => (
-                        <Text
-                          key={heading}
-                          style={[
-                            styles.setHeaderText,
-                            exercise.id === activeExerciseId && styles.onSlabMuted,
-                          ]}
-                        >
-                          {heading}
-                        </Text>
-                      )
-                    )}
-                  </View>
-
-                  <View style={styles.setsContainer}>
-                    {exercise.sets.map((set, setIndex) =>
-                      renderSetRow(
-                        set,
-                        setIndex,
-                        exercise,
-                        set.id === nextSetIdFor(exercise),
-                        exercise.id === activeExerciseId
-                      )
-                    )}
-                  </View>
-                </View>
-              </SwipeToRemove>
+          renderItem={(exercise, _index, isDragging, handle) => (
+            <View style={isDragging ? styles.exerciseCardDragging : undefined}>
+              <ExerciseCard
+                exercise={exercise}
+                active={exercise.id === activeExerciseId}
+                collapsed={(currentWorkout.collapsedExerciseIds ?? []).includes(exercise.id)}
+                onToggleCollapsed={() =>
+                  setExerciseCollapsed(exercise.id, !(currentWorkout.collapsedExerciseIds ?? []).includes(exercise.id))
+                }
+                onOpenActions={() => setActionsFor(exercise)}
+                onAddSet={() => handleUpdateSets(exercise.id, 1)}
+                onRemoveSet={(setId, setNumber) => {
+                  const set = exercise.sets.find((s) => s.id === setId);
+                  if (set) handleRemoveSet(exercise.id, set, setNumber);
+                }}
+                notes={exerciseNotes[exercise.id] || ''}
+                onChangeNotes={(value) => setExerciseNotes((prev) => ({ ...prev, [exercise.id]: value }))}
+                renderSetRow={(set, i, showStrip) => renderSetRow(set, i, exercise, showStrip, exercise.id === activeExerciseId)}
+                nextSetId={nextSetIdFor(exercise)}
+                dragHandle={handle}
+              />
             </View>
           )}
         />
 
         <TouchableOpacity
           style={styles.addExerciseButton}
-          onPress={() => { setPickerMode({ kind: 'add' }); setShowExerciseModal(true); }}
+          onPress={() => setShowExerciseModal(true)}
           accessibilityRole="button"
           accessibilityLabel="Add exercise to workout"
           accessibilityHint="Browse and add new exercises to your current workout"
         >
-          <Plus size={16} color={Colors.light.primary} />
-          <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
+          <Plus size={22} color={Colors.light.primary} />
+          <Text style={styles.addExerciseButtonText}>Add exercise</Text>
         </TouchableOpacity>
         </ScrollView>
 
@@ -802,7 +632,7 @@ export default function WorkoutScreen() {
         <SetKeyboardBar field={focused?.field ?? 'weight'} onStep={handleStep} onNext={handleNext} visible={keyboardOpen && focused !== null} />
       </KeyboardAvoidingView>
 
-      {/* Undo snackbar for an optimistically-removed exercise */}
+      {/* Undo snackbar for an optimistically-removed exercise or set */}
       {pendingRemoval && (
         <Animated.View
           style={[
@@ -817,46 +647,19 @@ export default function WorkoutScreen() {
           ]}
         >
           <Text style={styles.undoSnackbarText} numberOfLines={1}>
-            {pendingRemoval.exercise.name} removed
+            {pendingRemoval.kind === 'exercise' ? `${pendingRemoval.exercise.name} removed` : `Set ${pendingRemoval.setNumber} removed`}
           </Text>
           <TouchableOpacity
             onPress={handleUndoRemoval}
             hitSlop={HIT_SLOP}
             style={styles.undoButton}
             accessibilityRole="button"
-            accessibilityLabel={`Undo removing ${pendingRemoval.exercise.name}`}
+            accessibilityLabel={`Undo removing ${pendingRemoval.kind === 'exercise' ? pendingRemoval.exercise.name : `set ${pendingRemoval.setNumber}`}`}
           >
             <Text style={styles.undoButtonText}>Undo</Text>
           </TouchableOpacity>
         </Animated.View>
       )}
-
-      {/* Warmup Selection sheet */}
-      <DragDismissSheet visible={showWarmupModal} onDismiss={() => setShowWarmupModal(false)}>
-        <View style={[styles.sheetPickerBody, { maxHeight: windowHeight * 0.7 }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Choose Warmup</Text>
-            <TouchableOpacity onPress={() => setShowWarmupModal(false)} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
-              <X size={20} color={Colors.light.text} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalContent}>
-            {warmupOptions.map((warmup) => (
-              <TouchableOpacity
-                key={warmup.id}
-                style={styles.warmupOption}
-                onPress={() => handleWarmupSelect(warmup)}
-              >
-                <View style={styles.warmupOptionContent}>
-                  <Text style={styles.warmupOptionName}>{warmup.name}</Text>
-                  <Text style={styles.warmupOptionDescription}>{warmup.description}</Text>
-                </View>
-                <Text style={styles.warmupOptionDuration}>{warmup.duration}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </DragDismissSheet>
 
       {/* Finish sheet */}
       <DragDismissSheet visible={showMetadataModal} onDismiss={() => setShowMetadataModal(false)}>
@@ -864,13 +667,21 @@ export default function WorkoutScreen() {
           <View style={styles.sheetBody}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Finish workout</Text>
-              <TouchableOpacity onPress={() => setShowMetadataModal(false)} accessibilityRole="button" accessibilityLabel="Back to workout">
+              <TouchableOpacity style={styles.headerIcon} onPress={() => setShowMetadataModal(false)} accessibilityRole="button" accessibilityLabel="Back to workout">
                 <X size={22} color={Colors.light.text} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.sheetSummary}>
-              {formatMinutes(Math.max(1, Math.round(workoutDuration / 60)))} · {completedSetCount} {completedSetCount === 1 ? 'set' : 'sets'} · {formatKg(sessionVolume)}
-            </Text>
+
+            <View style={styles.statTiles}>
+              <View style={styles.statTile}>
+                <Text style={styles.statTileValue}>{completedSetCount}</Text>
+                <Text style={styles.statTileLabel}>{completedSetCount === 1 ? 'set done' : 'sets done'}</Text>
+              </View>
+              <View style={styles.statTile}>
+                <Text style={styles.statTileValue}>{formatKg(sessionVolume)}</Text>
+                <Text style={styles.statTileLabel}>lifted in {formatMinutes(Math.max(1, Math.round(workoutDuration / 60)))}</Text>
+              </View>
+            </View>
 
             {(() => {
               // Summarise visibleExercises, not currentWorkout: an exercise
@@ -886,26 +697,29 @@ export default function WorkoutScreen() {
                       {prs.map((p) => (
                         <View key={p.id} style={styles.prLineRow}>
                           <Trophy size={16} color={Colors.light.accent} />
-                          <Text style={styles.prLine}>{p.name} — {p.weight} kg × {p.reps}{p.kind === 'weight' ? ' (heaviest)' : p.kind === 'e1rm' ? ' (best est. 1RM)' : ''}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.prName}>{p.name}</Text>
+                            {p.kind === 'weight' || p.kind === 'e1rm' ? (
+                              <Text style={styles.prQualifier}>{p.kind === 'weight' ? '(heaviest)' : '(best est. 1RM)'}</Text>
+                            ) : null}
+                          </View>
+                          <Text style={styles.prValue}>{p.weight} × {p.reps}</Text>
                         </View>
                       ))}
                     </View>
                   )}
-                  {lines.map((l) => <Text key={l.id} style={styles.recapLine}>{l.name} · {l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'} · {l.detail}</Text>)}
+                  {lines.map((l) => (
+                    <View key={l.id} style={styles.recapRow}>
+                      <View style={styles.recapRowTop}>
+                        <Text style={styles.recapName}>{l.name}</Text>
+                        <Text style={styles.recapSets}>{l.setsDone} {l.setsDone === 1 ? 'set' : 'sets'}</Text>
+                      </View>
+                      <Text style={styles.recapDetail}>{l.detail}</Text>
+                    </View>
+                  ))}
                 </>
               );
             })()}
-
-            <Text style={styles.sheetLabel}>Bodyweight (kg, optional)</Text>
-            <TextInput
-              style={styles.sheetInput}
-              value={metadata.bodyweight}
-              onChangeText={(v) => setMetadata((prev) => ({ ...prev, bodyweight: v }))}
-              keyboardType="decimal-pad"
-              placeholder="e.g. 82.5"
-              placeholderTextColor={Colors.light.textTertiary}
-              accessibilityLabel="Bodyweight in kilograms"
-            />
 
             <Text style={styles.sheetLabel}>Notes (optional)</Text>
             <TextInput
@@ -927,6 +741,14 @@ export default function WorkoutScreen() {
             >
               <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Save workout'}</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.backToWorkoutButton}
+              onPress={() => setShowMetadataModal(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Back to workout"
+            >
+              <Text style={styles.backToWorkoutText}>Back to workout</Text>
+            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </DragDismissSheet>
@@ -935,7 +757,7 @@ export default function WorkoutScreen() {
       <DragDismissSheet visible={showExerciseModal} onDismiss={() => setShowExerciseModal(false)}>
         <View style={[styles.sheetPickerBody, { height: windowHeight * 0.85 }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{pickerMode.kind === 'replace' ? 'Replace exercise' : 'Add Exercise'}</Text>
+            <Text style={styles.modalTitle}>Add exercise</Text>
             <TouchableOpacity onPress={() => setShowExerciseModal(false)} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
               <X size={24} color={Colors.light.text} />
             </TouchableOpacity>
@@ -946,6 +768,32 @@ export default function WorkoutScreen() {
           />
         </View>
       </DragDismissSheet>
+
+      <ExerciseActionsSheet
+        visible={actionsFor !== null}
+        exerciseName={actionsFor?.name ?? ''}
+        onDismiss={() => setActionsFor(null)}
+        onHowTo={() => { setHowToFor(actionsFor); setActionsFor(null); }}
+        onSwap={() => { setSwapFor(actionsFor); setActionsFor(null); }}
+        onRemove={() => { if (actionsFor) handleRemoveExercise(actionsFor); setActionsFor(null); }}
+      />
+      <SwapExerciseSheet
+        key={swapFor?.id ?? 'none'}
+        visible={swapFor !== null}
+        libraryExerciseId={swapFor?.exerciseId ?? -1}
+        currentName={swapFor?.name ?? ''}
+        onDismiss={() => setSwapFor(null)}
+        onPick={async (picked) => {
+          if (!swapFor) return;
+          try {
+            await replaceExercise(swapFor.id, picked);
+            setSwapFor(null);
+          } catch {
+            Alert.alert('Could not swap exercise', 'Check your connection and try again.');
+          }
+        }}
+      />
+      <HowToSheet visible={howToFor !== null} libraryExerciseId={howToFor?.exerciseId ?? -1} onDismiss={() => setHowToFor(null)} />
     </SafeAreaView>
   );
 }
@@ -955,146 +803,27 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: Colors.light.background
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border, 
-    backgroundColor: Colors.light.card
-  },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  workoutTitle: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.text,
-  },
-  timerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  workoutTimer: {
-    fontSize: 14,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.success,
-    marginLeft: 4,
-  },
-  finishButton: {
-    backgroundColor: Colors.light.accent,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  finishButtonText: {
-    fontSize: 12,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: '#FFFFFF',
-  },
+  header: { height: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingLeft: spacing.xs, paddingRight: spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.light.border, backgroundColor: Colors.light.card },
+  headerIcon: { width: touch.min, height: touch.min, justifyContent: 'center', alignItems: 'center' },
+  headerContent: { flex: 1 },
+  workoutTitle: { fontFamily: 'ArchivoNarrow-Bold', fontSize: 20, lineHeight: 24, color: Colors.light.text },
+  timerContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  workoutTimer: { fontFamily: 'ArchivoNarrow-SemiBold', fontSize: 15, color: Colors.light.success, fontVariant: ['tabular-nums'] },
+  finishButton: { height: touch.min, paddingHorizontal: spacing.lg, borderRadius: 12, backgroundColor: Colors.light.accent, justifyContent: 'center' },
+  finishButtonText: { fontFamily: 'Archivo-SemiBold', fontSize: 16, color: Colors.light.rubber },
+  finishHelper: { ...type.label, color: Colors.light.textTertiary, textAlign: 'right', marginTop: 2 },
   content: {
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 12
   },
   offlineBanner: { backgroundColor: Colors.light.warning, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.input, marginBottom: spacing.md },
-  offlineText: { ...type.label, color: Colors.light.rubber, textAlign: 'center' },
-  finishHelper: { ...type.label, color: Colors.light.textSecondary, textAlign: 'center', marginTop: spacing.xs },
-  warmupCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    elevation: 2
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginLeft: 8
-  },
-  chooseWarmupButton: {
-    backgroundColor: Colors.light.primaryLight,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    alignItems: 'center'
-  },
-  chooseWarmupText: {
-    fontSize: 12,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.primary
-  },
-  selectedWarmup: {
-    marginTop: 8
-  },
-  selectedWarmupName: {
-    fontSize: 14,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text
-  },
-  selectedWarmupDescription: {
-    fontSize: 12,
-    fontFamily: 'Archivo-Regular',
-    color: Colors.light.textTertiary,
-    marginTop: 2
-  },
-  selectedWarmupDuration: {
-    fontSize: 12,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    marginTop: 4
-  },
-  // The shadow lives on this outer, non-clipping wrapper rather than on the
-  // card itself: SwipeToRemove's container clips to its own bounds so it can
-  // mask the row sliding past its edge, and that clip would otherwise cut
-  // the slab's drop shadow off along with it.
-  exerciseCardOuter: {
-    marginBottom: 12,
-    elevation: 2,
-  },
-  exerciseCardOuterActive: {
-    ...elevation.slab,
-  },
+  offlineText: { ...type.label, fontSize: 15, color: Colors.light.rubber, textAlign: 'center' },
   // DraggableList already applies elevation.dragging + a scale bump while a
   // card is actually moving; this is the resting-state cue for which one.
-  // Radius is set inline at the call site so it matches radius.slab when the
-  // dragged card is also the active one.
   exerciseCardDragging: {
-    borderWidth: 2,
-    borderColor: Colors.light.primary,
+    borderRadius: radius.slab,
   },
-  exerciseCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: radius.card,
-    padding: 12,
-  },
-  exerciseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  exerciseName: { fontSize: 16, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, flex: 1 },
-  planText: { fontSize: 12, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginLeft: spacing.sm },
-  removeButton: { padding: 6, marginRight: 4 },
   undoSnackbar: {
     position: 'absolute',
     left: spacing.lg,
@@ -1110,37 +839,50 @@ const styles = StyleSheet.create({
   },
   undoSnackbarText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'Archivo-Medium',
     color: Colors.light.onRubber,
     marginRight: spacing.md,
   },
   undoButton: {
+    minHeight: touch.min,
+    minWidth: touch.min,
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
   undoButtonText: {
-    fontSize: 13,
+    fontSize: 16,
     fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.accent,
     textTransform: 'uppercase',
   },
-  // Body content for the two full-picker sheets (warmup, exercise): the
-  // sheet itself only hugs content, so a bounded height here is what lets a
-  // long inner list (BrowseExercisesScreen's FlatList uses flex: 1) size and
-  // scroll correctly instead of collapsing to nothing.
+  // Body content for the exercise-picker sheet: the sheet itself only hugs
+  // content, so a bounded height here is what lets the long inner list
+  // (BrowseExercisesScreen's FlatList uses flex: 1) size and scroll
+  // correctly instead of collapsing to nothing.
   sheetPickerBody: {
     width: '100%',
   },
   sheetBody: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 8 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   sheetTitle: { fontSize: 20, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
-  sheetSummary: { fontSize: 15, fontFamily: 'Archivo-Medium', color: Colors.light.textSecondary, marginBottom: 20 },
-  sheetLabel: { fontSize: 13, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary, marginBottom: 6 },
-  prBlock: { marginBottom: spacing.md },
-  prLineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  prLine: { fontFamily: 'Archivo-Medium', fontSize: 14, color: Colors.light.text },
-  recapLine: { fontFamily: 'Archivo-Regular', fontSize: 13, color: Colors.light.textSecondary, marginTop: 2 },
+  statTiles: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+  statTile: { flex: 1, backgroundColor: Colors.light.background, borderRadius: radius.card, padding: spacing.base },
+  statTileValue: { ...type.display, color: Colors.light.text },
+  statTileLabel: { ...type.body, fontSize: 15, color: Colors.light.textSecondary },
+  sheetLabel: { ...type.eyebrow, color: Colors.light.textSecondary, marginBottom: 6 },
+  prBlock: { marginBottom: spacing.md, backgroundColor: Colors.light.accentLight, borderRadius: radius.card, padding: spacing.base },
+  prLineRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  prName: { fontFamily: 'Archivo-Medium', fontSize: 17, color: Colors.light.text },
+  prQualifier: { fontFamily: 'Archivo-Regular', fontSize: 14, color: Colors.light.textSecondary, marginTop: 2 },
+  prValue: { fontFamily: 'ArchivoNarrow-SemiBold', fontSize: 20, color: Colors.light.text },
+  recapRow: { minHeight: 40, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: Colors.light.background, paddingVertical: spacing.xs },
+  recapRowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  recapName: { fontFamily: 'Archivo-Regular', fontSize: 16, color: Colors.light.text, flex: 1 },
+  recapSets: { fontFamily: 'ArchivoNarrow-SemiBold', fontSize: 17, color: Colors.light.textSecondary },
+  recapDetail: { fontFamily: 'Archivo-Regular', fontSize: 14, color: Colors.light.textSecondary, marginTop: 2 },
   sheetInput: {
     backgroundColor: Colors.light.background,
     borderRadius: 12,
@@ -1148,81 +890,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: 'Archivo-Regular',
     color: Colors.light.text,
     marginBottom: 16,
   },
-  sheetNotes: { minHeight: 72, textAlignVertical: 'top' },
-  saveButton: { backgroundColor: Colors.light.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
+  sheetNotes: { minHeight: 96, textAlignVertical: 'top' },
+  saveButton: { height: touch.row, backgroundColor: Colors.light.primary, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
   saveButtonDisabled: { opacity: 0.6 },
-  saveButtonText: { fontSize: 17, fontFamily: 'ArchivoNarrow-Bold', color: '#FFFFFF' },
-  setControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.light.background,
-    borderRadius: 8,
-    padding: 2,
-  },
-  setControlButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  setCount: { fontSize: 12, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text, marginHorizontal: 8, minWidth: 16, textAlign: 'center' },
-  notesInput: {
-    backgroundColor: Colors.light.background,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    fontSize: 12,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.text,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    textAlignVertical: 'top',
-    marginBottom: 8,
-    minHeight: 60
-  },
-  setHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-    marginBottom: 6,
-    paddingHorizontal: 4
-  },
-  setHeaderText: {
-    fontSize: 10,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.textTertiary,
-    width: 50,
-    textAlign: 'center'
-  },
-  setsContainer: {
-    marginBottom: 4
-  },
-  exerciseCardActive: {
-    backgroundColor: Colors.light.rubber,
-    borderRadius: radius.slab,
-  },
-  onSlabText: {
-    color: Colors.light.onRubber,
-  },
-  onSlabMuted: {
-    color: Colors.light.onRubberSecondary,
-  },
-  notesInputOnSlab: {
-    backgroundColor: Colors.light.slabField,
-    color: Colors.light.onRubber,
-    borderColor: Colors.light.borderOnRubber,
-  },
+  saveButtonText: { fontSize: 18, fontFamily: 'Archivo-SemiBold', color: '#FFFFFF' },
+  backToWorkoutButton: { height: touch.min, justifyContent: 'center', alignItems: 'center' },
+  backToWorkoutText: { fontFamily: 'Archivo-SemiBold', fontSize: 16, color: Colors.light.primary },
   addExerciseButton: {
-    backgroundColor: Colors.light.card,
+    minHeight: touch.row,
+    backgroundColor: 'transparent',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -1231,14 +912,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: Colors.light.textTertiary,
     borderStyle: 'dashed'
   },
   addExerciseButtonText: {
-    fontSize: 14,
-    fontFamily: 'ArchivoNarrow-SemiBold',
+    fontFamily: 'Archivo-SemiBold',
+    fontSize: 16,
     color: Colors.light.primary,
-    marginLeft: 6
+    marginLeft: spacing.sm
   },
   emptyState: {
     flex: 1,
@@ -1291,40 +972,4 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.light.border
   },
   modalTitle: { fontSize: 18, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
-  modalContent: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16
-  },
-  warmupOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2
-  },
-  warmupOptionContent: {
-    flex: 1,
-    marginRight: 12
-  },
-  warmupOptionName: {
-    fontSize: 16,
-    fontFamily: 'ArchivoNarrow-SemiBold',
-    color: Colors.light.text,
-    marginBottom: 4
-  },
-  warmupOptionDescription: {
-    fontSize: 12,
-    fontFamily: 'Archivo-Medium',
-    color: Colors.light.textTertiary,
-    lineHeight: 16
-  },
-  warmupOptionDuration: {
-    fontSize: 14,
-    fontFamily: 'ArchivoNarrow-Bold',
-    color: Colors.light.primary
-  },
 });
