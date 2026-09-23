@@ -5,7 +5,7 @@ import { ArrowLeft, Mail, Shield, LifeBuoy, ExternalLink } from 'lucide-react-na
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, type, touch, HIT_SLOP } from '@/constants/theme';
 import { LEGAL_URLS, SUPPORT_EMAIL, EXERCISE_DB_URL } from '@/constants/Links';
 import { ExerciseService } from '@/services/exerciseService';
 
@@ -22,7 +22,7 @@ export default function AboutScreen() {
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>About</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: touch.min }} />
       </View>
 
       <ScrollView
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
-  backButton: { width: spacing.xxxl, height: spacing.xxxl, justifyContent: 'center' },
+  backButton: { width: touch.min, height: touch.min, justifyContent: 'center' },
   headerTitle: { ...type.section, color: Colors.light.text },
   content: { flex: 1, paddingHorizontal: spacing.lg },
   hero: { alignItems: 'center', paddingVertical: spacing.xxl },

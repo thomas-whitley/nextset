@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, type, touch, HIT_SLOP } from '@/constants/theme';
 import { useAuth } from '@/data/AuthContext';
 import Wordmark from '@/components/Wordmark';
 
@@ -485,8 +485,8 @@ const styles = StyleSheet.create({
   eyeButton: {
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.md,
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: touch.min,
+    minHeight: touch.min,
     justifyContent: 'center',
     alignItems: 'center',
   },

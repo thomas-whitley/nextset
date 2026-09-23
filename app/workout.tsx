@@ -121,6 +121,7 @@ export default function WorkoutScreen() {
     };
   }, []);
 
+  const pendingId = pendingRemoval ? pendingKey(pendingRemoval) : null;
   useEffect(() => {
     if (pendingRemoval) {
       undoSnackbarAnim.setValue(0);
@@ -130,7 +131,10 @@ export default function WorkoutScreen() {
         useNativeDriver: true,
       }).start();
     }
-  }, [pendingRemoval ? pendingKey(pendingRemoval) : null]);
+    // Only re-run when a different removal is queued (pendingId), not on
+    // every render of pendingRemoval/undoSnackbarAnim.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingId]);
 
   // Tick the display clock while a workout is active; the duration itself is
   // derived from workoutStartedAt, so this survives a minimise/resume remount.
@@ -856,7 +860,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'ArchivoNarrow-Bold',
     color: Colors.light.accent,
-    textTransform: 'uppercase',
   },
   // Body content for the exercise-picker sheet: the sheet itself only hugs
   // content, so a bounded height here is what lets the long inner list

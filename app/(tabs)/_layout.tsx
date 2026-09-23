@@ -19,7 +19,7 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: Colors.light.primary,
         tabBarInactiveTintColor: Colors.light.tabIconDefault,
-        tabBarStyle: [styles.tabBar, { height: 58 + insets.bottom, paddingBottom: insets.bottom + 4 }],
+        tabBarStyle: [styles.tabBar, { height: 64 + insets.bottom, paddingBottom: insets.bottom + 4 }],
         // A lightning bolt for Home and a page icon for Programs are not
         // self-evident; the labels were styled but never switched on.
         tabBarShowLabel: true,
@@ -32,8 +32,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Zap size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Zap size={24} color={color} />
           ),
           tabBarAccessibilityLabel: 'Home tab',
         }}
@@ -42,8 +42,8 @@ export default function TabLayout() {
         name="programs"
         options={{
           title: 'Programs',
-          tabBarIcon: ({ color, size }) => (
-            <FileText size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FileText size={24} color={color} />
           ),
           tabBarAccessibilityLabel: 'Programs tab',
         }}
@@ -52,8 +52,8 @@ export default function TabLayout() {
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color, size }) => (
-            <TrendingUp size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <TrendingUp size={24} color={color} />
           ),
           tabBarAccessibilityLabel: 'Progress tab',
         }}
@@ -62,8 +62,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <User size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <User size={24} color={color} />
           ),
           tabBarAccessibilityLabel: 'Profile tab',
         }}
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   },
   tabBarLabel: {
     fontFamily: 'ArchivoNarrow-SemiBold',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
   },
 });
