@@ -27,3 +27,10 @@ jest.mock('expo-notifications', () => ({
   AndroidImportance: { HIGH: 4 },
   setNotificationChannelAsync: jest.fn(() => Promise.resolve()),
 }));
+
+// Reanimated 4 and gesture-handler need their native runtimes; both ship jest
+// stand-ins. Without these any component using SwipeToRemove/DraggableList
+// fails to import ("Cannot read properties of undefined (reading 'loadUnpackers')").
+require('react-native-gesture-handler/jestSetup');
+jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
+jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
