@@ -571,6 +571,36 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
   const hasPendingProgramWrite = () => programSync.hasPending();
 
+  /** "Last time" hints for one exercise of the running workout, once history answers. */
+  const fillLastTime = async (exerciseId: string, name: string) => {
+    if (!user) return;
+    const last = await WorkoutHistoryService.getLastPerformance(user.id, [name]).catch(
+      () => ({} as Record<string, { weight: string; reps: string }[]>)
+    );
+    const prev = last[name];
+    if (!prev || prev.length === 0) return;
+    applyWorkoutUpdate(
+      (current) =>
+        current.exercises.some((e) => e.id === exerciseId)
+          ? {
+              ...current,
+              exercises: current.exercises.map((exercise) =>
+                exercise.id === exerciseId
+                  ? {
+                      ...exercise,
+                      sets: exercise.sets.map((set, i) => {
+                        const p = prev[Math.min(i, prev.length - 1)];
+                        return { ...set, previousWeight: p.weight, previousReps: p.reps };
+                      }),
+                    }
+                  : exercise
+              ),
+            }
+          : null,
+      false
+    );
+  };
+
   const replaceExercise = async (exerciseId: string, next: DetailedExercise) => {
     applyWorkoutUpdate(
       (current) => ({
@@ -596,29 +626,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       true
     );
     await programSync.flush();
-    if (!user) return;
-    const last = await WorkoutHistoryService.getLastPerformance(user.id, [next.name]).catch(
-      () => ({} as Record<string, { weight: string; reps: string }[]>)
-    );
-    const prev = last[next.name];
-    if (!prev) return;
-    applyWorkoutUpdate(
-      (current) => ({
-        ...current,
-        exercises: current.exercises.map((exercise) =>
-          exercise.id === exerciseId
-            ? {
-                ...exercise,
-                sets: exercise.sets.map((set, i) => {
-                  const p = prev[Math.min(i, prev.length - 1)];
-                  return { ...set, previousWeight: p.weight, previousReps: p.reps };
-                }),
-              }
-            : exercise
-        ),
-      }),
-      false
-    );
+    await fillLastTime(exerciseId, next.name);
   };
 
   // The running workout's structure edits. The same code serves a program day
@@ -626,11 +634,15 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   // (checkpoint only), so workout.tsx does not need to know which it is
   // (grill R1-Q4).
   const addExerciseToWorkout = async (workoutId: string, exercise: DetailedExercise) => {
+    const before = new Set((currentWorkoutRef.current?.exercises ?? []).map((e) => e.id));
     applyWorkoutUpdate(
       (current) => (current.id === workoutId ? addExercise(current, { exerciseId: exercise.id, name: exercise.name }) : null),
       true
     );
     await programSync.flush();
+    // It never asked history, so "Last time" stayed "—" (device run T2-10).
+    const added = currentWorkoutRef.current?.exercises.find((e) => !before.has(e.id));
+    if (added) await fillLastTime(added.id, added.name);
   };
 
   const removeExerciseFromWorkout = async (workoutId: string, exerciseId: string) => {

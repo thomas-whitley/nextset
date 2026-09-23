@@ -211,6 +211,23 @@ describe('bests and replaceExercise', () => {
     expect(ex.sets[0].isComplete).toBe(false);
   });
 
+  it('an exercise added mid-workout gets its last-time hints (device run T2-10)', async () => {
+    const { WorkoutHistoryService } = require('../../services/workoutHistoryService');
+    (WorkoutHistoryService.getLastPerformance as jest.Mock).mockImplementation(async (_u: string, names: string[]) =>
+      names.includes('Barbell Back Squat') ? { 'Barbell Back Squat': [{ weight: '60', reps: '8' }] } : {}
+    );
+    const { result } = await setup();
+    await act(() => { result.current.startQuickWorkout(); });
+    const id = result.current.currentWorkout!.id;
+    await act(async () => {
+      await result.current.addExerciseToWorkout(id, { id: 3, name: 'Barbell Back Squat' } as any);
+    });
+    const added = result.current.currentWorkout!.exercises.find((e) => e.name === 'Barbell Back Squat')!;
+    expect(added.sets[0].previousWeight).toBe('60');
+    expect(added.sets[0].previousReps).toBe('8');
+    (WorkoutHistoryService.getLastPerformance as jest.Mock).mockResolvedValue({});
+  });
+
   it('backfills repsTarget on the active program from the template', async () => {
     const { result } = await setup();
     // program fixture has no repsTarget; test template 't1' is not in programTemplates, so nothing changes
