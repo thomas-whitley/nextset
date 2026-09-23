@@ -1,5 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+// Gesture-handler's TextInput joins RNGH's touch system, so the row's
+// SwipeToRemove pan can take over once a finger moves sideways. With the plain
+// RN input, a swipe that started on kg/reps never reached the row (device run R7).
+import { TextInput as GestureTextInput } from 'react-native-gesture-handler';
 import { Check, Trophy } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 import { spacing, radius, touch, type } from '@/constants/theme';
@@ -7,6 +11,10 @@ import type { ExerciseSet, RepsTarget } from '@/services/exercise.types';
 import { formatRepsTarget } from '@/services/repsTarget';
 import { formatSet } from '@/utils/format';
 import { SET_ACCESSORY_ID } from '@/components/SetKeyboardBar';
+
+// RNGH types its ref as a component, but its wrapper forwards the real RN
+// TextInput instance (createNativeWrapper's useImperativeHandle), so .focus() works.
+type GestureInputRef = React.ComponentProps<typeof GestureTextInput>['ref'];
 
 export interface SetRowProps {
   set: ExerciseSet;
@@ -61,8 +69,8 @@ export default function SetRow({
         <Text style={[styles.previousText, onSlab && styles.onSlabMuted]} numberOfLines={1}>{previousLabel}</Text>
       </TouchableOpacity>
 
-      <TextInput
-        ref={weightRef}
+      <GestureTextInput
+        ref={weightRef as GestureInputRef}
         style={field}
         value={set.weight}
         onChangeText={(v) => onChange('weight', v)}
@@ -78,8 +86,8 @@ export default function SetRow({
       />
 
       <View>
-        <TextInput
-          ref={repsRef}
+        <GestureTextInput
+          ref={repsRef as GestureInputRef}
           style={field}
           value={set.reps}
           onChangeText={(v) => onChange('reps', v)}
