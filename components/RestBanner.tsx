@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkipForward } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
-import { spacing, radius, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, touch, type } from '@/constants/theme';
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -17,24 +17,24 @@ export default function RestBanner({ remaining, exerciseName, setNumber, onSkip,
   const bottomPad = spacing.sm + (keyboardBarVisible ? 0 : insets.bottom);
 
   return (
-    <View style={[styles.bar, { paddingBottom: bottomPad }]} accessibilityRole="timer" accessibilityLabel={`Rest, ${mmss(remaining)} left`}>
+    <View style={[styles.bar, { paddingBottom: bottomPad + spacing.xs }]} accessibilityRole="timer" accessibilityLabel={`Rest, ${mmss(remaining)} left`}>
       <View style={styles.textCol}>
-        <Text style={styles.eyebrow}>Rest · {exerciseName} set {setNumber}</Text>
-        <Text style={styles.time}>{mmss(remaining)}</Text>
+        <Text style={styles.label} numberOfLines={1}>Rest · {exerciseName} set {setNumber}</Text>
+        <Text style={styles.time} maxFontSizeMultiplier={1.3}>{mmss(remaining)}</Text>
       </View>
-      <TouchableOpacity style={styles.adjust} onPress={() => onAdjust(-15)} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Fifteen seconds less"><Text style={styles.adjustText}>−15</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.adjust} onPress={() => onAdjust(15)} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Fifteen seconds more"><Text style={styles.adjustText}>+15</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.skip} onPress={onSkip} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Skip rest"><SkipForward size={18} color="#FFFFFF" /></TouchableOpacity>
+      <TouchableOpacity style={styles.adjust} onPress={() => onAdjust(-15)} accessibilityRole="button" accessibilityLabel="Fifteen seconds less"><Text style={styles.adjustText}>−15</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.adjust} onPress={() => onAdjust(15)} accessibilityRole="button" accessibilityLabel="Fifteen seconds more"><Text style={styles.adjustText}>+15</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.skip} onPress={onSkip} accessibilityRole="button" accessibilityLabel="Skip rest"><SkipForward size={24} color="#FFFFFF" /></TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: spacing.sm, backgroundColor: Colors.light.primary, borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingLeft: spacing.lg, paddingRight: spacing.md, paddingTop: spacing.md, backgroundColor: Colors.light.primary, borderTopLeftRadius: radius.slab, borderTopRightRadius: radius.slab },
   textCol: { flex: 1 },
-  eyebrow: { fontSize: 11, fontFamily: 'Archivo-Medium', color: 'rgba(255,255,255,0.8)' },
-  time: { fontSize: 22, fontFamily: 'ArchivoNarrow-Bold', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
-  adjust: { paddingHorizontal: spacing.sm, paddingVertical: 6, marginLeft: spacing.xs, borderRadius: radius.card, backgroundColor: 'rgba(255,255,255,0.18)' },
-  adjustText: { color: '#FFFFFF', fontFamily: 'ArchivoNarrow-SemiBold', fontSize: 14 },
-  skip: { marginLeft: spacing.sm, padding: 8 },
+  label: { ...type.label, color: 'rgba(255,255,255,0.85)' },
+  time: { fontFamily: 'ArchivoNarrow-Bold', fontSize: 34, lineHeight: 38, color: '#FFFFFF', fontVariant: ['tabular-nums'] },
+  adjust: { width: 64, height: touch.min, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.16)', justifyContent: 'center', alignItems: 'center' },
+  adjustText: { fontFamily: 'ArchivoNarrow-SemiBold', fontSize: 18, color: '#FFFFFF' },
+  skip: { width: touch.min, height: touch.min, justifyContent: 'center', alignItems: 'center' },
 });
