@@ -78,3 +78,29 @@ test('cancel drops the pending program', async () => {
   await sync.flush();
   expect(write).not.toHaveBeenCalled();
 });
+
+test('hasPending is true from schedule until a successful write', async () => {
+  const write = jest.fn().mockResolvedValue(undefined);
+  const sync = createProgramSync(write, 800);
+  expect(sync.hasPending()).toBe(false);
+  sync.schedule(program('a'));
+  expect(sync.hasPending()).toBe(true);
+  await sync.flush();
+  expect(sync.hasPending()).toBe(false);
+});
+
+test('hasPending stays true when the write fails', async () => {
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+  const write = jest.fn().mockRejectedValue(new Error('offline'));
+  const sync = createProgramSync(write, 800);
+  sync.schedule(program('a'));
+  await sync.flush();
+  expect(sync.hasPending()).toBe(true);
+});
+
+test('cancel clears hasPending', () => {
+  const sync = createProgramSync(jest.fn().mockResolvedValue(undefined), 800);
+  sync.schedule(program('a'));
+  sync.cancel();
+  expect(sync.hasPending()).toBe(false);
+});
