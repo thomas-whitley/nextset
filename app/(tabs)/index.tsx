@@ -36,7 +36,7 @@ export default function HomeScreen() {
   const [recent, setRecent] = useState<WorkoutHistoryEntry[]>([]);
   const [streak, setStreak] = useState(0);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const { programs, currentProgram, isLoadingProgram, setCurrentProgram } = useWorkout();
+  const { programs, currentProgram, isLoadingProgram, setCurrentProgram, programLoadFailed, retryProgramLoad } = useWorkout();
   const { start, startQuick } = useStartWorkout();
   const [choosing, setChoosing] = useState<string | null>(null);
   const { user, loading } = useAuth();
@@ -115,6 +115,17 @@ export default function HomeScreen() {
         {isLoadingProgram ? (
           <View style={[styles.mainCard, styles.mainCardLoading]}>
             <ActivityIndicator color={Colors.light.onRubber} />
+          </View>
+        ) : programLoadFailed ? (
+          // A failed restore is not a first run (review M13).
+          <View style={styles.mainCard}>
+            <Text style={styles.workoutLabel}>Your program</Text>
+            <Text style={styles.workoutName}>Did not load</Text>
+            <Text style={styles.workoutExercises}>Check your connection and try again.</Text>
+            <TouchableOpacity style={styles.startButton} onPress={retryProgramLoad} accessibilityRole="button" accessibilityLabel="Try loading your program again">
+              <Text style={styles.startButtonText}>Try again</Text>
+            </TouchableOpacity>
+            {quickButton}
           </View>
         ) : nextWorkout && currentProgram ? (
           <View style={styles.mainCard}>

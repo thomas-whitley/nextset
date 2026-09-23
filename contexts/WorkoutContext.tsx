@@ -28,6 +28,9 @@ interface WorkoutContextType {
   workoutStartedAt: number | null;
   /** True until the active program has been looked up for the signed-in user. */
   isLoadingProgram: boolean;
+  /** The last try to restore the user's program failed (not "no program yet"). */
+  programLoadFailed: boolean;
+  retryProgramLoad: () => void;
   /** Best weight / e1RM per exerciseId, loaded when a workout starts and raised as sets complete. */
   exerciseBests: ExerciseBests;
   /** Rest-timer state, lifted here so it survives Minimise (the screen unmounts, this doesn't). */
@@ -96,6 +99,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null);
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [isLoadingProgram, setIsLoadingProgram] = useState(true);
+  const [programLoadFailed, setProgramLoadFailed] = useState(false);
+  const [programLoadAttempt, setProgramLoadAttempt] = useState(0);
   const [exerciseBests, setExerciseBests] = useState<ExerciseBests>({});
   const [rest, dispatchRest] = useReducer(restReducer, IDLE_REST);
   const { user } = useAuth();
@@ -172,6 +177,24 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     if (programSync.hasPending()) throw new Error('Program edits are not saved yet');
   };
 
+  /**
+   * For one-off actions that report "Could not …" (reset, rename): write now,
+   * or undo it here too, so a failed one never lands later (review M7). Earlier
+   * edits are settled first, so a cancel drops only this change.
+   */
+  const applyNowOrRevert = async (edit: (program: Program) => Program | null): Promise<boolean> => {
+    await programSync.flush();
+    if (programSync.hasPending()) return false; // earlier edits still unwritten: change nothing
+    const before = currentProgramRef.current;
+    if (!applyProgramUpdate(edit, false)) return false;
+    await programSync.flush();
+    if (!programSync.hasPending()) return true;
+    programSync.cancel();
+    currentProgramRef.current = before;
+    setCurrentProgramState(before);
+    return false;
+  };
+
   /** A day of the current program is the running workout. Ref-based, for use inside async actions. */
   const programWorkoutRunningNow = () => {
     const live = currentWorkoutRef.current;
@@ -187,6 +210,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
     let cancelled = false;
     setIsLoadingProgram(true);
+    setProgramLoadFailed(false);
     (async () => {
       try {
         const active = await UserActiveProgramService.getMostRecentActiveProgram(userId);
@@ -195,6 +219,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Failed to restore active program:', error);
+        if (!cancelled) setProgramLoadFailed(true);
       } finally {
         if (!cancelled) setIsLoadingProgram(false);
       }
@@ -202,7 +227,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, programLoadAttempt]);
+
+  const retryProgramLoad = () => setProgramLoadAttempt((n) => n + 1);
 
   const persistWorkoutCheckpoint = async (workout: Workout | null) => {
     if (!user) return;
@@ -301,9 +328,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     if (!program || isBlankProgram(program) || programWorkoutRunningNow()) return false;
     const template = programTemplates.find((t) => t.id === program.templateId);
     if (!template) return false;
-    applyProgramUpdate((p) => resetToTemplate(p, template), true);
-    await programSync.flush();
-    return !programSync.hasPending();
+    return applyNowOrRevert((p) => resetToTemplate(p, template));
   };
 
   // Current program only: updated_at is set by a DB trigger on every write and
@@ -314,9 +339,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     const program = currentProgramRef.current;
     if (!name || !program || !isBlankProgram(program)) return false;
     if (program.name === name) return true;
-    applyProgramUpdate((p) => ({ ...p, name }), true);
-    await programSync.flush();
-    return !programSync.hasPending();
+    return applyNowOrRevert((p) => ({ ...p, name }));
   };
 
   const deleteProgramCopy = async (row: UserActiveProgram): Promise<boolean> => {
@@ -701,6 +724,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         isWorkoutActive,
         workoutStartedAt: currentWorkout?.startedAt ?? null,
         isLoadingProgram,
+        programLoadFailed,
+        retryProgramLoad,
         exerciseBests,
         rest,
         dispatchRest,

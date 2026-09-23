@@ -598,6 +598,64 @@ describe('program copies', () => {
     expect(result.current.currentProgram!.name).toBe('Push / Pull / Legs');
   });
 
+  test('a reset that cannot be written is undone and never written later (M7, Review Focus 4)', async () => {
+    fakeDb();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    const firstId = pullDay(result.current.currentProgram).exercises[0].id;
+    await act(async () => {
+      result.current.editDay('ppl-pull', (d) => removeExercise(d, firstId), true);
+      await result.current.flushProgramSync();
+    });
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    let ok = true;
+    await act(async () => { ok = await result.current.resetProgramToTemplate(); });
+    expect(ok).toBe(false);
+    expect(pullDay(result.current.currentProgram).exercises).toHaveLength(4);
+    expect(result.current.hasPendingProgramWrite()).toBe(false);
+
+    // Back online, a later edit must not carry the reset with it.
+    const pushId = result.current.currentProgram!.workouts[0].id;
+    const exId = result.current.currentProgram!.workouts[0].exercises[0].id;
+    await act(async () => {
+      result.current.editDay(pushId, (d) => setSetCount(d, exId, 5), true);
+      await result.current.flushProgramSync();
+    });
+    const calls = (UserActiveProgramService.updateActiveProgram as jest.Mock).mock.calls;
+    expect(pullDay(calls[calls.length - 1][1] as Program).exercises).toHaveLength(4);
+  });
+
+  test('a rename that cannot be written is undone (M7)', async () => {
+    fakeDb();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.createBlankProgram(1); });
+    const before = result.current.currentProgram!.name;
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    let ok = true;
+    await act(async () => { ok = await result.current.renameCurrentProgram('Arms'); });
+    expect(ok).toBe(false);
+    expect(result.current.currentProgram!.name).toBe(before);
+    expect(result.current.hasPendingProgramWrite()).toBe(false);
+  });
+
+  test('a failed restore is reported, not shown as a first run, and can be retried (M13)', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(active);
+    const { result } = await setupEmpty();
+    expect(result.current.programLoadFailed).toBe(true);
+    expect(result.current.currentProgram).toBeNull();
+    await act(async () => {
+      result.current.retryProgramLoad();
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+    expect(result.current.programLoadFailed).toBe(false);
+    expect(result.current.currentProgram?.name).toBe('Test');
+  });
+
   test('deleting the current blank is refused while its edits cannot be written (review I3)', async () => {
     const rows = fakeDb();
     jest.spyOn(console, 'error').mockImplementation(() => {});
