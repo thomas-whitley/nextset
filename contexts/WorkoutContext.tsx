@@ -343,8 +343,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteProgramCopy = async (row: UserActiveProgram): Promise<boolean> => {
-    if (!user || !isBlankTemplateId(row.program_template_id)) return false;
+    if (!user) return false;
     const isCurrent = row.id === currentActiveProgramRef.current?.id;
+    // Any copy can go once it is not current (device run T2-11); the current one
+    // only if it is a blank (the slab ⋯ offers nothing else).
+    if (isCurrent && !isBlankTemplateId(row.program_template_id)) return false;
     if (isCurrent && programWorkoutRunningNow()) return false;
     // Settle first: a write for this row still pending or in flight could otherwise fail after the
     // delete and be retried against whichever row becomes current next (review I3).

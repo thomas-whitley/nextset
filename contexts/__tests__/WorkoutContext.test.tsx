@@ -579,23 +579,31 @@ describe('program copies', () => {
     expect(result.current.currentProgram!.name).toBe('Push / Pull / Legs');
   });
 
-  test('delete: blanks only; deleting the current one falls back to the most recent copy (grill R2-Q4)', async () => {
+  test('delete: any copy that is not current; the current one only if blank, then falls back (T2-11, grill R2-Q4)', async () => {
     const rows = fakeDb();
     const { result } = await setupEmpty();
     await act(async () => { await result.current.setCurrentProgram(ppl); });
     const pplRow = result.current.currentActiveProgram!;
     let ok = true;
     await act(async () => { ok = await result.current.deleteProgramCopy(pplRow); });
-    expect(ok).toBe(false);
+    expect(ok).toBe(false); // current template copy: refused
     expect(rows.has(pplRow.id)).toBe(true);
 
     await act(async () => { await result.current.createBlankProgram(1); });
     const blank = result.current.currentActiveProgram!;
-    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mockResolvedValue(rows.get(pplRow.id)!);
-    await act(async () => { ok = await result.current.deleteProgramCopy(blank); });
-    expect(ok).toBe(true);
+    await act(async () => { ok = await result.current.deleteProgramCopy(rows.get(pplRow.id)!); });
+    expect(ok).toBe(true); // not current any more: allowed
+    expect(rows.has(pplRow.id)).toBe(false);
+    expect(result.current.currentActiveProgram!.id).toBe(blank.id);
+
+    await act(async () => { await result.current.setCurrentProgram(ul); });
+    const ulRow = result.current.currentActiveProgram!;
+    await act(async () => { await result.current.selectProgramCopy(rows.get(blank.id)!); }); // blank current again
+    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mockResolvedValue(rows.get(ulRow.id)!);
+    await act(async () => { ok = await result.current.deleteProgramCopy(rows.get(blank.id)!); });
+    expect(ok).toBe(true); // current blank: allowed, falls back
     expect(rows.has(blank.id)).toBe(false);
-    expect(result.current.currentProgram!.name).toBe('Push / Pull / Legs');
+    expect(result.current.currentActiveProgram!.id).toBe(ulRow.id);
   });
 
   test('a reset that cannot be written is undone and never written later (M7, Review Focus 4)', async () => {

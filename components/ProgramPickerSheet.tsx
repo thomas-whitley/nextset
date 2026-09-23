@@ -60,22 +60,28 @@ export default function ProgramPickerSheet({ visible, onDismiss, onBlankCreated 
     }
   };
 
-  const confirmDelete = (row: UserActiveProgram) =>
-    Alert.alert(`Delete ${row.program_data.name}?`, 'The program and its days are removed. Workouts you logged with it stay in your history.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            if (!(await deleteProgramCopy(row))) Alert.alert('Finish your workout first', 'This program has a workout running.');
-            await load();
-          } catch {
-            Alert.alert('Could not delete', 'Check your connection and try again.');
-          }
+  const confirmDelete = (row: UserActiveProgram, blank: boolean) =>
+    Alert.alert(
+      blank ? `Delete ${row.program_data.name}?` : `Delete your copy of ${row.program_data.name}?`,
+      blank
+        ? 'The program and its days are removed. Workouts you logged with it stay in your history.'
+        : 'Your changes to it are removed, and it goes back to Start something new. Workouts you logged stay in your history.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (!(await deleteProgramCopy(row))) Alert.alert('Finish your workout first', 'This program has a workout running.');
+              await load();
+            } catch {
+              Alert.alert('Could not delete', 'Check your connection and try again.');
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
 
   const choices = copies ? buildProgramChoices(programs, copies, currentActiveProgram?.id ?? null) : null;
 
@@ -133,8 +139,9 @@ export default function ProgramPickerSheet({ visible, onDismiss, onBlankCreated 
                             <Check size={22} color={Colors.light.success} strokeWidth={3} />
                           ) : null}
                         </TouchableOpacity>
-                        {c.blank ? (
-                          <TouchableOpacity style={styles.more} onPress={() => confirmDelete(c.row)} accessibilityRole="button" accessibilityLabel={`Delete ${c.name}`}>
+                        {/* Any copy but the active one; that one is deleted from the slab (review M10). */}
+                        {!c.active ? (
+                          <TouchableOpacity style={styles.more} onPress={() => confirmDelete(c.row, c.blank)} accessibilityRole="button" accessibilityLabel={`Delete ${c.name}`}>
                             <Trash2 size={22} color={Colors.light.textTertiary} />
                           </TouchableOpacity>
                         ) : (
