@@ -11,6 +11,7 @@ import WorkoutCalendarView from '@/components/WorkoutCalendarView';
 import { WorkoutHistoryService, WorkoutHistoryEntry, toDateKey } from '@/services/workoutHistoryService';
 import { useStartWorkout } from '@/hooks/useStartWorkout';
 import { pickNextWorkout, exerciseListLine } from '@/services/upNext';
+import { lastWorkoutTitle } from '@/services/historySummary';
 import type { Program } from '@/services/exercise.types';
 import { formatKg, formatShortDate, plural } from '@/utils/format';
 import { greetingFor } from '@/data/userDisplay';
@@ -232,7 +233,7 @@ export default function HomeScreen() {
               {loadingHistory ? '—' : lastWorkout ? formatKg(lastWorkout.total_volume) : '—'}
             </Text>
             <Text style={styles.statLabel} numberOfLines={2}>
-              {lastWorkout ? `${lastWorkout.workout_data?.name ?? 'Last workout'} · ${formatShortDate(lastWorkout.completed_at)}` : 'Last workout'}
+              {lastWorkout ? `${lastWorkoutTitle(lastWorkout.workout_data)} · ${formatShortDate(lastWorkout.completed_at)}` : 'Last workout'}
             </Text>
           </TouchableOpacity>
         </View>

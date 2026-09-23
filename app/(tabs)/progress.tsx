@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TrendingUp, Trophy, Target, Calendar, Zap, FileText } from 'lucide-react-native';
@@ -10,7 +10,7 @@ import { WorkoutHistoryService, ProgressStats } from '@/services/workoutHistoryS
 import { useAuth } from '@/data/AuthContext';
 import { router, useFocusEffect } from 'expo-router';
 import HistoryRow from '@/components/HistoryRow';
-import { historyRow } from '@/services/historySummary';
+import { historyRow, historyWindow } from '@/services/historySummary';
 import type { WorkoutHistoryEntry } from '@/services/workoutHistoryService';
 
 const HISTORY_PAGE = 20;
@@ -65,27 +65,31 @@ export default function ProgressScreen() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  // Not tied to the range control: history is every workout, newest first, 20 at a time.
+  // Not tied to the range control: history is every workout, newest first, 20 at a time; a refresh keeps what is loaded.
   const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
+
+  // A ref, so the focus refresh below always sees how many rows are loaded.
+  const loadedRef = useRef(0);
+  loadedRef.current = history.length;
 
   const loadHistory = useCallback(
     async (fromStart: boolean) => {
       if (!user) return;
       setHistoryLoading(true);
       try {
-        const offset = fromStart ? 0 : history.length;
-        const page = await WorkoutHistoryService.getWorkoutHistory(user.id, HISTORY_PAGE, offset);
+        const { offset, limit } = historyWindow(loadedRef.current, fromStart, HISTORY_PAGE);
+        const page = await WorkoutHistoryService.getWorkoutHistory(user.id, limit, offset);
         setHistory((prev) => (fromStart ? page : [...prev, ...page]));
-        setHasMoreHistory(page.length === HISTORY_PAGE);
+        setHasMoreHistory(page.length === limit);
       } catch (error) {
         console.error('Failed to load history:', error);
       } finally {
         setHistoryLoading(false);
       }
     },
-    [user, history.length]
+    [user]
   );
 
   // Reload on focus so a workout finished a moment ago is at the top.
