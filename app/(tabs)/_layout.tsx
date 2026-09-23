@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { BottomTabBar } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Zap, FileText, User, TrendingUp } from 'lucide-react-native';
@@ -23,7 +23,12 @@ export default function TabLayout() {
         // A lightning bolt for Home and a page icon for Programs are not
         // self-evident; the labels were styled but never switched on.
         tabBarShowLabel: true,
-        tabBarLabelStyle: styles.tabBarLabel,
+        // Four labels share 412dp; uncapped at the largest system font "Programs" clipped.
+        tabBarLabel: ({ color, children }) => (
+          <Text style={[styles.tabBarLabel, { color }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+            {children}
+          </Text>
+        ),
         headerShown: false,
         tabBarAccessibilityLabel: 'Main navigation',
       }}

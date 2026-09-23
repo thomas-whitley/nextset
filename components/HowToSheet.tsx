@@ -33,7 +33,8 @@ export default function HowToSheet({ visible, libraryExerciseId, onDismiss }: Pr
 
   return (
     <DragDismissSheet visible={visible} onDismiss={onDismiss}>
-      <View style={{ maxHeight: height * 0.9 }}>
+      {/* Stop below the status bar; the sheet adds its own handle and bottom inset. */}
+      <View style={{ maxHeight: height - insets.top - insets.bottom - spacing.xxl - 48 }}>
         <ScrollView contentContainerStyle={[styles.body, { paddingBottom: spacing.lg + insets.bottom }]}>
           <View style={styles.header}>
             <View style={{ flex: 1 }}>

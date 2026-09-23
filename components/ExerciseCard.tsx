@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { Check, ChevronDown, Ellipsis, GripVertical, Plus } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp, Ellipsis, GripVertical, Plus } from 'lucide-react-native';
 import Colors from '@/constants/Colors';
 import { radius, spacing, touch, type, elevation } from '@/constants/theme';
 import SwipeToRemove from '@/components/gestures/SwipeToRemove';
@@ -67,7 +67,8 @@ export default function ExerciseCard({
             </View>
             <Text style={[styles.summary, { color: muted }]}>{summary}</Text>
           </View>
-          <ChevronDown size={22} color={muted} style={{ transform: [{ rotate: collapsed ? '0deg' : '180deg' }] }} />
+          {/* Two icons, not one rotated: react-native-svg on Android draws nothing for a transformed Svg. */}
+          {collapsed ? <ChevronDown size={22} color={muted} /> : <ChevronUp size={22} color={muted} />}
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.more}

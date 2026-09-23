@@ -154,7 +154,7 @@ export default function HomeScreen() {
         {/* This week */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>This week</Text>
               <Text style={styles.cardSubtitle}>
                 {loadingHistory ? 'Loading…' : workoutsThisWeek === 0 ? 'No workouts yet this week' : `${workoutsThisWeek} ${workoutsThisWeek === 1 ? 'workout' : 'workouts'}`}
@@ -205,7 +205,7 @@ export default function HomeScreen() {
             <Text style={styles.statValue} numberOfLines={1}>
               {loadingHistory ? '—' : lastWorkout ? formatKg(lastWorkout.total_volume) : '—'}
             </Text>
-            <Text style={styles.statLabel} numberOfLines={1}>
+            <Text style={styles.statLabel} numberOfLines={2}>
               {lastWorkout ? `${lastWorkout.workout_data?.name ?? 'Last workout'} · ${formatShortDate(lastWorkout.completed_at)}` : 'Last workout'}
             </Text>
           </TouchableOpacity>

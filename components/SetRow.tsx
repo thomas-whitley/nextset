@@ -133,6 +133,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
     borderWidth: 1,
     textAlign: 'center',
+    // Android pads TextInputs vertically and top-aligns the text; centre it in the 48dp box.
+    textAlignVertical: 'center',
+    paddingVertical: 0,
     ...type.setInput,
   },
   inputOnCard: { backgroundColor: Colors.light.background, borderColor: Colors.light.border, color: Colors.light.text },

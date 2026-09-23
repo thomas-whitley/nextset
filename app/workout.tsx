@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: Colors.light.background
   },
-  header: { height: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingLeft: spacing.xs, paddingRight: spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.light.border, backgroundColor: Colors.light.card },
+  header: { minHeight: 64, paddingVertical: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingLeft: spacing.xs, paddingRight: spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.light.border, backgroundColor: Colors.light.card },
   headerIcon: { width: touch.min, height: touch.min, justifyContent: 'center', alignItems: 'center' },
   headerContent: { flex: 1 },
   workoutTitle: { fontFamily: 'ArchivoNarrow-Bold', fontSize: 20, lineHeight: 24, color: Colors.light.text },
@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
   statTile: { flex: 1, backgroundColor: Colors.light.background, borderRadius: radius.card, padding: spacing.base },
   statTileValue: { ...type.display, color: Colors.light.text },
   statTileLabel: { ...type.body, fontSize: 15, color: Colors.light.textSecondary },
-  sheetLabel: { ...type.eyebrow, color: Colors.light.textSecondary, marginBottom: 6 },
+  sheetLabel: { ...type.eyebrow, color: Colors.light.textSecondary, marginBottom: 6, marginTop: spacing.sm },
   prBlock: { marginBottom: spacing.md, backgroundColor: Colors.light.accentLight, borderRadius: radius.card, padding: spacing.base },
   prLineRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
   prName: { fontFamily: 'Archivo-Medium', fontSize: 17, color: Colors.light.text },

@@ -214,7 +214,9 @@ function DraggableItem({
     handleOnly ? <GestureDetector gesture={pan}>{node}</GestureDetector> : node;
 
   const item = (
-    <Animated.View onLayout={onLayout} style={[styles.item, animatedStyle]}>
+    // The slot maths above assumes `gap` after every item but the last, so the
+    // spacing is laid out here rather than left to each caller.
+    <Animated.View onLayout={onLayout} style={[styles.item, index < count - 1 && { marginBottom: gap }, animatedStyle]}>
       {children(isActive, handle)}
     </Animated.View>
   );
