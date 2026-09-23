@@ -11,6 +11,7 @@ import { backfillRepsTargets } from '../services/repsTarget';
 import { mergeBest, mergeBests, detectPr, type ExerciseBests } from '../services/prMath';
 import { restReducer, IDLE_REST, type RestState, type RestAction } from '../services/restTimer';
 import { cancelRestNotification } from '../services/restNotifications';
+import { quickWorkoutName } from '../services/upNext';
 import { addExercise, removeExercise, setSetCount, reorderExercises as reorderExerciseList, reorderDays, updateDay } from '../services/programEdits';
 
 const workoutCheckpointKey = (userId: string) => `momentum:in_progress_workout:${userId}`;
@@ -36,6 +37,8 @@ interface WorkoutContextType {
   /** Forget the active program locally so the picker shows again (edits are kept in the cloud). */
   clearCurrentProgram: () => void;
   startWorkout: (workout: Workout) => void;
+  /** Start an empty workout with no program (spec §6.3). Saved to history; never written to program_data. */
+  startQuickWorkout: () => void;
   updateSet: (exerciseId: string, setId: string, field: 'weight' | 'reps', value: string) => Promise<void>;
   completeSet: (exerciseId: string, setId: string) => Promise<void>;
   /** Swaps an exercise's identity in the running workout, keeping the set count but clearing logged values. */
@@ -309,6 +312,18 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const startQuickWorkout = () => {
+    const now = new Date();
+    startWorkout({
+      id: `quick_${now.getTime()}`,
+      name: quickWorkoutName(now),
+      description: '',
+      order: 0,
+      exercises: [],
+      isQuick: true,
+    });
+  };
+
   /**
    * Applies an edit to the running workout using the *latest* workout (the
    * ref, not the render closure), then checkpoints locally at once and
@@ -564,6 +579,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         setCurrentProgram,
         clearCurrentProgram,
         startWorkout,
+        startQuickWorkout,
         updateSet,
         completeSet,
         replaceExercise,

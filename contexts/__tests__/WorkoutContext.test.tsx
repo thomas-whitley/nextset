@@ -359,3 +359,49 @@ describe('program editor', () => {
     expect(result.current.hasPendingProgramWrite()).toBe(true);
   });
 });
+describe('quick workout', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  async function setupQuick() {
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await Promise.resolve(); });
+    await act(() => { hook.result.current.startQuickWorkout(); });
+    return hook;
+  }
+
+  test('starts empty, named for today, and leaves the program alone', async () => {
+    const { result } = await setupQuick();
+    const w = result.current.currentWorkout!;
+    expect(w.isQuick).toBe(true);
+    expect(w.exercises).toEqual([]);
+    expect(w.name).toMatch(/^Quick workout \d{1,2} \w{3,4}$/);
+    expect(result.current.currentProgram!.name).toBe('Test');
+    expect(result.current.isDayLocked('w1')).toBe(false);
+    expect(result.current.isProgramWorkoutRunning).toBe(false);
+  });
+
+  test('adding, growing, logging and removing never write to the program', async () => {
+    const { result } = await setupQuick();
+    const id = result.current.currentWorkout!.id;
+    await act(async () => { await result.current.addExerciseToWorkout(id, { id: 8, name: 'Row' } as any); });
+    const exId = result.current.currentWorkout!.exercises[0].id;
+    await act(async () => { await result.current.updateExerciseSets(id, exId, 4); });
+    const sets = () => result.current.currentWorkout!.exercises[0].sets;
+    await act(async () => { await result.current.updateSet(exId, sets()[0].id, 'weight', '50'); });
+    await act(async () => { await result.current.completeSet(exId, sets()[0].id); });
+    await act(async () => { await result.current.removeSet(exId, sets()[3].id); });
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+
+    expect(UserActiveProgramService.updateActiveProgram).not.toHaveBeenCalled();
+    expect(result.current.currentProgram!.workouts[0].exercises.map((e) => e.name)).toEqual(['Squat']);
+    expect(sets()).toHaveLength(3);
+    const stored = JSON.parse((await AsyncStorage.getItem('momentum:in_progress_workout:user-1'))!);
+    expect(stored.isQuick).toBe(true);
+    expect(stored.exercises[0].sets).toHaveLength(3);
+  });
+});
