@@ -1,5 +1,7 @@
 import type { Workout } from './exercise.types';
 import { epley1rm, parseSetNumber } from './prMath';
+import { ExerciseService } from './exerciseService';
+import { formatKg } from '../utils/format';
 
 // Per-exercise progress (spec 2026-09-23). Pure: callers fetch the history
 // rows and pass them in. Completed sets only, like prMath.
@@ -107,4 +109,98 @@ export function exerciseRecord(sessions: ExerciseSession[]): ExerciseRecord {
     if (!mostReps || s.mostReps > mostReps.value) mostReps = { value: s.mostReps, date: s.completedAt };
   }
   return { heaviest, e1rm, mostReps };
+}
+
+/** chart-kit crowds its x labels past about a dozen points. */
+export const CHART_SESSIONS = 12;
+
+export const metricName: Record<SeriesMetric, string> = {
+  e1rm: 'Est. 1RM',
+  heaviest: 'Heaviest weight',
+  reps: 'Most reps',
+};
+
+/** e1RM is an estimate, so it is plotted in whole kg; logged weights stay as typed. */
+export function seriesValue(session: ExerciseSession, metric: SeriesMetric): number {
+  if (metric === 'e1rm') return Math.round(session.e1rm);
+  if (metric === 'heaviest') return session.heaviest;
+  return session.mostReps;
+}
+
+/**
+ * The newest `CHART_SESSIONS` points, oldest first. A session with no value for
+ * this metric (an unweighted day of a weighted lift) is skipped, not drawn as 0.
+ */
+export function chartSeries(sessions: ExerciseSession[], metric: SeriesMetric): { labels: string[]; values: number[] } {
+  const points = sessions.filter((s) => seriesValue(s, metric) > 0).slice(0, CHART_SESSIONS).reverse();
+  return {
+    labels: points.map((s) => {
+      const d = new Date(s.completedAt);
+      return `${d.getDate()}/${d.getMonth() + 1}`;
+    }),
+    values: points.map((s) => seriesValue(s, metric)),
+  };
+}
+
+const oneDecimal = (n: number) => String(Math.round(n * 10) / 10);
+
+/** The chart is an SVG a screen reader cannot see; this sentence stands in for it. */
+export function chartSummaryLabel(metric: SeriesMetric, values: number[]): string {
+  const unit = metric === 'reps' ? 'reps' : 'kg';
+  const first = values[0] ?? 0;
+  const last = values[values.length - 1] ?? 0;
+  return `${metricName[metric]}, ${values.length} sessions, ${oneDecimal(first)} to ${oneDecimal(last)} ${unit}`;
+}
+
+export type NameFor = (exerciseId: number) => string | undefined;
+
+/** The bundled library's name for an id. */
+export const libraryName: NameFor = (id) => ExerciseService.getById(id)?.name;
+
+/** Library name; else the name saved in the most recent workout that has it. */
+export function exerciseName(entries: HistorySource[], exerciseId: number, nameFor: NameFor): string {
+  const fromLibrary = nameFor(exerciseId);
+  if (fromLibrary) return fromLibrary;
+  for (const entry of [...entries].sort(newestFirst)) {
+    const saved = entry.workout_data?.exercises?.find((e) => e.exerciseId === exerciseId)?.name;
+    if (saved) return saved;
+  }
+  return 'Exercise';
+}
+
+export interface ExerciseListItem {
+  exerciseId: number;
+  name: string;
+  lastDoneAt: string;
+  mode: ExerciseMode;
+  record: ExerciseRecord;
+}
+
+/** Every exercise with at least one completed set, most recently done first. */
+export function exerciseList(entries: HistorySource[], nameFor: NameFor): ExerciseListItem[] {
+  const ids = new Set<number>();
+  for (const entry of entries) {
+    for (const exercise of entry.workout_data?.exercises ?? []) {
+      if (typeof exercise.exerciseId === 'number' && Number.isFinite(exercise.exerciseId)) ids.add(exercise.exerciseId);
+    }
+  }
+  const items: ExerciseListItem[] = [];
+  for (const exerciseId of ids) {
+    const sessions = exerciseSessions(entries, exerciseId);
+    if (sessions.length === 0) continue;
+    items.push({
+      exerciseId,
+      name: exerciseName(entries, exerciseId, nameFor),
+      lastDoneAt: sessions[0].completedAt,
+      mode: exerciseMode(sessions),
+      record: exerciseRecord(sessions),
+    });
+  }
+  return items.sort((a, b) => Date.parse(b.lastDoneAt) - Date.parse(a.lastDoneAt) || a.name.localeCompare(b.name));
+}
+
+/** The one-figure record a list row shows. */
+export function recordText(item: Pick<ExerciseListItem, 'mode' | 'record'>): string {
+  if (item.mode === 'weighted') return formatKg(item.record.heaviest?.value);
+  return item.record.mostReps ? `${item.record.mostReps.value} reps` : '—';
 }
