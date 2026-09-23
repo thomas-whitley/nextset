@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dumbbell, ChevronRight } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { spacing, radius, elevation, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, elevation, type, touch, HIT_SLOP } from '@/constants/theme';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { WorkoutHistoryEntry, WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { Program } from '@/services/exercise.types';
@@ -217,8 +217,8 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md, marginTop: spacing.xs },
   sectionTitle: { ...type.section, color: Colors.light.text },
   sectionHint: { ...type.label, color: Colors.light.textTertiary, marginBottom: spacing.md },
-  changeProgramButton: { backgroundColor: Colors.light.primaryLight, borderRadius: radius.pill, paddingVertical: spacing.sm - 2, paddingHorizontal: spacing.md + 2 },
-  changeProgramText: { ...type.label, color: Colors.light.primary },
+  changeProgramButton: { minHeight: touch.min, paddingHorizontal: spacing.base, borderRadius: 12, backgroundColor: Colors.light.primaryLight, justifyContent: 'center' },
+  changeProgramText: { fontFamily: 'Archivo-SemiBold', fontSize: 16, color: Colors.light.primary },
   activeProgramContainer: { marginBottom: spacing.sm },
   programList: { gap: spacing.md },
 
@@ -236,17 +236,17 @@ const styles = StyleSheet.create({
   },
   programBannerActive: { borderBottomWidth: 1, borderBottomColor: Colors.light.borderOnRubber },
   programBannerQuiet: { backgroundColor: Colors.light.primaryLight },
-  programBannerText: { ...type.label, fontVariant: ['tabular-nums'] },
+  programBannerText: { ...type.label, fontSize: 14, fontVariant: ['tabular-nums'] },
   programBannerTextQuiet: { color: Colors.light.primary },
   programContent: { padding: spacing.base },
-  programName: { ...type.section, color: Colors.light.text, marginBottom: spacing.xs },
+  programName: { ...type.title, fontSize: 24, lineHeight: 30, color: Colors.light.text, marginBottom: spacing.xs },
   programDescription: { ...type.body, color: Colors.light.textSecondary, marginBottom: spacing.md },
   programDays: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm - 2, marginBottom: spacing.md },
-  dayTag: { backgroundColor: Colors.light.primaryLight, borderRadius: radius.input, paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.xs },
+  dayTag: { backgroundColor: Colors.light.primaryLight, borderRadius: radius.input, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
   dayTagActive: { backgroundColor: Colors.light.slabField },
-  dayTagText: { ...type.label, color: Colors.light.primary, fontVariant: ['tabular-nums'] },
+  dayTagText: { ...type.label, fontSize: 14, color: Colors.light.primary, fontVariant: ['tabular-nums'] },
   programFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statText: { ...type.label, color: Colors.light.textTertiary, fontVariant: ['tabular-nums'] },
+  statText: { ...type.label, fontSize: 14, color: Colors.light.textSecondary, fontVariant: ['tabular-nums'] },
 
   // Shared "text/icon sitting on the rubber slab" overrides.
   onSlabText: { color: Colors.light.onRubber },
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   modalTitle: { ...type.section, color: Colors.light.text, marginBottom: spacing.md },
   modalText: { ...type.body, color: Colors.light.textSecondary, marginBottom: spacing.lg },
   modalButtons: { flexDirection: 'row', gap: spacing.md },
-  modalButton: { flex: 1, paddingVertical: spacing.base, borderRadius: radius.card, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
+  modalButton: { flex: 1, minHeight: touch.row, borderRadius: radius.card, alignItems: 'center', justifyContent: 'center' },
   modalCancelButton: { backgroundColor: Colors.light.border },
   modalConfirmButton: { backgroundColor: Colors.light.primary },
   modalCancelText: { ...type.section, color: Colors.light.textSecondary },
