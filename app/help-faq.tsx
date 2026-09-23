@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, type, touch, HIT_SLOP } from '@/constants/theme';
 
 type FAQItem = {
   question: string;
@@ -77,7 +77,7 @@ export default function HelpFAQScreen() {
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Help & FAQ</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: touch.min }} />
       </View>
 
       <ScrollView
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
-  backButton: { width: spacing.xxxl, height: spacing.xxxl, justifyContent: 'center' },
+  backButton: { width: touch.min, height: touch.min, justifyContent: 'center' },
   headerTitle: { ...type.section, color: Colors.light.text },
   content: { flex: 1, paddingHorizontal: spacing.lg },
   introSection: { paddingVertical: spacing.xl },

@@ -16,7 +16,7 @@ eas build --profile preview       # Internal preview build
 eas build --profile production    # Production build (auto-increments version)
 ```
 
-Tests: jest via `jest-expo` (`npm test`). CI (`.github/workflows/ci.yml`) runs lint, tsc and jest on push to main and on PRs. Test files: `services/__tests__/*.test.ts`, `contexts/__tests__/*.test.tsx`; `jest.setup.ts` mocks AsyncStorage and NetInfo.
+Tests: jest via `jest-expo` (`npm test`). CI (`.github/workflows/ci.yml`) runs lint, tsc and jest on push to main and on PRs. Test files: `services/__tests__/*.test.ts`, `contexts/__tests__/*.test.tsx`, `components/__tests__/*.test.tsx`; `jest.setup.ts` mocks AsyncStorage, NetInfo, expo-notifications, gesture-handler and Reanimated/worklets.
 
 ## Architecture
 
@@ -58,6 +58,10 @@ Supabase is the only persistence tier. Reads and writes go through the services 
 | Rest-over local notification (asks permission once) | `services/restNotifications.ts` |
 | Per-exercise reps target (ghost text, backfill from templates) | `services/repsTarget.ts` |
 | Weight/rep keyboard-bar step sizes and bounds | `services/setSteps.ts` |
+| Similar-exercise ranking (pure, tested) | `services/similarExercises.ts` |
+| Muscle group → body map (pure, tested) | `services/muscleMap.ts` |
+| Exercise card text (pure, tested) | `services/exerciseSummary.ts` |
+| Undo-window filtering (pure, tested) | `services/pendingRemoval.ts` |
 
 **Volume is computed from completed sets only** — both in the finish sheet and in `saveWorkoutHistory`. These two must never diverge; when they did, a single 60 kg × 6 session stored 1,245,613,856 kg.
 
@@ -109,3 +113,8 @@ Supabase client is initialized in `data/supabase-client.ts` and throws if either
 - **Android is edge-to-edge and cannot be disabled (SDK 54+).** Anything anchored to the bottom must add `useSafeAreaInsets().bottom`; every `SafeAreaView` in the app is `edges={['top']}` on purpose. Pattern: `app/(tabs)/_layout.tsx`, `components/gestures/DragDismissSheet.tsx`, the undo snackbar in `app/workout.tsx`.
 - **`expo-file-system` is on the `File`/`Paths` API (SDK 54+).** The old functions live at `expo-file-system/legacy`; don't add new callers. Only `services/csvExport.ts` writes files.
 - **eslint-config-expo 57 ships the React Compiler hook rules.** They are switched off in `eslint.config.js` because they flag Reanimated `.value` writes and existing effects; the two classic hooks rules still run. Re-enable one at a time if wanted.
+- **Touch and type floors (redesign, 2026-09).** Visible tap size ≥ `touch.min` (48) and set rows ≥ `touch.row` (56) from `constants/theme.ts`; `HIT_SLOP` is extra, not a way to reach 48. No text below 13pt, tappable text ≥ 15pt. `type.eyebrow` is now a 15pt sentence-case section label — never uppercase.
+- **Folded exercises are session-only.** `Workout.collapsedExerciseIds` lives in the AsyncStorage checkpoint and is stripped in `applyWorkoutUpdate` like `startedAt`; never let it reach `program_data`. Folding goes through `setExerciseCollapsed`, which deliberately skips the cloud write.
+- **Anything that counts sets or volume goes through `withoutPending`** (`services/pendingRemoval.ts`): an exercise or a set inside its 4 s undo window must be gone from the finish sheet and the saved workout alike.
+- **No card-level swipe on the workout screen.** Set rows swipe to remove; nesting a second horizontal swipe on the card conflicts. Exercise removal is in the `⋯` sheet.
+- **`@testing-library/react-native` 14 is async.** `render` and every `fireEvent.*` return a Promise — `await` them. An unawaited `fireEvent` leaves an act open and the *next* test in the file renders `null`.

@@ -206,3 +206,60 @@ it('ResumeWorkoutBar shows only while a workout is active', async () => {
   });
   expect(screen.getByLabelText(/Resume Full Body A/)).toBeTruthy();
 });
+
+describe('folds and set removal', () => {
+  const twoSets: Workout = {
+    ...workout,
+    exercises: [{ ...workout.exercises[0], sets: [
+      { id: 's1', weight: '60', reps: '5', isComplete: false },
+      { id: 's2', weight: '60', reps: '5', isComplete: false },
+    ] }],
+  };
+
+  async function setupWith(w: Workout) {
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await Promise.resolve(); });
+    await act(() => { hook.result.current.startWorkout(w); });
+    return hook;
+  }
+
+  test('folding is checkpointed but never written to the program', async () => {
+    const { result } = await setupWith(twoSets);
+    await act(() => { result.current.setExerciseCollapsed('e1', true); });
+    expect(result.current.currentWorkout!.collapsedExerciseIds).toEqual(['e1']);
+    const stored = JSON.parse((await AsyncStorage.getItem('momentum:in_progress_workout:user-1'))!);
+    expect(stored.collapsedExerciseIds).toEqual(['e1']);
+    expect(UserActiveProgramService.updateActiveProgram).not.toHaveBeenCalled();
+
+    await act(async () => { await result.current.completeSet('e1', 's1'); });
+    const written = (UserActiveProgramService.updateActiveProgram as jest.Mock).mock.calls[0][1] as Program;
+    expect(written.workouts[0]).not.toHaveProperty('collapsedExerciseIds');
+  });
+
+  test('unfolding removes the id', async () => {
+    const { result } = await setupWith(twoSets);
+    await act(() => { result.current.setExerciseCollapsed('e1', true); });
+    await act(() => { result.current.setExerciseCollapsed('e1', false); });
+    expect(result.current.currentWorkout!.collapsedExerciseIds).toEqual([]);
+  });
+
+  test('removeSet drops that set and flushes', async () => {
+    const { result } = await setupWith(twoSets);
+    await act(async () => { await result.current.removeSet('e1', 's1'); });
+    expect(result.current.currentWorkout!.exercises[0].sets.map((s) => s.id)).toEqual(['s2']);
+    expect(UserActiveProgramService.updateActiveProgram).toHaveBeenCalledTimes(1);
+  });
+
+  test('removeSet refuses the last remaining set', async () => {
+    const { result } = await setupWith(workout);
+    await act(async () => { await result.current.removeSet('e1', 's1'); });
+    expect(result.current.currentWorkout!.exercises[0].sets).toHaveLength(1);
+  });
+
+  test('a restored checkpoint keeps its folds', async () => {
+    await AsyncStorage.setItem('momentum:in_progress_workout:user-1', JSON.stringify({ ...twoSets, startedAt: 1, collapsedExerciseIds: ['e1'] }));
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(hook.result.current.currentWorkout?.collapsedExerciseIds).toEqual(['e1']);
+  });
+});

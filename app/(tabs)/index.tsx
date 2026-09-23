@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Calendar, Play, ChevronRight, Flame } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { spacing, radius, elevation, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, elevation, type, touch, HIT_SLOP } from '@/constants/theme';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/data/AuthContext';
 import WorkoutCalendarView from '@/components/WorkoutCalendarView';
@@ -154,7 +154,7 @@ export default function HomeScreen() {
         {/* This week */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>This week</Text>
               <Text style={styles.cardSubtitle}>
                 {loadingHistory ? 'Loading…' : workoutsThisWeek === 0 ? 'No workouts yet this week' : `${workoutsThisWeek} ${workoutsThisWeek === 1 ? 'workout' : 'workouts'}`}
@@ -173,12 +173,16 @@ export default function HomeScreen() {
           <View style={styles.weekView}>
             {weekKeys.map((key, index) => {
               const done = doneKeys.has(key);
+              const isToday = key === todayKey;
               return (
-                <View key={key} style={styles.dayContainer}>
-                  <Text style={[styles.dayLabel, key === todayKey && styles.dayLabelToday]}>{DAY_LABELS[index]}</Text>
-                  <View style={[styles.dayDot, done && styles.dayDotActive]}>
-                    {done && <View style={styles.dayDotInnerRing} />}
-                  </View>
+                <View
+                  key={key}
+                  style={[styles.dayDot, done && styles.dayDotActive, isToday && !done && styles.dayDotToday]}
+                  accessibilityLabel={`${DAY_LABELS[index]}${isToday ? ', today' : ''}${done ? ', workout logged' : ''}`}
+                >
+                  <Text style={[styles.dayLabel, done && { color: '#FFFFFF' }, isToday && styles.dayLabelToday]}>
+                    {DAY_LABELS[index]}
+                  </Text>
                 </View>
               );
             })}
@@ -201,7 +205,7 @@ export default function HomeScreen() {
             <Text style={styles.statValue} numberOfLines={1}>
               {loadingHistory ? '—' : lastWorkout ? formatKg(lastWorkout.total_volume) : '—'}
             </Text>
-            <Text style={styles.statLabel} numberOfLines={1}>
+            <Text style={styles.statLabel} numberOfLines={2}>
               {lastWorkout ? `${lastWorkout.workout_data?.name ?? 'Last workout'} · ${formatShortDate(lastWorkout.completed_at)}` : 'Last workout'}
             </Text>
           </TouchableOpacity>
@@ -280,66 +284,58 @@ const styles = StyleSheet.create({
   startButton: {
     backgroundColor: Colors.light.primary,
     borderRadius: radius.card,
-    paddingVertical: spacing.base,
+    minHeight: touch.row,
     paddingHorizontal: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    minHeight: 44,
   },
   startButtonText: { ...type.section, color: '#FFFFFF' },
 
   card: { backgroundColor: Colors.light.card, borderRadius: radius.card, padding: spacing.lg, marginBottom: spacing.base, ...shadow },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
   cardTitle: { ...type.section, color: Colors.light.text },
-  cardSubtitle: { ...type.label, color: Colors.light.textTertiary, marginTop: spacing.xs / 2 },
+  cardSubtitle: { ...type.label, fontSize: 15, color: Colors.light.textSecondary, marginTop: spacing.xs / 2 },
   calendarButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: Colors.light.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Week dots — plate discs. Done days get a filled disc with a quiet inner
-  // ring; open days stay a hollow slot, same idiom as an empty bar peg.
-  weekView: { flexDirection: 'row', justifyContent: 'space-between' },
-  dayContainer: { alignItems: 'center' },
-  dayLabel: { ...type.label, color: Colors.light.textTertiary, marginBottom: spacing.sm },
-  dayLabelToday: { color: Colors.light.primary },
-  dayDot: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.pill,
+    width: touch.min,
+    height: touch.min,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
     backgroundColor: Colors.light.card,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dayDotActive: { backgroundColor: Colors.light.success, borderColor: Colors.light.success },
-  dayDotInnerRing: {
-    width: 10,
-    height: 10,
+
+  // Week dots — plate discs. The day letter sits inside the disc; done days
+  // fill solid, today gets a quiet ring when not done.
+  weekView: { flexDirection: 'row', justifyContent: 'space-between' },
+  dayLabel: { fontFamily: 'Archivo-SemiBold', fontSize: 14, color: Colors.light.textSecondary },
+  dayLabelToday: { color: Colors.light.text },
+  dayDot: {
+    width: 40,
+    height: 40,
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.light.card,
+    backgroundColor: Colors.light.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  dayDotActive: { backgroundColor: Colors.light.primary },
+  dayDotToday: { backgroundColor: Colors.light.card, borderWidth: 2, borderColor: Colors.light.text },
 
   statsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.base },
   statCard: { flex: 1, backgroundColor: Colors.light.card, borderRadius: radius.card, padding: spacing.base, alignItems: 'center', ...shadow },
-  statValue: { ...type.numeric, color: Colors.light.text, marginTop: spacing.sm, marginBottom: spacing.xs },
-  statLabel: { ...type.label, color: Colors.light.textTertiary, textAlign: 'center' },
+  statValue: { ...type.title, color: Colors.light.text, marginTop: spacing.sm },
+  statLabel: { ...type.label, fontSize: 15, color: Colors.light.textSecondary, textAlign: 'center' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg },
   modalContent: { backgroundColor: Colors.light.card, borderRadius: radius.slab, padding: spacing.xl, width: '100%', maxWidth: 400 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   // Explicit box rather than relying on hitSlop alone: hitSlop pads the
   // existing 24px icon box by 8 each side (40x40), still short of the
-  // 44x44 minimum. minWidth/minHeight + centering gets the real box there.
-  modalCloseButton: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  // touch.min minimum. minWidth/minHeight + centering gets the real box there.
+  modalCloseButton: { minWidth: touch.min, minHeight: touch.min, justifyContent: 'center', alignItems: 'center' },
   modalTitle: { ...type.section, color: Colors.light.text },
   modalEmpty: { ...type.body, color: Colors.light.textTertiary, paddingVertical: spacing.md },
   workoutItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.light.border },

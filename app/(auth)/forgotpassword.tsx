@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { ArrowLeft, Mail } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, type, touch, HIT_SLOP } from '@/constants/theme';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -175,8 +175,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.base,
   },
   backButton: {
-    width: 44,
-    height: 44,
+    width: touch.min,
+    height: touch.min,
     borderRadius: radius.pill,
     backgroundColor: Colors.light.card,
     borderWidth: 1,

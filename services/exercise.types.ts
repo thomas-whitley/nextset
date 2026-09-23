@@ -135,6 +135,8 @@ export interface Workout {
   estimatedDuration?: number; // in minutes
   /** Wall-clock ms when this session started; set by startWorkout, survives the AsyncStorage checkpoint. */
   startedAt?: number;
+  /** Exercises the user folded on the workout screen. Session-only: checkpointed, never written to program_data. */
+  collapsedExerciseIds?: string[];
 }
 
 export interface Program {

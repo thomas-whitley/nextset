@@ -31,7 +31,7 @@ const COMMIT_VELOCITY = 800;
 type Props = {
   children: ReactNode;
   onRemove: () => void;
-  /** Read out by screen readers and shown beside the bin icon. */
+  /** Shown beside the bin icon; when set and enabled, also the row's screen-reader label and "delete" action. */
   label?: string;
   enabled?: boolean;
   /** Corner radius of the row and its reveal backdrop, for callers whose row isn't the standard card radius (e.g. the active slab). Defaults to the standard card radius. */
@@ -41,10 +41,11 @@ type Props = {
 export default function SwipeToRemove({
   children,
   onRemove,
-  label = 'Remove',
+  label,
   enabled = true,
   cornerRadius = radius.card,
 }: Props) {
+  const spoken = enabled ? label : undefined;
   const translateX = useSharedValue(0);
   const rowWidth = useSharedValue(0);
   const rowHeight = useSharedValue(0);
@@ -103,10 +104,17 @@ export default function SwipeToRemove({
   }));
 
   return (
-    <View onLayout={onLayout} style={[styles.container, { borderRadius: cornerRadius }]}>
+    <View
+      onLayout={onLayout}
+      style={[styles.container, { borderRadius: cornerRadius }]}
+      // TalkBack users can't swipe a row; the "delete" action removes it without one.
+      accessibilityLabel={spoken}
+      accessibilityActions={spoken ? [{ name: 'delete', label: spoken }] : undefined}
+      onAccessibilityAction={spoken ? (e) => e.nativeEvent.actionName === 'delete' && onRemove() : undefined}
+    >
       <Animated.View style={[styles.backdrop, backdropStyle, { borderRadius: cornerRadius }]} pointerEvents="none">
         <Trash2 size={18} color={Colors.light.onRubber} />
-        <Text style={styles.backdropLabel}>{label}</Text>
+        <Text style={styles.backdropLabel}>{label ?? 'Remove'}</Text>
       </Animated.View>
 
       <GestureDetector gesture={pan}>

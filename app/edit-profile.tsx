@@ -14,7 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X, User, Phone, AtSign, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, type, touch, HIT_SLOP } from '@/constants/theme';
 import { useAuth } from '@/data/AuthContext';
 import { supabase } from '@/data/supabase-client';
 import { initialsOf } from '@/data/userDisplay';
@@ -157,11 +157,12 @@ export default function EditProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView style={styles.keyboardAvoid} behavior="padding">
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleClose} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
+          <TouchableOpacity style={styles.headerIconButton} onPress={handleClose} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Close">
             <X size={24} color={Colors.light.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit profile</Text>
           <TouchableOpacity
+            style={styles.headerActionButton}
             onPress={handleSave}
             disabled={!canSave}
             hitSlop={HIT_SLOP}
@@ -201,7 +202,7 @@ export default function EditProfileScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Name</Text>
                 <View style={styles.inputContainer}>
-                  <User size={20} color={Colors.light.textTertiary} />
+                  <User size={22} color={Colors.light.textTertiary} />
                   <TextInput
                     style={styles.textInput}
                     value={profileData.full_name}
@@ -217,7 +218,7 @@ export default function EditProfileScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Username</Text>
                 <View style={styles.inputContainer}>
-                  <AtSign size={20} color={Colors.light.textTertiary} />
+                  <AtSign size={22} color={Colors.light.textTertiary} />
                   <TextInput
                     style={styles.textInput}
                     value={profileData.username}
@@ -234,7 +235,7 @@ export default function EditProfileScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Phone</Text>
                 <View style={styles.inputContainer}>
-                  <Phone size={20} color={Colors.light.textTertiary} />
+                  <Phone size={22} color={Colors.light.textTertiary} />
                   <TextInput
                     style={styles.textInput}
                     value={profileData.phone}
@@ -313,6 +314,8 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.light.border,
   },
   headerTitle: { ...type.section, color: Colors.light.text },
+  headerIconButton: { minWidth: touch.min, minHeight: touch.min, justifyContent: 'center', alignItems: 'flex-start' },
+  headerActionButton: { minHeight: touch.min, justifyContent: 'center', alignItems: 'flex-end' },
   headerAction: { ...type.bodyMedium, color: Colors.light.primary },
   headerActionDisabled: { color: Colors.light.textTertiary },
   content: { flex: 1, paddingHorizontal: spacing.lg },
@@ -327,7 +330,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { ...type.title, color: Colors.light.card, textTransform: 'uppercase' },
+  avatarText: { ...type.title, color: Colors.light.card },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',

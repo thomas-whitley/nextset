@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X, Play, Dumbbell } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, type, touch, HIT_SLOP } from '@/constants/theme';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { Workout } from '@/services/exercise.types';
 import DraggableList from '@/components/gestures/DraggableList';
@@ -158,12 +158,12 @@ const styles = StyleSheet.create({
   },
   // Explicit box rather than relying on hitSlop alone: hitSlop pads the
   // existing 24px icon box by 8 each side (40x40), still short of the
-  // 44x44 minimum. minWidth/minHeight + centering gets the real box there.
-  closeButton: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  // touch.min minimum. minWidth/minHeight + centering gets the real box there.
+  closeButton: { minWidth: touch.min, minHeight: touch.min, justifyContent: 'center', alignItems: 'center' },
   // Balances the close button on the left so the title actually sits
   // centred now that the arrow-reorder toggle on the right is gone.
   headerSpacer: {
-    width: 44,
+    width: touch.min,
   },
   content: {
     flex: 1,
@@ -271,8 +271,8 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   startButton: {
-    width: 40,
-    height: 40,
+    width: touch.min,
+    height: touch.min,
     borderRadius: radius.pill,
     backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',

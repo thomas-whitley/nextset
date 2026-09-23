@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TrendingUp, Trophy, Target, Calendar, Heart, Zap, User, FileText } from 'lucide-react-native';
+import { TrendingUp, Trophy, Target, Calendar, Zap, FileText } from 'lucide-react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { formatKg, formatShortDate } from '@/utils/format';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type, fonts } from '@/constants/theme';
+import { spacing, radius, type, fonts, touch } from '@/constants/theme';
 import { WorkoutHistoryService, ProgressStats } from '@/services/workoutHistoryService';
 import { useAuth } from '@/data/AuthContext';
 
@@ -156,28 +156,6 @@ export default function ProgressScreen() {
     };
   };
 
-  const formatBodyweightData = () => {
-    if (!progressStats?.bodyweightProgress.length) {
-      return {
-        labels: ['No Data'],
-        datasets: [{ data: [0] }],
-      };
-    }
-
-    const last10Entries = progressStats.bodyweightProgress.slice(-10);
-    return {
-      labels: last10Entries.map(item => {
-        const date = new Date(item.date);
-        return `${date.getMonth() + 1}/${date.getDate()}`;
-      }),
-      datasets: [{
-        data: last10Entries.map(item => item.bodyweight),
-        color: () => Colors.light.success,
-        strokeWidth: 3,
-      }],
-    };
-  };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -241,32 +219,6 @@ export default function ProgressScreen() {
           </View>
         </View>
 
-        {/* Health Stats */}
-        {/* Compare, don't rely on truthiness: `0 && ...` evaluates to 0, which
-            React renders as a literal "0" floating above the card. */}
-        {progressStats != null && (progressStats.averageHeartRate ?? 0) > 0 && (
-          <View style={styles.healthCard}>
-            <View style={styles.healthHeader}>
-              <Heart size={24} color={Colors.light.error} />
-              <Text style={styles.healthTitle}>Health Insights</Text>
-            </View>
-            <View style={styles.healthStats}>
-              <View style={styles.healthStat}>
-                <Text style={styles.healthStatValue}>
-                  {Math.round(progressStats.averageHeartRate)}
-                </Text>
-                <Text style={styles.healthStatLabel}>Avg Heart Rate</Text>
-              </View>
-              <View style={styles.healthStat}>
-                <Text style={styles.healthStatValue}>
-                  {formatKg(progressStats.totalVolume / progressStats.totalWorkouts)}
-                </Text>
-                <Text style={styles.healthStatLabel}>Avg Volume</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
         {/* Volume Chart. One point is not a trend, and chart-kit misplaces an
             axis label outside the card when given a single value — so wait for
             a second week before drawing anything. */}
@@ -295,37 +247,6 @@ export default function ProgressScreen() {
               plain wrong unless we say so — a Friday session showed "8/23". */}
           <Text style={styles.chartSubtitle}>Total volume (kg), by week commencing</Text>
         </View>
-
-        {/* Bodyweight Progress */}
-        {progressStats?.bodyweightProgress && progressStats.bodyweightProgress.length > 0 && (
-          <View style={styles.chartCard}>
-            <View style={styles.chartHeader}>
-              <User size={20} color={Colors.light.success} />
-              <Text style={styles.chartTitle}>Bodyweight Progress</Text>
-            </View>
-            <LineChart
-              data={formatBodyweightData()}
-              width={screenWidth - 80}
-              height={220}
-              chartConfig={{
-                ...chartConfig,
-                color: (opacity = 1) => hexToRgba(Colors.light.success, opacity),
-                propsForDots: {
-                  ...chartConfig.propsForDots,
-                  stroke: Colors.light.success,
-                },
-              }}
-              bezier
-              style={styles.chart}
-              withInnerLines={false}
-              withOuterLines={false}
-              withVerticalLabels={true}
-              withHorizontalLabels={true}
-              fromZero={false}
-            />
-            <Text style={styles.chartSubtitle}>Weight in kg</Text>
-          </View>
-        )}
 
         {/* Workout Frequency */}
         <View style={styles.chartCard}>
@@ -447,9 +368,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.base,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.base,
@@ -460,27 +379,29 @@ const styles = StyleSheet.create({
   },
   timeRanges: {
     flexDirection: 'row',
+    gap: spacing.xs,
+    padding: spacing.xs,
+    backgroundColor: Colors.light.border,
+    borderRadius: 12,
+    marginTop: spacing.md,
   },
   timeRange: {
-    minWidth: 44,
-    minHeight: 44,
+    flex: 1,
+    minHeight: touch.min,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.input,
-    marginLeft: spacing.xs,
+    borderRadius: 10,
   },
   activeTimeRange: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: Colors.light.card,
   },
   timeRangeText: {
-    ...type.label,
-    color: Colors.light.textTertiary,
+    fontFamily: 'ArchivoNarrow-SemiBold',
+    fontSize: 17,
+    color: Colors.light.textSecondary,
   },
   activeTimeRangeText: {
-    // Text-on-primary; the "card" token happens to be pure white and keeps
-    // this off the banned-literal list.
-    color: Colors.light.card,
+    color: Colors.light.text,
   },
   content: {
     flex: 1,
@@ -501,7 +422,7 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   statValue: {
-    ...type.numeric,
+    ...type.title,
     color: Colors.light.text,
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
@@ -511,39 +432,6 @@ const styles = StyleSheet.create({
     color: Colors.light.textTertiary,
     textAlign: 'center',
   },
-  healthCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: radius.card,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-    ...shadow,
-  },
-  healthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.base,
-  },
-  healthTitle: {
-    ...type.section,
-    color: Colors.light.text,
-    marginLeft: spacing.md,
-  },
-  healthStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  healthStat: {
-    alignItems: 'center',
-  },
-  healthStatValue: {
-    ...type.numeric,
-    color: Colors.light.error,
-    marginBottom: spacing.xs,
-  },
-  healthStatLabel: {
-    ...type.label,
-    color: Colors.light.textTertiary,
-  },
   chartCard: {
     backgroundColor: Colors.light.card,
     borderRadius: radius.card,
@@ -551,16 +439,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     ...shadow,
   },
-  chartHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.base,
-  },
   chartTitle: {
-    ...type.section,
-    color: Colors.light.text,
+    ...type.eyebrow,
+    color: Colors.light.textSecondary,
     marginBottom: spacing.base,
-    marginLeft: spacing.sm,
   },
   chart: {
     borderRadius: radius.card,

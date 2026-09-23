@@ -21,6 +21,24 @@ export const spacing = {
   xxxl: 40,
 } as const;
 
+/**
+ * Visible size of anything you tap, in dp (spec R2). 48 is Android's
+ * guideline; a set row is taller because it is the thing you hit most, with
+ * sweaty hands, at arm's length.
+ */
+export const touch = {
+  min: 48,
+  row: 56,
+} as const;
+
+/** Body-map fills (spec R13). Primary reuses plate blue; the tint and idle grey exist only here. */
+export const bodyMap = {
+  primary: '#1C4FA1',
+  helping: '#9DB3DA',
+  idle: '#E3E6E1',
+  outline: '#C3C8C1',
+} as const;
+
 /** Tighter than the previous 16–20, which read soft. Gym kit is not soft. */
 export const radius = {
   input: 8,
@@ -99,6 +117,14 @@ export const type = {
     ...tabular,
   } as TextStyle,
 
+  /** Weight and reps in a set row (spec R3). Capped at 1.3× font scale by the input itself. */
+  setInput: {
+    fontFamily: fonts.numeric,
+    fontSize: 20,
+    lineHeight: 24,
+    ...tabular,
+  } as TextStyle,
+
   body: {
     fontFamily: fonts.body,
     fontSize: 16,
@@ -117,13 +143,15 @@ export const type = {
     lineHeight: 18,
   } as TextStyle,
 
-  /** Small uppercase signposts. Tracking is what makes these readable. */
+  /**
+   * Section labels ("This week", "Personal records"). Was an 11pt uppercase
+   * tracked style; at arm's length that read as texture, and it broke the
+   * 13pt floor (spec R4). Kept under the old name so every caller moves at once.
+   */
   eyebrow: {
     fontFamily: fonts.eyebrow,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 0.9,
-    textTransform: 'uppercase',
+    fontSize: 15,
+    lineHeight: 20,
   } as TextStyle,
 } as const;
 
@@ -141,5 +169,9 @@ export const motion = {
   base: 220,
 } as const;
 
-/** Minimum touch target. The app currently has zero uses of hitSlop. */
+/**
+ * Extra hit area around a control that is ALREADY `touch.min` visible.
+ * Not a way to reach the minimum: a 16px icon plus 8px slop is still a 32px
+ * visible target, which is exactly what the redesign removed (spec R2).
+ */
 export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 } as const;

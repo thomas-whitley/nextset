@@ -29,7 +29,7 @@ import {
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, type, touch, HIT_SLOP } from '@/constants/theme';
 import { useAuth } from '@/data/AuthContext';
 import { WorkoutHistoryService } from '@/services/workoutHistoryService';
 import { shareHistoryCsv } from '@/services/csvExport';
@@ -262,6 +262,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity
+          style={styles.closeButton}
           onPress={() => router.dismiss()}
           hitSlop={HIT_SLOP}
           accessibilityRole="button"
@@ -270,7 +271,7 @@ export default function SettingsScreen() {
           <X size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: touch.min }} />
       </View>
 
       <ScrollView
@@ -302,19 +303,19 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Workout</Text>
           <View style={styles.settingsCard}>
             <SettingItem
-              icon={<Timer size={20} color={Colors.light.primary} />}
+              icon={<Timer size={22} color={Colors.light.primary} />}
               title="Default rest time"
               subtitle={`${formatRestTime(defaultRestTime)} between sets`}
               onPress={() => setShowRestTimeModal(true)}
             />
             <SettingItem
-              icon={<Dumbbell size={20} color={Colors.light.primary} />}
+              icon={<Dumbbell size={22} color={Colors.light.primary} />}
               title="Barbell weight"
               subtitle={`${formatKg(barWeight)} bar assumed when loading plates`}
               onPress={() => setShowBarWeightModal(true)}
             />
             <SettingItem
-              icon={<Bell size={20} color={Colors.light.primary} />}
+              icon={<Bell size={22} color={Colors.light.primary} />}
               title="Rest alerts"
               subtitle='Buzz when rest is over, even when locked. Tap to allow "Alarms & reminders" so they fire on time.'
               // Straight to the exact-alarm page where that page exists; the
@@ -335,19 +336,19 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Your data</Text>
           <View style={styles.settingsCard}>
             <SettingItem
-              icon={<FileDown size={20} color={Colors.light.primary} />}
+              icon={<FileDown size={22} color={Colors.light.primary} />}
               title="Export to CSV"
               subtitle="Every set you've logged, one row each"
               onPress={handleExportCSV}
               rightElement={exporting ? <ActivityIndicator size="small" color={Colors.light.primary} /> : undefined}
             />
             <SettingItem
-              icon={<Shield size={20} color={Colors.light.primary} />}
+              icon={<Shield size={22} color={Colors.light.primary} />}
               title="Privacy policy"
               onPress={() => openUrl(LEGAL_URLS.privacy)}
             />
             <SettingItem
-              icon={<Trash2 size={20} color={Colors.light.error} />}
+              icon={<Trash2 size={22} color={Colors.light.error} />}
               title="Delete account"
               subtitle="Request deletion of your account and data"
               onPress={handleDeleteAccount}
@@ -360,11 +361,11 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
           <View style={styles.settingsCard}>
-            <SettingItem icon={<HelpCircle size={20} color={Colors.light.primary} />} title="Help" onPress={() => router.push('/help-faq')} />
-            <SettingItem icon={<MessageSquare size={20} color={Colors.light.primary} />} title="Send feedback" onPress={() => openUrl(FEEDBACK_FORM_URL)} />
-            <SettingItem icon={<Info size={20} color={Colors.light.primary} />} title="About NextSet" onPress={() => router.push('/aboutus')} />
+            <SettingItem icon={<HelpCircle size={22} color={Colors.light.primary} />} title="Help" onPress={() => router.push('/help-faq')} />
+            <SettingItem icon={<MessageSquare size={22} color={Colors.light.primary} />} title="Send feedback" onPress={() => openUrl(FEEDBACK_FORM_URL)} />
+            <SettingItem icon={<Info size={22} color={Colors.light.primary} />} title="About NextSet" onPress={() => router.push('/aboutus')} />
             <SettingItem
-              icon={<LogOut size={20} color={Colors.light.error} />}
+              icon={<LogOut size={22} color={Colors.light.error} />}
               title="Log out"
               onPress={handleLogOut}
               rightElement={<View />}
@@ -418,6 +419,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
+  closeButton: { minWidth: touch.min, minHeight: touch.min, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { ...type.section, color: Colors.light.text },
   content: { flex: 1, paddingHorizontal: spacing.lg },
   profileSection: { marginTop: spacing.lg, marginBottom: spacing.sm },
@@ -440,7 +442,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: spacing.base,
   },
-  profileInitial: { ...type.section, color: Colors.light.card, textTransform: 'uppercase' },
+  profileInitial: { ...type.section, color: Colors.light.card },
   profileInfo: { flex: 1 },
   profileName: { ...type.section, color: Colors.light.text, marginBottom: spacing.xs / 2 },
   profileEmail: { ...type.label, color: Colors.light.textTertiary },
@@ -455,6 +457,7 @@ const styles = StyleSheet.create({
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: touch.min,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.base,
     borderBottomWidth: 1,
@@ -510,6 +513,8 @@ const styles = StyleSheet.create({
   modalCustomInput: { ...type.numeric, flex: 1, minWidth: 0, color: Colors.light.text, paddingVertical: spacing.sm, textAlign: 'right' },
   modalCustomUnit: { ...type.label, color: Colors.light.textTertiary, marginLeft: spacing.xs, flexShrink: 0 },
   modalCustomSet: {
+    minHeight: touch.min,
+    justifyContent: 'center',
     backgroundColor: Colors.light.primary,
     borderRadius: radius.input,
     paddingHorizontal: spacing.base,

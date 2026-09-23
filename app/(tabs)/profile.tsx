@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, Pencil } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type } from '@/constants/theme';
+import { spacing, radius, type, touch } from '@/constants/theme';
 import { useAuth } from '@/data/AuthContext';
 import { WorkoutHistoryService, LifetimeStats } from '@/services/workoutHistoryService';
 import { formatKg, formatCount, formatMinutes, formatShortDate, formatSet } from '@/utils/format';
@@ -156,8 +156,8 @@ const styles = StyleSheet.create({
   // Explicit 44x44 box rather than a smaller icon plus hitSlop — the whole
   // box is the touch target, not just the icon glyph inside it.
   headerButton: {
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: touch.min,
+    minHeight: touch.min,
     borderRadius: radius.pill,
     backgroundColor: Colors.light.card,
     justifyContent: 'center',
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   emptyTitle: { ...type.section, color: Colors.light.text, marginBottom: spacing.sm },
   emptyText: { ...type.body, color: Colors.light.textTertiary, textAlign: 'center', marginBottom: spacing.base },
   emptyButton: {
-    minHeight: 44,
+    minHeight: touch.min,
     backgroundColor: Colors.light.primaryLight,
     borderRadius: radius.input,
     paddingHorizontal: spacing.xl,

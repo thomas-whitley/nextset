@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
   },
   label: {
-    ...type.eyebrow,
+    ...type.label,
     minWidth: 52,
   },
   bar: {
@@ -177,6 +177,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.textTertiary,
   },
   remainder: {
-    ...type.eyebrow,
+    ...type.label,
   },
 });

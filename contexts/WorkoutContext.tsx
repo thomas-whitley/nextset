@@ -46,6 +46,10 @@ interface WorkoutContextType {
   reorderWorkouts: (workoutIds: string[]) => Promise<void>;
   /** Reorders the exercises within the current workout (drag-reorder on the workout screen). */
   reorderExercises: (orderedExerciseIds: string[]) => Promise<void>;
+  /** Fold or unfold an exercise card. Local only: checkpointed, never synced (spec R7). */
+  setExerciseCollapsed: (exerciseId: string, collapsed: boolean) => void;
+  /** Remove one set from the running workout; refuses the exercise's last set. */
+  removeSet: (exerciseId: string, setId: string) => Promise<void>;
   /** Write any pending program edits to Supabase now (blur, before save, app background). */
   flushProgramSync: () => Promise<void>;
 }
@@ -231,6 +235,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       // (item 1). The AsyncStorage checkpoint is the only place startedAt
       // survives across app restarts (see the restore effect above).
       startedAt: Date.now(),
+      collapsedExerciseIds: [],
       exercises: workout.exercises.map((exercise) => ({
         ...exercise,
         sets: exercise.sets.map((set) => ({ ...set, isComplete: false, pr: undefined, previousWeight: undefined, previousReps: undefined })),
@@ -295,8 +300,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     // Strip transient session-only fields before this lands in program_data:
     // startedAt (item 1 — otherwise next week's session inherits this week's
     // start time) and each set's pr flag (item 2 — a per-session PR badge has
-    // no business surviving into the program template).
-    const { startedAt, ...forProgram } = next;
+    // no business surviving into the program template), and
+    // collapsedExerciseIds (spec R7) — a fold is how this session looks, not part of the program.
+    const { startedAt, collapsedExerciseIds, ...forProgram } = next;
     const forProgramWorkout: Workout = {
       ...forProgram,
       exercises: forProgram.exercises.map((exercise) => ({
@@ -383,6 +389,36 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     await programSync.flush();
   };
 
+  const setExerciseCollapsed = (exerciseId: string, collapsed: boolean) => {
+    const current = currentWorkoutRef.current;
+    if (!current) return;
+    const ids = current.collapsedExerciseIds ?? [];
+    const has = ids.includes(exerciseId);
+    if (has === collapsed) return;
+    const next: Workout = {
+      ...current,
+      collapsedExerciseIds: collapsed ? [...ids, exerciseId] : ids.filter((id) => id !== exerciseId),
+    };
+    // Deliberately not applyWorkoutUpdate: a fold must not schedule a cloud write.
+    currentWorkoutRef.current = next;
+    setCurrentWorkout(next);
+    persistWorkoutCheckpoint(next);
+  };
+
+  const removeSet = async (exerciseId: string, setId: string) => {
+    applyWorkoutUpdate((current) => {
+      const exercise = current.exercises.find((e) => e.id === exerciseId);
+      if (!exercise || exercise.sets.length <= 1 || !exercise.sets.some((s) => s.id === setId)) return null;
+      return {
+        ...current,
+        exercises: current.exercises.map((e) =>
+          e.id === exerciseId ? { ...e, sets: e.sets.filter((s) => s.id !== setId) } : e
+        ),
+      };
+    }, true);
+    await programSync.flush();
+  };
+
   const flushProgramSync = () => programSync.flush();
 
   const replaceExercise = async (exerciseId: string, next: DetailedExercise) => {
@@ -452,6 +488,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       ...updatedWorkout,
       // program_data never carries session-only fields; keep the live ones.
       startedAt: live.startedAt,
+      collapsedExerciseIds: live.collapsedExerciseIds,
       exercises: updatedWorkout.exercises.map((exercise) => {
         const liveExercise = live.exercises.find((e) => e.id === exercise.id);
         if (!liveExercise) return exercise;
@@ -556,6 +593,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         updateExerciseSets,
         reorderWorkouts,
         reorderExercises,
+        setExerciseCollapsed,
+        removeSet,
         flushProgramSync,
       }}
     >

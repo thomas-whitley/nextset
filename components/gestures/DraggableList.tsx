@@ -12,7 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { elevation, motion } from '@/constants/theme';
 
 /**
- * Long-press an item and drag it to reorder.
+ * Long-press an item and drag it to reorder — or, with `handleOnly`, drag from a grip at once.
  *
  * Rows here are not a uniform height — an exercise card grows with its notes
  * field and its number of sets — so slots are derived from measured heights
@@ -28,7 +28,9 @@ const ACTIVATE_MS = 200;
 type Props<T> = {
   items: T[];
   keyExtractor: (item: T, index: number) => string;
-  renderItem: (item: T, index: number, isActive: boolean) => ReactNode;
+  renderItem: (item: T, index: number, isActive: boolean, handle: (node: ReactNode) => ReactNode) => ReactNode;
+  /** Drag only from the element passed through `handle`, starting at once (no long press). Default: long-press anywhere. */
+  handleOnly?: boolean;
   /** Called once on drop, with the final order of keys. */
   onReorder: (orderedKeys: string[]) => void;
   enabled?: boolean;
@@ -42,6 +44,7 @@ export default function DraggableList<T>({
   onReorder,
   enabled = true,
   gap = 0,
+  handleOnly = false,
 }: Props<T>) {
   const heights = useSharedValue<number[]>([]);
   const activeIndex = useSharedValue(-1);
@@ -77,6 +80,7 @@ export default function DraggableList<T>({
           count={items.length}
           gap={gap}
           enabled={enabled}
+          handleOnly={handleOnly}
           heights={heights}
           activeIndex={activeIndex}
           targetIndex={targetIndex}
@@ -84,7 +88,7 @@ export default function DraggableList<T>({
           onMeasure={setHeight}
           onCommit={commit}
         >
-          {(isActive) => renderItem(item, index, isActive)}
+          {(isActive, handle) => renderItem(item, index, isActive, handle)}
         </DraggableItem>
       ))}
     </View>
@@ -96,13 +100,14 @@ type ItemProps = {
   count: number;
   gap: number;
   enabled: boolean;
+  handleOnly: boolean;
   heights: SharedValue<number[]>;
   activeIndex: SharedValue<number>;
   targetIndex: SharedValue<number>;
   dragY: SharedValue<number>;
   onMeasure: (index: number, height: number) => void;
   onCommit: (from: number, to: number) => void;
-  children: (isActive: boolean) => ReactNode;
+  children: (isActive: boolean, handle: (node: ReactNode) => ReactNode) => ReactNode;
 };
 
 function DraggableItem({
@@ -110,6 +115,7 @@ function DraggableItem({
   count,
   gap,
   enabled,
+  handleOnly,
   heights,
   activeIndex,
   targetIndex,
@@ -130,9 +136,8 @@ function DraggableItem({
   const activateTick = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   const slotTick = () => Haptics.selectionAsync();
 
-  const pan = Gesture.Pan()
-    .enabled(enabled)
-    .activateAfterLongPress(ACTIVATE_MS)
+  const base = Gesture.Pan().enabled(enabled);
+  const pan = (handleOnly ? base.minDistance(2) : base.activateAfterLongPress(ACTIVATE_MS))
     .onStart(() => {
       activeIndex.value = index;
       targetIndex.value = index;
@@ -205,13 +210,17 @@ function DraggableItem({
     };
   });
 
-  return (
-    <GestureDetector gesture={pan}>
-      <Animated.View onLayout={onLayout} style={[styles.item, animatedStyle]}>
-        {children(isActive)}
-      </Animated.View>
-    </GestureDetector>
+  const handle = (node: ReactNode) =>
+    handleOnly ? <GestureDetector gesture={pan}>{node}</GestureDetector> : node;
+
+  const item = (
+    // The slot maths above assumes `gap` after every item but the last, so the
+    // spacing is laid out here rather than left to each caller.
+    <Animated.View onLayout={onLayout} style={[styles.item, index < count - 1 && { marginBottom: gap }, animatedStyle]}>
+      {children(isActive, handle)}
+    </Animated.View>
   );
+  return handleOnly ? item : <GestureDetector gesture={pan}>{item}</GestureDetector>;
 }
 
 const styles = StyleSheet.create({

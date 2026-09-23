@@ -4,6 +4,7 @@ import { Search } from 'lucide-react-native';
 import { Exercise } from '../services/exercise.types';
 import { ExerciseService } from '../services/exerciseService';
 import Colors from '@/constants/Colors';
+import { touch } from '@/constants/theme';
 
 interface BrowseExercisesScreenProps {
   onExerciseSelect?: (exercise: Exercise) => void;
@@ -114,13 +115,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.card,
     borderRadius: 12,
     padding: 16,
+    minHeight: touch.row,
   },
   exerciseInfo: { flex: 1, marginRight: 12 },
   exerciseName: { fontSize: 16, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.text, marginBottom: 2 },
   exerciseDetail: { fontSize: 13, fontFamily: 'Archivo-Regular', color: Colors.light.textSecondary, marginBottom: 2 },
-  exerciseEquipment: { fontSize: 12, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary },
+  exerciseEquipment: { fontSize: 13, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary },
   exerciseBadge: { backgroundColor: Colors.light.primaryLight, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  exerciseBadgeText: { fontSize: 11, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.primary },
+  exerciseBadgeText: { fontSize: 13, fontFamily: 'ArchivoNarrow-SemiBold', color: Colors.light.primary },
   separator: { height: 8 },
   emptyState: { padding: 32, alignItems: 'center' },
   emptyStateText: { fontSize: 14, fontFamily: 'Archivo-Regular', color: Colors.light.textTertiary, textAlign: 'center' },

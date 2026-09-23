@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 20 },
   monthTitle: { fontSize: 18, fontFamily: 'ArchivoNarrow-Bold', color: Colors.light.text },
   dayHeaders: { flexDirection: 'row', marginBottom: 8 },
-  dayHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary },
+  dayHeader: { flex: 1, textAlign: 'center', fontSize: 13, fontFamily: 'Archivo-Medium', color: Colors.light.textTertiary },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: { width: `${100 / 7}%`, aspectRatio: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
   emptyDay: { opacity: 0 },

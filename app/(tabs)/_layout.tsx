@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { BottomTabBar } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Zap, FileText, User, TrendingUp } from 'lucide-react-native';
@@ -19,11 +19,16 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: Colors.light.primary,
         tabBarInactiveTintColor: Colors.light.tabIconDefault,
-        tabBarStyle: [styles.tabBar, { height: 58 + insets.bottom, paddingBottom: insets.bottom + 4 }],
+        tabBarStyle: [styles.tabBar, { height: 64 + insets.bottom, paddingBottom: insets.bottom + 4 }],
         // A lightning bolt for Home and a page icon for Programs are not
         // self-evident; the labels were styled but never switched on.
         tabBarShowLabel: true,
-        tabBarLabelStyle: styles.tabBarLabel,
+        // Four labels share 412dp; uncapped at the largest system font "Programs" clipped.
+        tabBarLabel: ({ color, children }) => (
+          <Text style={[styles.tabBarLabel, { color }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+            {children}
+          </Text>
+        ),
         headerShown: false,
         tabBarAccessibilityLabel: 'Main navigation',
       }}
@@ -32,8 +37,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Zap size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Zap size={24} color={color} />
           ),
           tabBarAccessibilityLabel: 'Home tab',
         }}
@@ -42,8 +47,8 @@ export default function TabLayout() {
         name="programs"
         options={{
           title: 'Programs',
-          tabBarIcon: ({ color, size }) => (
-            <FileText size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FileText size={24} color={color} />
           ),
           tabBarAccessibilityLabel: 'Programs tab',
         }}
@@ -52,8 +57,8 @@ export default function TabLayout() {
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color, size }) => (
-            <TrendingUp size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <TrendingUp size={24} color={color} />
           ),
           tabBarAccessibilityLabel: 'Progress tab',
         }}
@@ -62,8 +67,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <User size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <User size={24} color={color} />
           ),
           tabBarAccessibilityLabel: 'Profile tab',
         }}
@@ -96,7 +101,7 @@ const styles = StyleSheet.create({
   },
   tabBarLabel: {
     fontFamily: 'ArchivoNarrow-SemiBold',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
   },
 });

@@ -6,7 +6,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, wit
 import { supabase } from '@/data/supabase-client';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
+import { spacing, radius, type, touch, HIT_SLOP } from '@/constants/theme';
 import Wordmark from '@/components/Wordmark';
 
 export default function SignUpScreen() {
@@ -555,8 +555,8 @@ const styles = StyleSheet.create({
   eyeButton: {
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.md,
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: touch.min,
+    minHeight: touch.min,
     justifyContent: 'center',
     alignItems: 'center',
   },
