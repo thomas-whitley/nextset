@@ -39,3 +39,15 @@ export function backfillRepsTargets(program: Program, templates: Program[]): Pro
   });
   return changed ? { ...program, workouts } : program;
 }
+
+/**
+ * What the editor's reps field does on blur (grill R2-Q1): empty clears the
+ * target, a valid range is saved and shown normalised ("8-12" → "8–12"), and
+ * anything else reverts to what was there rather than clearing it.
+ */
+export function commitRepsDraft(draft: string, current: RepsTarget | undefined): { target: RepsTarget | undefined; text: string } {
+  if (draft.trim() === '') return { target: undefined, text: '' };
+  const parsed = parseRepsTarget(draft);
+  if (!parsed) return { target: current, text: formatRepsTarget(current) };
+  return { target: parsed, text: formatRepsTarget(parsed) };
+}

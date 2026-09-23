@@ -1,4 +1,4 @@
-import { parseRepsTarget, formatRepsTarget, backfillRepsTargets } from '../repsTarget';
+import { parseRepsTarget, formatRepsTarget, backfillRepsTargets, commitRepsDraft } from '../repsTarget';
 import type { Program } from '../exercise.types';
 
 describe('parseRepsTarget', () => {
@@ -44,5 +44,23 @@ describe('backfillRepsTargets', () => {
     const copy: Program = { ...tmpl, id: 'c1', isTemplate: false, templateId: 't1',
       workouts: [{ ...tmpl.workouts[0], exercises: [{ id: 'x', exerciseId: 99, name: 'Other', order: 0, sets: [] }] }] };
     expect(backfillRepsTargets(copy, [tmpl]).workouts[0].exercises[0].repsTarget).toBeUndefined();
+  });
+});
+
+describe('commitRepsDraft (editor field blur, grill R2-Q1)', () => {
+  const six = { min: 6, max: 6 };
+  test('a valid range is saved and shown normalised', () => {
+    expect(commitRepsDraft('8-12', six)).toEqual({ target: { min: 8, max: 12 }, text: '8–12' });
+    expect(commitRepsDraft(' 8 - 12 ', six)).toEqual({ target: { min: 8, max: 12 }, text: '8–12' });
+    expect(commitRepsDraft('10', six)).toEqual({ target: { min: 10, max: 10 }, text: '10' });
+  });
+  test('anything invalid reverts to what was there (Review Focus 4)', () => {
+    for (const junk of ['12-8', '0', '150', 'abc', '8-', '-8', '8–120']) {
+      expect({ junk, out: commitRepsDraft(junk, six) }).toEqual({ junk, out: { target: six, text: '6' } });
+    }
+    expect(commitRepsDraft('abc', undefined)).toEqual({ target: undefined, text: '' });
+  });
+  test('empty clears the target', () => {
+    expect(commitRepsDraft('   ', six)).toEqual({ target: undefined, text: '' });
   });
 });
