@@ -29,7 +29,7 @@ Tests: jest via `jest-expo` (`npm test`). CI (`.github/workflows/ci.yml`) runs l
 Expo Router file-based routing under `app/`:
 - `app/(auth)/` — unauthenticated flow: login (`index`), signup, confirm, forgot/update password. There is no `welcome` screen; login is the entry point.
 - `app/(tabs)/` — main tab bar: home (`index`), programs, progress, profile
-- Modal screens at root: `workout`, `program-detail` (the day editor, `/program-detail?day=<workoutId>`), `workout-detail` (a saved workout, read-only, `/workout-detail?id=<historyId>`), `settings`, `edit-profile`, `aboutus`, `help-faq`. `/timer` (the standalone interval timer) was deleted 2026-09 (spec D2); the rest timer inside `workout.tsx` is the only timer now.
+- Modal screens at root: `workout`, `program-detail` (the day editor, `/program-detail?day=<workoutId>`), `workout-detail` (a saved workout, read-only, `/workout-detail?id=<historyId>`), `exercise-progress` (one lift over time: chart, record, sessions, `/exercise-progress?id=<exerciseId>`), `settings`, `edit-profile`, `aboutus`, `help-faq`. `/timer` (the standalone interval timer) was deleted 2026-09 (spec D2); the rest timer inside `workout.tsx` is the only timer now.
 
 Every file under `app/` becomes a route, so an orphaned screen still ships as a reachable page — `app/-settings.tsx` did exactly that, exposing controls that had been removed elsewhere. Delete dead screens, don't just unlink them.
 
@@ -50,12 +50,13 @@ Supabase is the only persistence tier. Reads and writes go through the services 
 | Finished workouts + progress stats | `services/workoutHistoryService.ts` |
 | Active program | `services/userActiveProgramService.ts` |
 | Exercise library (bundled, local) | `services/exerciseService.ts` |
-| Preferences: rest time + bar weight (AsyncStorage cache, mirrored to `profile.preferences`; server wins on sign-in) | `services/preferences.ts` |
+| Preferences: rest time + bar weight (AsyncStorage cache, mirrored to `profile.preferences`; server wins on sign-in); per-exercise chart metric (AsyncStorage only) | `services/preferences.ts` |
 | Debounced program sync (≈800 ms, flushed on set complete / blur / finish / app background) | `services/programSync.ts` |
 | Pure program/day edits, blank-program ids (`blank-…`), name cleaning (pure, tested) | `services/programEdits.ts` |
 | Up next (skips quick workouts), quick-workout name (pure, tested) | `services/upNext.ts` |
 | Program picker lists: your copies + templates not yet started (pure, tested) | `services/programChoices.ts` |
 | History row / workout-detail data from a saved workout (pure, tested) | `services/historySummary.ts` |
+| Per-exercise sessions, record, chart series, exercise list (pure, tested) | `services/exerciseProgress.ts` |
 | Start guard for every Start / Quick workout button | `hooks/useStartWorkout.ts` |
 | Streak maths (pure, tested) | `services/stats.ts` |
 | PR maths: best weight / e1RM per exercise, PR detection (pure, tested) | `services/prMath.ts` |

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TrendingUp, Trophy, Target, Calendar, Zap, FileText } from 'lucide-react-native';
+import { TrendingUp, Trophy, Target, Calendar, Zap, FileText, ChevronRight } from 'lucide-react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { formatKg, formatShortDate } from '@/utils/format';
 import Colors from '@/constants/Colors';
@@ -11,6 +11,7 @@ import { WorkoutHistoryService, ProgressStats } from '@/services/workoutHistoryS
 import { useAuth } from '@/data/AuthContext';
 import { router, useFocusEffect } from 'expo-router';
 import HistoryRow from '@/components/HistoryRow';
+import ExerciseListSheet from '@/components/ExerciseListSheet';
 import { historyRow, historyWindow } from '@/services/historySummary';
 import type { WorkoutHistoryEntry } from '@/services/workoutHistoryService';
 
@@ -25,6 +26,7 @@ export default function ProgressScreen() {
   const [progressStats, setProgressStats] = useState<ProgressStats | null>(null);
   const [workoutStreak, setWorkoutStreak] = useState({ currentStreak: 0, longestStreak: 0 });
   const [loading, setLoading] = useState(true);
+  const [exerciseSheetOpen, setExerciseSheetOpen] = useState(false);
   const { user } = useAuth();
 
   // Not tied to the range control: history is every workout, newest first, 20 at a time; a refresh keeps what is loaded.
@@ -276,23 +278,34 @@ export default function ProgressScreen() {
         </View>
 
         {/* Exercise Progress — leads with the weight, the loudest figure in
-            the row, per the design ruling on PR lists. */}
-        {progressStats?.exerciseProgress && progressStats.exerciseProgress.length > 0 && (
+            the row, per the design ruling on PR lists. Each row opens that
+            lift's chart; "See all" shows even when the range has no weighted
+            record, so a bodyweight-only lifter can still get in. */}
+        {(progressStats?.exerciseProgress.length ?? 0) > 0 || history.length > 0 ? (
           <View style={styles.exerciseCard}>
             <Text style={styles.exerciseTitle}>Personal Records</Text>
-            {progressStats.exerciseProgress.slice(0, 5).map((exercise, index) => (
-              <View key={index} style={styles.exerciseItem}>
+            {(progressStats?.exerciseProgress ?? []).slice(0, 5).map((exercise) => (
+              <TouchableOpacity
+                key={exercise.exerciseId}
+                style={styles.exerciseItem}
+                onPress={() => router.push({ pathname: '/exercise-progress', params: { id: String(exercise.exerciseId) } })}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${exercise.exercise}`}
+              >
                 <Text style={styles.exerciseWeight}>{formatKg(exercise.maxWeight)}</Text>
                 <View style={styles.exerciseInfo}>
                   <Text style={styles.exerciseName}>{exercise.exercise}</Text>
-                  <Text style={styles.exerciseDate}>
-                    {formatShortDate(exercise.date)}
-                  </Text>
+                  <Text style={styles.exerciseDate}>{formatShortDate(exercise.date)}</Text>
                 </View>
-              </View>
+                <ChevronRight size={20} color={Colors.light.textTertiary} />
+              </TouchableOpacity>
             ))}
+            <TouchableOpacity style={styles.seeAll} onPress={() => setExerciseSheetOpen(true)} accessibilityRole="button">
+              <Text style={styles.seeAllText}>See all exercises</Text>
+              <ChevronRight size={20} color={Colors.light.primary} />
+            </TouchableOpacity>
           </View>
-        )}
+        ) : null}
 
         <View style={styles.historyCard}>
           <Text style={[styles.chartTitle, styles.historyTitle]}>History</Text>
@@ -372,6 +385,14 @@ export default function ProgressScreen() {
           </View>
         )}
       </ScrollView>
+      <ExerciseListSheet
+        visible={exerciseSheetOpen}
+        onDismiss={() => setExerciseSheetOpen(false)}
+        onPick={(exerciseId) => {
+          setExerciseSheetOpen(false);
+          router.push({ pathname: '/exercise-progress', params: { id: String(exerciseId) } });
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -506,12 +527,23 @@ const styles = StyleSheet.create({
     marginBottom: spacing.base,
   },
   exerciseItem: {
+    minHeight: touch.row,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
+  seeAll: {
+    minHeight: touch.min,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+    marginTop: spacing.sm,
+  },
+  seeAllText: { ...type.body, fontSize: 16, color: Colors.light.primary },
   exerciseInfo: {
     flex: 1,
     marginLeft: spacing.md,
