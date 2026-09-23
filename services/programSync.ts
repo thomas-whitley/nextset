@@ -18,7 +18,7 @@ export type ProgramSync = {
  * writes at once on flush (set complete, blur, finish, app background).
  *
  * Failure is silent by design (spec Q24): the AsyncStorage checkpoint holds
- * the data, and the failed program stays pending so the next schedule or
+ * the data, and the failed program stays pending, with no timer, so the next schedule or
  * flush retries it. One write is in flight at a time; a program scheduled
  * mid-flight is written afterwards rather than racing the first.
  */
@@ -34,17 +34,24 @@ export function createProgramSync(write: (program: Program) => Promise<unknown>,
     }
   };
 
-  const run = async (): Promise<void> => {
-    if (inFlight) {
-      await inFlight;
-    }
-    if (!pending) return;
+  /**
+   * Writes what is pending, after any write already in flight. Resolves true
+   * on success or when there was nothing to write, false when the write failed.
+   * A failure keeps the program pending but schedules nothing: retrying on a
+   * timer hammered the server once a second while offline (device run T2-2).
+   * The next schedule or flush sends it.
+   */
+  const run = async (): Promise<boolean> => {
+    while (inFlight) await inFlight;
+    if (!pending) return true;
     const program = pending;
     pending = null;
+    let ok = true;
     inFlight = write(program)
       .then(() => undefined)
       .catch((error) => {
-        console.error('Program sync failed; will retry on next change:', error);
+        ok = false;
+        console.error('Program sync failed; kept for the next change or flush:', error);
         // Keep the failed program unless something newer arrived meanwhile.
         if (!pending) pending = program;
       })
@@ -52,13 +59,7 @@ export function createProgramSync(write: (program: Program) => Promise<unknown>,
         inFlight = null;
       });
     await inFlight;
-    // Something was scheduled while we were writing.
-    if (pending && !timer) {
-      timer = setTimeout(() => {
-        timer = null;
-        void run();
-      }, delayMs);
-    }
+    return ok;
   };
 
   return {
@@ -71,8 +72,13 @@ export function createProgramSync(write: (program: Program) => Promise<unknown>,
       }, delayMs);
     },
     async flush() {
-      clearTimer();
-      await run();
+      // Loop: another caller's write may still be in flight, and something may
+      // be scheduled while we wait. Resolve only when all of it has settled, so
+      // hasPending() right after means "unsaved", never "still writing" (review M8).
+      while (pending || inFlight) {
+        clearTimer();
+        if (!(await run())) return;
+      }
     },
     cancel() {
       clearTimer();
