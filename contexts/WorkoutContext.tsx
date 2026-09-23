@@ -157,6 +157,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
   /** Makes a copy current: state, refs, and a lazy reps-target backfill (spec D13). */
   const adoptCopy = (row: UserActiveProgram) => {
+    setProgramLoadFailed(false); // a program is in hand now, whatever the launch restore did (final review I1)
     currentActiveProgramRef.current = row;
     setCurrentActiveProgram(row);
     const loaded = row.program_data as Program;

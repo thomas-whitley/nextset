@@ -1,4 +1,4 @@
-import { historyRow, loggedExercises, historyWindow, lastWorkoutTitle } from '../historySummary';
+import { historyRow, loggedExercises, historyWindow, lastWorkoutTitle, forHistory } from '../historySummary';
 
 const saved = {
   id: 'h1',
@@ -55,5 +55,16 @@ describe('lastWorkoutTitle (device run T2-13)', () => {
   test('a program day keeps its name; nothing saved falls back', () => {
     expect(lastWorkoutTitle({ name: 'Push' })).toBe('Push');
     expect(lastWorkoutTitle(null)).toBe('Last workout');
+  });
+});
+
+describe('forHistory (final review I2)', () => {
+  test('a saved workout carries no session-only copies', () => {
+    const day = { id: 'w1', name: 'Push', description: '', order: 0, exercises: [] };
+    const saved = forHistory({ ...day, startedAt: 5, collapsedExerciseIds: ['e1'], discardRestore: day });
+    expect('discardRestore' in saved).toBe(false);
+    expect('collapsedExerciseIds' in saved).toBe(false);
+    expect(saved.startedAt).toBe(5);
+    expect(saved.name).toBe('Push');
   });
 });

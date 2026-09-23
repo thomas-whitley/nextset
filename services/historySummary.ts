@@ -49,3 +49,13 @@ export function lastWorkoutTitle(data: { name?: string; isQuick?: boolean } | nu
   if (data?.isQuick) return 'Quick workout';
   return data?.name || 'Last workout';
 }
+
+/**
+ * What a finished workout saves to history: the session without its
+ * checkpoint-only copies. discardRestore is a whole second day and doubled
+ * every row (final review I2); folds are how the screen looked.
+ */
+export function forHistory<T extends Workout>(w: T): Omit<T, 'discardRestore' | 'collapsedExerciseIds'> {
+  const { discardRestore, collapsedExerciseIds, ...saved } = w;
+  return saved;
+}

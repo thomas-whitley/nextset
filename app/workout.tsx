@@ -24,6 +24,7 @@ import ExerciseActionsSheet from '@/components/ExerciseActionsSheet';
 import SwapExerciseSheet from '@/components/SwapExerciseSheet';
 import HowToSheet from '@/components/HowToSheet';
 import { withoutPending, pendingKey, type PendingRemoval } from '@/services/pendingRemoval';
+import { forHistory } from '@/services/historySummary';
 import { remainingSeconds } from '@/services/restTimer';
 import { ensureRestPermission, hasAskedRestPermission, markRestPermissionAsked, scheduleRestNotification, cancelRestNotification, openExactAlarmSettingsOnce } from '@/services/restNotifications';
 import RestBanner from '@/components/RestBanner';
@@ -386,7 +387,7 @@ export default function WorkoutScreen() {
     // Match whatever the summary above showed: if a swipe is still inside
     // its undo window when the user saves, its sets must not be banked —
     // the delayed write and this save must never disagree about volume.
-    const workoutToSave = { ...currentWorkout, exercises: withoutPending(currentWorkout.exercises, pendingRemoval) };
+    const workoutToSave = { ...forHistory(currentWorkout), exercises: withoutPending(currentWorkout.exercises, pendingRemoval) };
 
     try {
       await flushProgramSync();

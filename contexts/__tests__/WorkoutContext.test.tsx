@@ -664,6 +664,16 @@ describe('program copies', () => {
     expect(result.current.currentProgram?.name).toBe('Test');
   });
 
+  test('picking a program after a failed restore clears "did not load" (final review I1)', async () => {
+    fakeDb();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    const { result } = await setupEmpty();
+    expect(result.current.programLoadFailed).toBe(true);
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    expect(result.current.programLoadFailed).toBe(false);
+  });
+
   test('deleting the current blank is refused while its edits cannot be written (review I3)', async () => {
     const rows = fakeDb();
     jest.spyOn(console, 'error').mockImplementation(() => {});
