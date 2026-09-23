@@ -8,14 +8,15 @@ export function epley1rm(weightKg: number, reps: number): number {
   return weightKg * (1 + reps / 30);
 }
 
-const num = (s: string) => {
+/** A set's weight or reps as typed: comma decimals accepted; blank, junk or ≤ 0 is 0. */
+export function parseSetNumber(s: string): number {
   const n = parseFloat((s ?? '').replace(',', '.'));
   return Number.isFinite(n) && n > 0 ? n : 0;
-};
+}
 
 export function mergeBest(bests: ExerciseBests, exerciseId: number, weight: string, reps: string): ExerciseBests {
-  const w = num(weight);
-  const r = num(reps);
+  const w = parseSetNumber(weight);
+  const r = parseSetNumber(reps);
   if (!w || !r) return bests;
   const cur = bests[exerciseId] ?? { maxWeight: 0, maxE1rm: 0 };
   const next = { maxWeight: Math.max(cur.maxWeight, w), maxE1rm: Math.max(cur.maxE1rm, epley1rm(w, r)) };
@@ -60,8 +61,8 @@ export function mergeBests(a: ExerciseBests, b: ExerciseBests): ExerciseBests {
 /** A PR needs an existing record to beat; the first-ever set of an exercise is not one. */
 export function detectPr(bests: ExerciseBests, exerciseId: number, weight: string, reps: string) {
   const cur = bests[exerciseId];
-  const w = num(weight);
-  const r = num(reps);
+  const w = parseSetNumber(weight);
+  const r = parseSetNumber(reps);
   if (!cur || !w || !r) return { weight: false, e1rm: false };
   return { weight: w > cur.maxWeight, e1rm: epley1rm(w, r) > cur.maxE1rm };
 }

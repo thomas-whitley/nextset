@@ -1,4 +1,4 @@
-import { epley1rm, bestsFromWorkouts, detectPr, mergeBest, mergeBests } from '../prMath';
+import { epley1rm, bestsFromWorkouts, detectPr, mergeBest, mergeBests, parseSetNumber } from '../prMath';
 import type { Workout } from '../exercise.types';
 
 const w = (sets: [string, string, boolean][]): Workout => ({
@@ -51,5 +51,14 @@ describe('mergeBests', () => {
   it('returns the same reference when nothing changes', () => {
     const a = { 1: { maxWeight: 100, maxE1rm: 110 } };
     expect(mergeBests(a, { 1: { maxWeight: 50, maxE1rm: 50 } })).toBe(a);
+  });
+});
+
+describe('parseSetNumber', () => {
+  it('accepts a comma decimal', () => expect(parseSetNumber('82,5')).toBe(82.5));
+  it('is 0 for blank, junk or non-positive', () => {
+    expect(parseSetNumber('')).toBe(0);
+    expect(parseSetNumber('abc')).toBe(0);
+    expect(parseSetNumber('-5')).toBe(0);
   });
 });
