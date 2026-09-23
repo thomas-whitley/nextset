@@ -5,7 +5,8 @@ import { WorkoutProvider, useWorkout } from '../WorkoutContext';
 import ResumeWorkoutBar from '../../components/ResumeWorkoutBar';
 import { UserActiveProgramService } from '../../services/userActiveProgramService';
 import type { Program, UserActiveProgram, Workout } from '../../services/exercise.types';
-import { addExercise, setSetCount } from '../../services/programEdits';
+import { addExercise, setSetCount, removeExercise } from '../../services/programEdits';
+import { programTemplates } from '../../data/programTemplates';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() } }));
 
@@ -403,5 +404,180 @@ describe('quick workout', () => {
     const stored = JSON.parse((await AsyncStorage.getItem('momentum:in_progress_workout:user-1'))!);
     expect(stored.isQuick).toBe(true);
     expect(stored.exercises[0].sets).toHaveLength(3);
+  });
+});
+
+describe('program copies', () => {
+  const ppl = programTemplates.find((t) => t.id === 'ppl')!;
+  const ul = programTemplates.find((t) => t.id === 'upper-lower')!;
+
+  /** An in-memory user_active_programs table behind the service. */
+  function fakeDb() {
+    const rows = new Map<string, UserActiveProgram>();
+    let seq = 0;
+    jest.spyOn(UserActiveProgramService, 'getActiveProgram').mockImplementation(async (_user, templateId) =>
+      [...rows.values()].find((r) => r.program_template_id === templateId) ?? null
+    );
+    jest.spyOn(UserActiveProgramService, 'createActiveProgram').mockImplementation(async (userId, template) => {
+      const row: UserActiveProgram = {
+        id: `row${++seq}`, user_id: userId, program_template_id: template.id, created_at: '', updated_at: '',
+        program_data: { ...template, isTemplate: false, templateId: template.id, id: `active_${template.id}` },
+      };
+      rows.set(row.id, row);
+      return row;
+    });
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockImplementation(async (id: string, data: Program) => {
+      const row = { ...rows.get(id)!, program_data: data };
+      rows.set(id, row);
+      return row;
+    });
+    jest.spyOn(UserActiveProgramService, 'touchActiveProgram').mockResolvedValue(undefined);
+    jest.spyOn(UserActiveProgramService, 'deleteActiveProgram').mockImplementation(async (id) => { rows.delete(id); });
+    return rows;
+  }
+
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mockResolvedValue(null); // fresh account
+  });
+
+  async function setupEmpty() {
+    const hook = await renderHook(() => useWorkout(), { wrapper });
+    await act(async () => { await Promise.resolve(); });
+    return hook;
+  }
+  const pullDay = (p: Program | null) => p!.workouts.find((w) => w.id === 'ppl-pull')!;
+
+  test('A → B → A keeps the edits made to A (D4)', async () => {
+    fakeDb();
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    const firstId = pullDay(result.current.currentProgram).exercises[0].id;
+    await act(async () => {
+      result.current.editDay('ppl-pull', (d) => setSetCount(d, firstId, 6), true);
+      await result.current.flushProgramSync();
+    });
+    await act(async () => { await result.current.setCurrentProgram(ul); });
+    expect(result.current.currentProgram!.name).toBe('Upper / Lower');
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    expect(pullDay(result.current.currentProgram).exercises[0].sets).toHaveLength(6);
+  });
+
+  test('a debounced edit lands on the program being left, never the next one (Review Focus 1)', async () => {
+    const rows = fakeDb();
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    const pplRowId = result.current.currentActiveProgram!.id;
+    const firstId = pullDay(result.current.currentProgram).exercises[0].id;
+    await act(() => { result.current.editDay('ppl-pull', (d) => setSetCount(d, firstId, 6), false); });
+    await act(async () => { await result.current.setCurrentProgram(ul); });
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+    expect(pullDay(rows.get(pplRowId)!.program_data).exercises[0].sets).toHaveLength(6);
+    const ulRow = [...rows.values()].find((r) => r.program_template_id === 'upper-lower')!;
+    expect(ulRow.program_data.name).toBe('Upper / Lower');
+    expect(ulRow.program_data.workouts.some((w) => w.id === 'ppl-pull')).toBe(false);
+  });
+
+  test('switching is refused while an edit cannot be written', async () => {
+    fakeDb();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    const firstId = pullDay(result.current.currentProgram).exercises[0].id;
+    (UserActiveProgramService.updateActiveProgram as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    await act(() => { result.current.editDay('ppl-pull', (d) => setSetCount(d, firstId, 6), false); });
+    let error: unknown = null;
+    await act(async () => {
+      try { await result.current.setCurrentProgram(ul); } catch (e) { error = e; }
+    });
+    expect(error).toBeInstanceOf(Error);
+    expect(result.current.currentProgram!.name).toBe('Push / Pull / Legs');
+  });
+
+  test('each blank program is its own row with the empty days asked for', async () => {
+    const rows = fakeDb();
+    const { result } = await setupEmpty();
+    let dayIds: string[] | null = null;
+    await act(async () => { dayIds = await result.current.createBlankProgram(3); });
+    expect(result.current.currentActiveProgram!.program_template_id.startsWith('blank-')).toBe(true);
+    expect(result.current.currentProgram!.name).toBe('Blank program');
+    const days = result.current.currentProgram!.workouts;
+    expect(days.map((w) => w.name)).toEqual(['Day 1', 'Day 2', 'Day 3']);
+    expect(days.every((w) => w.exercises.length === 0)).toBe(true);
+    expect(dayIds).toEqual(days.map((w) => w.id));
+    await act(async () => { await result.current.createBlankProgram(1); });
+    expect(result.current.currentProgram!.workouts).toHaveLength(1);
+    expect(new Set([...rows.values()].map((r) => r.program_template_id)).size).toBe(2);
+  });
+
+  test('reset restores the template days on the same row; refused for blanks', async () => {
+    const rows = fakeDb();
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    const rowId = result.current.currentActiveProgram!.id;
+    const firstId = pullDay(result.current.currentProgram).exercises[0].id;
+    await act(async () => {
+      result.current.editDay('ppl-pull', (d) => removeExercise(d, firstId), true);
+      await result.current.flushProgramSync();
+    });
+    expect(pullDay(result.current.currentProgram).exercises).toHaveLength(4);
+    let ok = false;
+    await act(async () => { ok = await result.current.resetProgramToTemplate(); });
+    expect(ok).toBe(true);
+    expect(pullDay(result.current.currentProgram).exercises).toHaveLength(5);
+    expect(result.current.currentActiveProgram!.id).toBe(rowId);
+    expect(rows.get(rowId)!.program_data.id).toBe('active_ppl');
+
+    await act(async () => { await result.current.createBlankProgram(1); });
+    await act(async () => { ok = await result.current.resetProgramToTemplate(); });
+    expect(ok).toBe(false);
+  });
+
+  test('reset is refused while a day of the program is running (grill R1-Q5)', async () => {
+    fakeDb();
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    await act(() => { result.current.startWorkout(result.current.currentProgram!.workouts[0]); });
+    let ok = true;
+    await act(async () => { ok = await result.current.resetProgramToTemplate(); });
+    expect(ok).toBe(false);
+  });
+
+  test('rename: blanks only, never empty (grill R2-Q3)', async () => {
+    fakeDb();
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.createBlankProgram(1); });
+    let ok = false;
+    await act(async () => { ok = await result.current.renameCurrentProgram('  Arms   and abs '); });
+    expect(ok).toBe(true);
+    expect(result.current.currentProgram!.name).toBe('Arms and abs');
+    await act(async () => { ok = await result.current.renameCurrentProgram('   '); });
+    expect(ok).toBe(false);
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    await act(async () => { ok = await result.current.renameCurrentProgram('Mine'); });
+    expect(ok).toBe(false);
+    expect(result.current.currentProgram!.name).toBe('Push / Pull / Legs');
+  });
+
+  test('delete: blanks only; deleting the current one falls back to the most recent copy (grill R2-Q4)', async () => {
+    const rows = fakeDb();
+    const { result } = await setupEmpty();
+    await act(async () => { await result.current.setCurrentProgram(ppl); });
+    const pplRow = result.current.currentActiveProgram!;
+    let ok = true;
+    await act(async () => { ok = await result.current.deleteProgramCopy(pplRow); });
+    expect(ok).toBe(false);
+    expect(rows.has(pplRow.id)).toBe(true);
+
+    await act(async () => { await result.current.createBlankProgram(1); });
+    const blank = result.current.currentActiveProgram!;
+    (UserActiveProgramService.getMostRecentActiveProgram as jest.Mock).mockResolvedValue(rows.get(pplRow.id)!);
+    await act(async () => { ok = await result.current.deleteProgramCopy(blank); });
+    expect(ok).toBe(true);
+    expect(rows.has(blank.id)).toBe(false);
+    expect(result.current.currentProgram!.name).toBe('Push / Pull / Legs');
   });
 });

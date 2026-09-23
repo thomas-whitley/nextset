@@ -12,7 +12,7 @@ import { mergeBest, mergeBests, detectPr, type ExerciseBests } from '../services
 import { restReducer, IDLE_REST, type RestState, type RestAction } from '../services/restTimer';
 import { cancelRestNotification } from '../services/restNotifications';
 import { quickWorkoutName } from '../services/upNext';
-import { addExercise, removeExercise, setSetCount, reorderExercises as reorderExerciseList, reorderDays, updateDay } from '../services/programEdits';
+import { addExercise, removeExercise, setSetCount, reorderExercises as reorderExerciseList, reorderDays, updateDay, makeBlankTemplate, resetToTemplate, isBlankProgram, isBlankTemplateId, cleanProgramName } from '../services/programEdits';
 
 const workoutCheckpointKey = (userId: string) => `momentum:in_progress_workout:${userId}`;
 
@@ -36,6 +36,16 @@ interface WorkoutContextType {
   setCurrentProgram: (program: Program) => Promise<void>;
   /** Forget the active program locally so the picker shows again (edits are kept in the cloud). */
   clearCurrentProgram: () => void;
+  /** Make one of the user's existing copies current (picker "Your programs"). */
+  selectProgramCopy: (row: UserActiveProgram) => Promise<void>;
+  /** Create a blank program (its own row, 1–7 empty days "Day 1".."Day N"), make it current, and return the day ids in order. */
+  createBlankProgram: (days: number) => Promise<string[] | null>;
+  /** Put the template's days back on the current copy, same row. False for blanks or while one of its days is running. */
+  resetProgramToTemplate: () => Promise<boolean>;
+  /** Rename the current program; blanks only (grill R2-Q3). */
+  renameCurrentProgram: (name: string) => Promise<boolean>;
+  /** Delete a blank program (grill R2-Q4). False for template copies or while one of its days is running. */
+  deleteProgramCopy: (row: UserActiveProgram) => Promise<boolean>;
   startWorkout: (workout: Workout) => void;
   /** Start an empty workout with no program (spec §6.3). Saved to history; never written to program_data. */
   startQuickWorkout: () => void;
@@ -98,7 +108,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       const activeProgram = currentActiveProgramRef.current;
       if (!activeProgram) return;
       const updated = await UserActiveProgramService.updateActiveProgram(activeProgram.id, program);
-      setCurrentActiveProgram(updated);
+      // A reply for a row we have since left must not make it current again.
+      if (currentActiveProgramRef.current?.id === updated.id) setCurrentActiveProgram(updated);
     })
   ).current;
 
@@ -129,6 +140,34 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     previousUserId.current = currentUserId;
   }, [user]);
 
+  /** Makes a copy current: state, refs, and a lazy reps-target backfill (spec D13). */
+  const adoptCopy = (row: UserActiveProgram) => {
+    currentActiveProgramRef.current = row;
+    setCurrentActiveProgram(row);
+    const loaded = row.program_data as Program;
+    const filled = backfillRepsTargets(loaded, programTemplates);
+    currentProgramRef.current = filled;
+    setCurrentProgramState(filled);
+    if (filled !== loaded) programSync.schedule(filled); // lazy persist
+  };
+
+  /**
+   * Anything still pending belongs to the program we are about to leave:
+   * write it there while the refs still point at it. If it cannot be
+   * written, stay put, or its retry would land on the next program's row
+   * (Review Focus 1).
+   */
+  const settleBeforeSwitch = async () => {
+    await programSync.flush();
+    if (programSync.hasPending()) throw new Error('Program edits are not saved yet');
+  };
+
+  /** A day of the current program is the running workout. Ref-based, for use inside async actions. */
+  const programWorkoutRunningNow = () => {
+    const live = currentWorkoutRef.current;
+    return !!live && !live.isQuick && !!currentProgramRef.current?.workouts.some((w) => w.id === live.id);
+  };
+
   // Restore the most recently used active program so Home can offer "Start"
   // straight after launch instead of forgetting the user's choice.
   useEffect(() => {
@@ -142,12 +181,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       try {
         const active = await UserActiveProgramService.getMostRecentActiveProgram(user.id);
         if (!cancelled && active) {
-          setCurrentActiveProgram(active);
-          const loaded = active.program_data as Program;
-          const filled = backfillRepsTargets(loaded, programTemplates);
-          currentProgramRef.current = filled;
-          setCurrentProgramState(filled);
-          if (filled !== loaded) programSync.schedule(filled); // lazy persist, spec D13
+          adoptCopy(active);
         }
       } catch (error) {
         console.error('Failed to restore active program:', error);
@@ -217,25 +251,78 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       console.error('No user logged in');
       return;
     }
-
+    await settleBeforeSwitch();
     try {
-      // Reuse the user's existing copy of this template (keeps their edits),
+      // Reuse the user's existing copy of this template (keeps their edits, D4),
       // otherwise create one from the template.
-      let activeProgram = await UserActiveProgramService.getActiveProgram(user.id, program.id);
-
-      if (activeProgram) {
-        await UserActiveProgramService.touchActiveProgram(activeProgram.id);
+      let row = await UserActiveProgramService.getActiveProgram(user.id, program.id);
+      if (row) {
+        await UserActiveProgramService.touchActiveProgram(row.id);
       } else {
-        activeProgram = await UserActiveProgramService.createActiveProgram(user.id, program);
+        row = await UserActiveProgramService.createActiveProgram(user.id, program);
       }
-
-      setCurrentActiveProgram(activeProgram);
-      setCurrentProgramState(activeProgram.program_data as Program);
+      adoptCopy(row);
     } catch (error) {
+      // No fallback to the bare template: with no row behind it the editor and
+      // sync would write to nothing. Callers show "Check your connection".
       console.error('Failed to set current program:', error);
-      // Fallback to using the template directly
-      setCurrentProgramState(program);
+      throw error;
     }
+  };
+
+  const selectProgramCopy = async (row: UserActiveProgram) => {
+    if (row.id === currentActiveProgramRef.current?.id) return;
+    await settleBeforeSwitch();
+    await UserActiveProgramService.touchActiveProgram(row.id);
+    adoptCopy(row);
+  };
+
+  const createBlankProgram = async (days: number): Promise<string[] | null> => {
+    if (!user) return null;
+    await settleBeforeSwitch();
+    const template = makeBlankTemplate(days);
+    const row = await UserActiveProgramService.createActiveProgram(user.id, template);
+    adoptCopy(row);
+    return template.workouts.map((w) => w.id);
+  };
+
+  const resetProgramToTemplate = async (): Promise<boolean> => {
+    const program = currentProgramRef.current;
+    if (!program || isBlankProgram(program) || programWorkoutRunningNow()) return false;
+    const template = programTemplates.find((t) => t.id === program.templateId);
+    if (!template) return false;
+    applyProgramUpdate((p) => resetToTemplate(p, template), true);
+    await programSync.flush();
+    return !programSync.hasPending();
+  };
+
+  // Current program only: updated_at is set by a DB trigger on every write and
+  // defines "current", so writing a non-current row would make it the program
+  // the app reopens on next launch.
+  const renameCurrentProgram = async (raw: string): Promise<boolean> => {
+    const name = cleanProgramName(raw);
+    const program = currentProgramRef.current;
+    if (!name || !program || !isBlankProgram(program)) return false;
+    if (program.name === name) return true;
+    applyProgramUpdate((p) => ({ ...p, name }), true);
+    await programSync.flush();
+    return !programSync.hasPending();
+  };
+
+  const deleteProgramCopy = async (row: UserActiveProgram): Promise<boolean> => {
+    if (!user || !isBlankTemplateId(row.program_template_id)) return false;
+    const isCurrent = row.id === currentActiveProgramRef.current?.id;
+    if (isCurrent && programWorkoutRunningNow()) return false;
+    if (isCurrent) programSync.cancel(); // its pending edits go with it
+    await UserActiveProgramService.deleteActiveProgram(row.id);
+    if (!isCurrent) return true;
+    currentActiveProgramRef.current = null;
+    currentProgramRef.current = null;
+    setCurrentActiveProgram(null);
+    setCurrentProgramState(null);
+    const next = await UserActiveProgramService.getMostRecentActiveProgram(user.id).catch(() => null);
+    if (next) adoptCopy(next);
+    return true;
   };
 
   const clearCurrentProgram = useCallback(() => {
@@ -578,6 +665,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         dispatchRest,
         setCurrentProgram,
         clearCurrentProgram,
+        selectProgramCopy,
+        createBlankProgram,
+        resetProgramToTemplate,
+        renameCurrentProgram,
+        deleteProgramCopy,
         startWorkout,
         startQuickWorkout,
         updateSet,
