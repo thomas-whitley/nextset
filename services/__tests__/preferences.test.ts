@@ -5,7 +5,9 @@ import {
   clampRestSeconds,
   getBarWeightKg,
   getDefaultRestSeconds,
+  getExerciseChartMetric,
   setDefaultRestSeconds,
+  setExerciseChartMetric,
   syncPreferencesFromProfile,
 } from '../preferences';
 
@@ -68,4 +70,23 @@ test('a failed profile read skips the write instead of overwriting preferences',
   await setDefaultRestSeconds(120, 'user-1');
   expect(await getDefaultRestSeconds()).toBe(120);
   expect(mocked.__update).not.toHaveBeenCalled();
+});
+
+describe('exercise chart metric', () => {
+  test('defaults to e1rm and remembers a choice', async () => {
+    expect(await getExerciseChartMetric()).toBe('e1rm');
+    await setExerciseChartMetric('heaviest');
+    expect(await AsyncStorage.getItem('nextset:exercise_chart_metric')).toBe('heaviest');
+    expect(await getExerciseChartMetric()).toBe('heaviest');
+  });
+
+  test('junk or a storage failure falls back to e1rm; a failed write does not throw', async () => {
+    await AsyncStorage.setItem('nextset:exercise_chart_metric', 'volume');
+    expect(await getExerciseChartMetric()).toBe('e1rm');
+    jest.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('disk'));
+    expect(await getExerciseChartMetric()).toBe('e1rm');
+    jest.spyOn(console, 'error').mockImplementationOnce(() => {});
+    jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk'));
+    await expect(setExerciseChartMetric('heaviest')).resolves.toBeUndefined();
+  });
 });

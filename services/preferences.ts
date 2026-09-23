@@ -5,9 +5,11 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../data/supabase-client';
+import type { ChartMetric } from './exerciseProgress';
 
 const KEY_DEFAULT_REST = 'nextset:default_rest_seconds';
 const KEY_BAR_WEIGHT = 'nextset:bar_weight_kg';
+const KEY_EXERCISE_CHART_METRIC = 'nextset:exercise_chart_metric';
 
 export const DEFAULT_REST_SECONDS = 90;
 export const DEFAULT_BAR_WEIGHT_KG = 20;
@@ -119,5 +121,23 @@ export async function syncPreferencesFromProfile(userId: string): Promise<void> 
     }
   } catch (error) {
     console.error('Preference sync failed:', error);
+  }
+}
+
+// Which line the per-exercise chart draws. A per-device convenience: not
+// mirrored to profile.preferences (spec Q12).
+export async function getExerciseChartMetric(): Promise<ChartMetric> {
+  try {
+    return (await AsyncStorage.getItem(KEY_EXERCISE_CHART_METRIC)) === 'heaviest' ? 'heaviest' : 'e1rm';
+  } catch {
+    return 'e1rm';
+  }
+}
+
+export async function setExerciseChartMetric(metric: ChartMetric): Promise<void> {
+  try {
+    await AsyncStorage.setItem(KEY_EXERCISE_CHART_METRIC, metric);
+  } catch (error) {
+    console.error('Could not save chart metric:', error);
   }
 }

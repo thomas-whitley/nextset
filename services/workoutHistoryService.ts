@@ -3,6 +3,8 @@ import type { Database, Json } from '../data/supabase.types';
 import { Workout } from './exercise.types';
 import { computeStreaks, toDateKey } from './stats';
 import { bestsFromWorkouts, type ExerciseBests } from './prMath';
+import { ExerciseService } from './exerciseService';
+import type { HistorySource } from './exerciseProgress';
 
 export interface WorkoutHistoryEntry {
   id: string;
@@ -54,7 +56,7 @@ export interface ProgressStats {
   averageHeartRate: number;
   workoutFrequency: { date: string; count: number }[];
   volumeProgress: { date: string; volume: number }[];
-  exerciseProgress: { exercise: string; maxWeight: number; date: string }[];
+  exerciseProgress: { exerciseId: number; exercise: string; maxWeight: number; date: string }[];
   bodyweightProgress: { date: string; bodyweight: number }[];
   workoutNotes: { date: string; notes: string; workoutName: string }[];
 }
@@ -211,18 +213,21 @@ export class WorkoutHistoryService {
     // Exercise progress (max weight per exercise). Only COMPLETED sets count:
     // otherwise every exercise merely present in a program appears as a
     // personal record of 0 kg, which is both untrue and meaningless.
-    const exerciseMaxWeights: Record<string, { weight: number; date: string }> = {};
+    // Keyed by exerciseId: the saved name can differ between old workouts and
+    // the current library, which used to split one lift into two rows.
+    const exerciseMaxWeights: Record<number, { name: string; weight: number; date: string }> = {};
 
     workouts.forEach(workout => {
       const workoutData = workout.workout_data as Workout;
-      workoutData.exercises.forEach(exercise => {
-        exercise.sets.forEach(set => {
+      (workoutData?.exercises ?? []).forEach(exercise => {
+        if (typeof exercise.exerciseId !== 'number') return;
+        (exercise.sets ?? []).forEach(set => {
           if (!set.isComplete) return;
           const weight = parseFloat(set.weight) || 0;
-          const exerciseName = exercise.name;
-
-          if (!exerciseMaxWeights[exerciseName] || weight > exerciseMaxWeights[exerciseName].weight) {
-            exerciseMaxWeights[exerciseName] = {
+          const best = exerciseMaxWeights[exercise.exerciseId];
+          if (!best || weight > best.weight) {
+            exerciseMaxWeights[exercise.exerciseId] = {
+              name: ExerciseService.getById(exercise.exerciseId)?.name ?? exercise.name,
               weight,
               date: new Date(workout.completed_at).toISOString().split('T')[0],
             };
@@ -235,8 +240,9 @@ export class WorkoutHistoryService {
       // A 0 kg "record" says nothing — bodyweight work belongs in history,
       // not in a list of heaviest lifts.
       .filter(([, data]) => data.weight > 0)
-      .map(([exercise, data]) => ({
-        exercise,
+      .map(([id, data]) => ({
+        exerciseId: Number(id),
+        exercise: data.name,
         maxWeight: data.weight,
         date: data.date,
       }));
@@ -438,5 +444,21 @@ export class WorkoutHistoryService {
     if (error) throw error;
     const workouts = (data ?? []).map((row) => row.workout_data as unknown as Workout);
     return bestsFromWorkouts(workouts);
+  }
+
+  /** The rows per-exercise progress reads: newest 500 workouts, filtered client-side (spec Q13). */
+  static async getExerciseHistory(userId: string): Promise<HistorySource[]> {
+    const { data, error } = await supabase
+      .from('workout_history')
+      .select('id, completed_at, workout_data')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false })
+      .limit(500);
+    if (error) throw new Error(`Failed to get exercise history: ${error.message}`);
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      completed_at: row.completed_at ?? '',
+      workout_data: row.workout_data as unknown as Workout | null,
+    }));
   }
 }
