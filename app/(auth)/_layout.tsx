@@ -45,6 +45,13 @@ export default function AuthLayout() {
           animation: 'fade'
         }}
       />
+      <Stack.Screen
+        name="auth-callback"
+        options={{
+          title: 'Signing In',
+          animation: 'fade'
+        }}
+      />
     </Stack>
   );
 }
