@@ -5,9 +5,13 @@
  *
  * expo-router's `useLocalSearchParams` only parses the query string, so a
  * fragment is invisible to it. Screens handling an emailed auth link must
- * read the raw deep-link URL (via `useURL()` from expo-linking) and pull the
+ * read the raw deep-link URL (via `useLinkingURL()` from expo-linking) and pull the
  * values out with `parseAuthFragment`, or the tokens never arrive on native
  * and the link looks expired when it is perfectly valid.
+ *
+ * Not `useURL()`: a screen mounted *by* the deep link gets the launch URL
+ * from it and misses the event that mounted it, so a warm-start link is never
+ * seen. `useLinkingURL()` reads the latest URL Android delivered (onNewIntent).
  */
 export type AuthFragment = {
   access_token?: string;
@@ -31,4 +35,34 @@ export function parseAuthFragment(url: string | null): AuthFragment {
     parsed[decodeURIComponent(rawKey)] = decodeURIComponent(rawValue.replace(/\+/g, ' '));
   }
   return parsed;
+}
+
+export type AuthLinkResult =
+  | { kind: 'session' }
+  /** Supabase itself put an error in the link: the only case that may be called "expired". */
+  | { kind: 'link-error'; description?: string }
+  /** No tokens yet: the deep link can land a tick after mount, and on web the auto-detect listener fires instead. */
+  | { kind: 'no-tokens' }
+  | { kind: 'failed' };
+
+type SetSession = (tokens: { access_token: string; refresh_token: string }) => Promise<{ error: unknown }>;
+
+/**
+ * Turns an auth-link fragment into a session. Shared by every screen an auth
+ * redirect lands on (email confirmation, Google sign-in), so there is one
+ * place that decides what the fragment means.
+ */
+export async function sessionFromAuthFragment(
+  fragment: AuthFragment,
+  setSession: SetSession,
+): Promise<AuthLinkResult> {
+  if (fragment.error || fragment.error_code) {
+    return { kind: 'link-error', description: fragment.error_description };
+  }
+
+  const { access_token, refresh_token } = fragment;
+  if (!access_token || !refresh_token) return { kind: 'no-tokens' };
+
+  const { error } = await setSession({ access_token, refresh_token });
+  return error ? { kind: 'failed' } : { kind: 'session' };
 }

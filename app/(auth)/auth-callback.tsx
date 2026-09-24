@@ -1,54 +1,49 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useLinkingURL } from 'expo-linking';
-import { MailCheck } from 'lucide-react-native';
+import { CircleAlert } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
 import { parseAuthFragment, sessionFromAuthFragment } from '@/data/authLink';
 import Colors from '@/constants/Colors';
 import { spacing, radius, type, HIT_SLOP } from '@/constants/theme';
 
-const DEFAULT_ERROR =
-  'This confirmation link is invalid or has already been used. Log in, or request a new confirmation email.';
+const DEFAULT_ERROR = "Google sign-in didn't finish. Go back and try again.";
 
-export default function ConfirmEmailScreen() {
-  const [sessionError, setSessionError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(DEFAULT_ERROR);
-  const params = useLocalSearchParams();
+/**
+ * Where Google sign-in lands: `momentum://auth-callback#access_token=…`.
+ *
+ * This screen is the only place that turns the redirect into a session. On
+ * Android expo-router receives the deep link as well as the
+ * `openAuthSessionAsync` promise in GoogleSignInButton, which deliberately
+ * ignores the URL so the tokens are exchanged once. On web
+ * `detectSessionInUrl` sets the session and this screen waits for SIGNED_IN.
+ * Once a session exists the root layout's guard swaps to the tabs.
+ */
+export default function AuthCallbackScreen() {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const url = useLinkingURL();
 
-  const accessParam = typeof params.access_token === 'string' ? params.access_token : undefined;
-  const refreshParam = typeof params.refresh_token === 'string' ? params.refresh_token : undefined;
-
   useEffect(() => {
-    // A confirmed session can arrive either via the deep-link fragment
-    // (native) or via Supabase auto-detecting the session in the URL (web).
     let settled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const fail = (message: string) => {
       settled = true;
       setErrorMessage(message);
-      setSessionError(true);
     };
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
         settled = true;
-        setSessionError(false);
+        setErrorMessage(null);
       }
     });
 
     const establishSession = async () => {
-      const fragment = parseAuthFragment(url);
-      const result = await sessionFromAuthFragment(
-        {
-          ...fragment,
-          access_token: fragment.access_token ?? accessParam,
-          refresh_token: fragment.refresh_token ?? refreshParam,
-        },
-        (tokens) => supabase.auth.setSession(tokens),
+      const result = await sessionFromAuthFragment(parseAuthFragment(url), (tokens) =>
+        supabase.auth.setSession(tokens),
       );
 
       switch (result.kind) {
@@ -56,20 +51,15 @@ export default function ConfirmEmailScreen() {
           settled = true;
           return;
         case 'link-error':
-          // Only Supabase saying so makes "expired" the truth; anything else is
-          // us failing to read the link, which must not be reported as expiry.
           fail(result.description || DEFAULT_ERROR);
           return;
         case 'failed':
-          console.error('Failed to establish confirmation session');
+          console.error('Failed to establish the Google sign-in session');
           fail(DEFAULT_ERROR);
           return;
         case 'no-tokens':
           timer = setTimeout(() => {
-            if (!settled) {
-              setErrorMessage(DEFAULT_ERROR);
-              setSessionError(true);
-            }
+            if (!settled) fail(DEFAULT_ERROR);
           }, 2500);
       }
     };
@@ -80,19 +70,18 @@ export default function ConfirmEmailScreen() {
       if (timer) clearTimeout(timer);
       authListener.subscription.unsubscribe();
     };
-  }, [accessParam, refreshParam, url]);
+  }, [url]);
 
-  if (sessionError) {
+  if (errorMessage) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.content}>
           <View style={styles.card}>
             <View style={styles.icon}>
-              <MailCheck size={40} color={Colors.light.error} />
+              <CircleAlert size={40} color={Colors.light.error} />
             </View>
 
-            <Text style={styles.eyebrow}>Email confirmation</Text>
-            <Text style={styles.title}>Link invalid or expired</Text>
+            <Text style={styles.title}>Couldn&apos;t sign in with Google</Text>
             <Text style={styles.subtitle}>{errorMessage}</Text>
 
             <TouchableOpacity
@@ -113,7 +102,7 @@ export default function ConfirmEmailScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.content}>
         <ActivityIndicator size="large" color={Colors.light.primary} />
-        <Text style={styles.verifyingText}>Verifying your email…</Text>
+        <Text style={styles.verifyingText}>Signing you in…</Text>
       </View>
     </SafeAreaView>
   );
@@ -147,11 +136,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.lg,
-  },
-  eyebrow: {
-    ...type.eyebrow,
-    color: Colors.light.textTertiary,
-    marginBottom: spacing.xs,
   },
   title: {
     ...type.title,

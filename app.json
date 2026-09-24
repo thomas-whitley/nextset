@@ -35,7 +35,8 @@
         }
       ],
       "expo-sharing",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
@@ -45,10 +46,10 @@
         "origin": false
       },
       "eas": {
-        "projectId": "3f8fe1fb-ae22-4576-91c4-b77444330a79"
+        "projectId": "d9f2f4c3-2658-4eaf-8170-ed15a8ad784c"
       }
     },
-    "owner": "twhitley",
+    "owner": "thomas-whitley",
     "android": {
       "package": "com.twhitley.momentumgymtracker",
       "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
