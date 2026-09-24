@@ -25,7 +25,16 @@ jest.mock('@/data/supabase-client', () => ({
   },
 }));
 
+jest.mock('expo-web-browser', () => ({ __esModule: true, openAuthSessionAsync: jest.fn() }));
+
 const signInWithPassword = supabase.auth.signInWithPassword as jest.Mock;
+
+/** Host elements in document order. */
+function documentOrder(node: any, out: any[] = []): any[] {
+  out.push(node);
+  for (const child of node?.children ?? []) if (typeof child === 'object') documentOrder(child, out);
+  return out;
+}
 
 describe('LoginScreen', () => {
   let logSpy: jest.SpyInstance;
@@ -60,5 +69,13 @@ describe('LoginScreen', () => {
     const logged = JSON.stringify([...logSpy.mock.calls, ...errorSpy.mock.calls]);
     expect(logged).not.toContain('SECRET-ACCESS');
     expect(logged).not.toContain('SECRET-REFRESH');
+  });
+
+  it('offers Continue with Google above the email form', async () => {
+    await render(<LoginScreen />);
+    const google = screen.getByRole('button', { name: 'Continue with Google' });
+    const order = documentOrder(screen.root);
+    expect(order.indexOf(google)).toBeLessThan(order.indexOf(screen.getByLabelText('Email address')));
+    expect(screen.getByText('or', { includeHiddenElements: true })).toBeTruthy();
   });
 });

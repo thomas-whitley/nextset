@@ -8,6 +8,8 @@ import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { spacing, radius, type, touch, HIT_SLOP } from '@/constants/theme';
 import Wordmark from '@/components/Wordmark';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
+import OrDivider from '@/components/OrDivider';
 
 export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
@@ -342,6 +344,9 @@ export default function SignUpScreen() {
               )}
             </View>
           )}
+
+          <GoogleSignInButton />
+          <OrDivider />
 
           <View style={styles.formSection}>
             <View style={styles.inputGroup}>
