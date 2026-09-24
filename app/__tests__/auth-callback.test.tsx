@@ -10,10 +10,14 @@ jest.mock('expo-router', () => ({
   router: { replace: jest.fn() },
 }));
 
+// The latest URL the app received. useURL() is the launch URL on first
+// render and misses the event that mounted this screen, so it must not be used.
 let mockUrl: string | null = null;
+const LAUNCH_URL = 'exp+momentum-gym-tracker://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081';
 jest.mock('expo-linking', () => ({
   __esModule: true,
-  useURL: () => mockUrl,
+  useLinkingURL: () => mockUrl,
+  useURL: () => LAUNCH_URL,
 }));
 
 let mockAuthListener: ((event: string) => void) | null = null;

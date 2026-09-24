@@ -5,9 +5,13 @@
  *
  * expo-router's `useLocalSearchParams` only parses the query string, so a
  * fragment is invisible to it. Screens handling an emailed auth link must
- * read the raw deep-link URL (via `useURL()` from expo-linking) and pull the
+ * read the raw deep-link URL (via `useLinkingURL()` from expo-linking) and pull the
  * values out with `parseAuthFragment`, or the tokens never arrive on native
  * and the link looks expired when it is perfectly valid.
+ *
+ * Not `useURL()`: a screen mounted *by* the deep link gets the launch URL
+ * from it and misses the event that mounted it, so a warm-start link is never
+ * seen. `useLinkingURL()` reads the latest URL Android delivered (onNewIntent).
  */
 export type AuthFragment = {
   access_token?: string;

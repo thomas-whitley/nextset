@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useURL } from 'expo-linking';
+import { useLinkingURL } from 'expo-linking';
 import { CircleAlert } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
 import { parseAuthFragment, sessionFromAuthFragment } from '@/data/authLink';
@@ -23,7 +23,7 @@ const DEFAULT_ERROR = "Google sign-in didn't finish. Go back and try again.";
  */
 export default function AuthCallbackScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const url = useURL();
+  const url = useLinkingURL();
 
   useEffect(() => {
     let settled = false;

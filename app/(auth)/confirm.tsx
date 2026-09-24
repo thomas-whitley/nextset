@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useURL } from 'expo-linking';
+import { useLinkingURL } from 'expo-linking';
 import { MailCheck } from 'lucide-react-native';
 import { supabase } from '@/data/supabase-client';
 import { parseAuthFragment, sessionFromAuthFragment } from '@/data/authLink';
@@ -16,7 +16,7 @@ export default function ConfirmEmailScreen() {
   const [sessionError, setSessionError] = useState(false);
   const [errorMessage, setErrorMessage] = useState(DEFAULT_ERROR);
   const params = useLocalSearchParams();
-  const url = useURL();
+  const url = useLinkingURL();
 
   const accessParam = typeof params.access_token === 'string' ? params.access_token : undefined;
   const refreshParam = typeof params.refresh_token === 'string' ? params.refresh_token : undefined;
