@@ -94,16 +94,13 @@ export default function LoginScreen() {
     setError(null);
 
     try {
-      console.log('Starting login process...');
-      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+      const { error: loginError } = await supabase.auth.signInWithPassword({
         email: formData.email.trim(),
         password: formData.password,
       });
 
-      console.log('Login response:', { data, error: loginError });
-
       if (loginError) {
-        console.error('Login error:', loginError);
+        console.error('Login error:', loginError.message);
 
         // Handle specific error cases
         if (loginError.message.includes('Invalid login credentials') ||
@@ -134,11 +131,6 @@ export default function LoginScreen() {
         return;
       }
 
-      if (data.user && data.session) {
-        // Successfully logged in - navigation will be handled by auth state change
-        console.log('Login successful');
-        // The AuthProvider will handle navigation automatically
-      }
     } catch (error: any) {
       console.error('Unexpected error:', error);
       setError('An unexpected error occurred. Please try again.');

@@ -120,8 +120,6 @@ export default function SignUpScreen() {
     setError(null);
 
     try {
-      console.log('Starting signup process...');
-
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password,
