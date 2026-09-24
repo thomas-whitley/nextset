@@ -21,9 +21,11 @@ and PR #9's A4 check.
 | UI | A white, outlined button, ≥ 48 dp (`touch.min`), with the multicolour Google "G" (inline `react-native-svg`) and the label "Continue with Google", above the email form with an "or" divider. Same component on login and signup. |
 | Profile | No prefill and no migration: a Google user starts like an email user (the trigger inserts `id, email`). |
 | Logging | A separate commit first removes the login path's `console.log` of the sign-in response (it contained access and refresh tokens) and the other chatty logs. The new code never logs URLs, because the fragment carries the tokens. |
-| Consent screen | Production. Scopes `openid email profile`. No logo (a logo would need brand verification). App name "NextSet". The chooser shows "to continue to rfyucjisdtpukabqhohc.supabase.co" until a custom domain is set up. |
+| Consent screen | Google Cloud project `nextset-509606`, External, app name "NextSet", scopes `openid email profile`, no logo. **Still in Testing** (set up 2026-09-24): Google won't publish until the Branding page is complete (home page and privacy policy links), so only listed test users can sign in. Publish once those links exist; the Supabase site URL already points at a `nextset-legal` page. The chooser shows "to continue to rfyucjisdtpukabqhohc.supabase.co" until a custom domain is set up. |
 
 ## Owner steps (outside the code)
+
+Steps 1–3 were done on 2026-09-24 (the Web client is "NextSet Supabase", one test user is added, and `momentum://auth-callback` is in the allow-list).
 
 1. Google Cloud: set up the consent screen as above, then create an OAuth client of type **Web application** with the
    authorised redirect URI `https://rfyucjisdtpukabqhohc.supabase.co/auth/v1/callback`.
