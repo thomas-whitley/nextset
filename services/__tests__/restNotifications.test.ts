@@ -10,6 +10,7 @@ import {
   markRestPermissionAsked,
   openExactAlarmSettingsOnce,
   openExactAlarmSettings,
+  installForegroundHandler,
 } from '../restNotifications';
 
 jest.mock('expo-intent-launcher', () => ({
@@ -133,5 +134,24 @@ describe('openExactAlarmSettings', () => {
 
     expect(await openExactAlarmSettings()).toBe(false);
     expect(IntentLauncher.startActivityAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe('installForegroundHandler', () => {
+  const originalOS = Platform.OS;
+  afterEach(() => { Platform.OS = originalOS; });
+
+  // A channel's `sound` is a raw-resource filename, not a keyword: 'default' made
+  // expo-notifications log "Custom sound 'default' not found" on every launch.
+  // Omitting it gives the system default sound.
+  it('creates the Android rest channel without a custom sound name', () => {
+    Platform.OS = 'android';
+    installForegroundHandler();
+    expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'rest-timer',
+      expect.objectContaining({ name: 'Rest timer', importance: Notifications.AndroidImportance.HIGH }),
+    );
+    const options = (Notifications.setNotificationChannelAsync as jest.Mock).mock.calls[0][1];
+    expect(options).not.toHaveProperty('sound');
   });
 });

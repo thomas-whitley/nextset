@@ -34,7 +34,9 @@ export function installForegroundHandler(): void {
     handleNotification: async () => ({ shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: false, shouldShowList: false }),
   });
   if (Platform.OS === 'android') {
-    void Notifications.setNotificationChannelAsync(CHANNEL, { name: 'Rest timer', importance: Notifications.AndroidImportance.HIGH, sound: 'default' });
+    // No `sound`: on a channel it names a res/raw file, so 'default' logged "Custom sound not found".
+    // Left out, the channel uses the system default notification sound.
+    void Notifications.setNotificationChannelAsync(CHANNEL, { name: 'Rest timer', importance: Notifications.AndroidImportance.HIGH });
   }
 }
 
