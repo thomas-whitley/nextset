@@ -27,7 +27,7 @@ Tests: jest via `jest-expo` (`npm test`). CI (`.github/workflows/ci.yml`) runs l
 ### Routing
 
 Expo Router file-based routing under `app/`:
-- `app/(auth)/` — unauthenticated flow: login (`index`), signup, confirm, forgot/update password. There is no `welcome` screen; login is the entry point.
+- `app/(auth)/` — unauthenticated flow: login (`index`), signup, confirm, forgot/update password, `auth-callback` (where Google sign-in lands). There is no `welcome` screen; login is the entry point.
 - `app/(tabs)/` — main tab bar: home (`index`), programs, progress, profile
 - Modal screens at root: `workout`, `program-detail` (the day editor, `/program-detail?day=<workoutId>`), `workout-detail` (a saved workout, read-only, `/workout-detail?id=<historyId>`), `settings`, `edit-profile`, `aboutus`, `help-faq`. `/timer` (the standalone interval timer) was deleted 2026-09 (spec D2); the rest timer inside `workout.tsx` is the only timer now.
 
@@ -111,6 +111,7 @@ Supabase client is initialized in `data/supabase-client.ts` and throws if either
 - **A migration in git is not a migration in production.** `0005` sat committed but unapplied for three weeks. After adding one, run `npx supabase migration list` and check the Remote column, or the repo lies about the live schema.
 - **The Supabase Free project auto-pauses.** Symptom: the hostname stops resolving, the app shows the loading spinner ~30 s, then "Failed to fetch". Unpause in the dashboard; nothing in the code is wrong.
 - **Auth is implicit flow on purpose** (Plan B, 2026-09-17). Don't set `flowType: 'pkce'` without redoing the confirm / update-password link handling.
+- **Google sign-in is the browser flow, and `/auth-callback` alone sets the session** (spec `docs/specs/2026-09-24-google-sign-in.md`). On Android the `momentum://auth-callback#…` deep link reaches both the router and `openAuthSessionAsync`; `GoogleSignInButton` ignores the returned URL so the tokens are exchanged once. Any auth-link fragment goes through `sessionFromAuthFragment` (`data/authLink.ts`). Never log these URLs: the fragment holds the tokens. A Google account whose email matches a confirmed user signs into that user (Supabase auto-links); it does not create a second account.
 - **Set edits are debounced to the cloud, checkpointed locally at once.** `contexts/WorkoutContext.tsx` mutations read `currentWorkoutRef`, never the render closure; cloud writes go through `services/programSync.ts`. Call `flushProgramSync()` before anything that must see the latest program on the server.
 - **Rest notifications need a dev-client build.** `expo-notifications` is not in Expo Go; the banner works everywhere, the lock-screen alert only on a dev/preview build.
 - **Templates no longer prefill reps.** The target is `exercise.repsTarget` shown as ghost text; `set.reps` starts empty.
