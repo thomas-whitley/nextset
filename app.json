@@ -51,12 +51,20 @@
     "owner": "thomas-whitley",
     "android": {
       "package": "com.twhitley.momentumgymtracker",
-      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "monochromeImage": "./assets/images/adaptive-icon-mono.png",
         "backgroundColor": "#141517"
       }
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d9f2f4c3-2658-4eaf-8170-ed15a8ad784c"
     }
   }
 }
